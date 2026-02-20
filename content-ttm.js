@@ -1,12 +1,13 @@
 // content-ttm.js
 // Для сайта ttm.rt.ru
 // Добавляет кнопку для перехода на форму Ассистента
-// Версия 1.1 - исправлена проблема с появлением кнопки
+// Версия 1.2 - исправлена проблема с SPA навигацией
 
 // ==================== ПЕРЕМЕННЫЕ ====================
 let settings = { omnichatTemplates: true, ttmButton: true, accountingPanel: true };
 let isButtonAdded = false;
 let settingsLoaded = false;
+let lastUrl = window.location.href; // Отслеживание URL для SPA навигации
 
 // ==================== УТИЛИТЫ ====================
 function safelyExecute(callback, errorMsg = 'Ошибка') {
@@ -186,16 +187,61 @@ function openAssistantForm() {
 
 // ==================== ДОБАВЛЕНИЕ КНОПКИ ====================
 function tryAddButton() {
-  if (isButtonAdded || !settings.ttmButton || !settingsLoaded) return;
+  if (!settings.ttmButton || !settingsLoaded) return;
+  
+  // Проверяем, существует ли кнопка в DOM прямо сейчас
+  const existingButton = document.querySelector('[data-qa-id="assistant-form-btn"]');
+  if (existingButton) {
+    isButtonAdded = true;
+    return;
+  }
+  
+  // Сбрасываем флаг, так как кнопки нет в DOM
+  isButtonAdded = false;
   
   if (addButtonToToolbar()) {
     isButtonAdded = true;
   }
 }
 
+// ==================== ОТСЛЕЖИВАНИЕ SPA НАВИГАЦИИ ====================
+function checkUrlChange() {
+  const currentUrl = window.location.href;
+  if (currentUrl !== lastUrl) {
+    console.log('URL изменился:', lastUrl, '->', currentUrl);
+    lastUrl = currentUrl;
+    // Сбрасываем флаг при смене URL
+    isButtonAdded = false;
+    // Пробуем добавить кнопку на новой странице
+    setTimeout(tryAddButton, 500);
+    setTimeout(tryAddButton, 1500);
+    setTimeout(tryAddButton, 3000);
+  }
+}
+
+// Периодическая проверка изменения URL (для SPA)
+setInterval(checkUrlChange, 500);
+
+// Также слушаем события history API
+const originalPushState = history.pushState;
+const originalReplaceState = history.replaceState;
+
+history.pushState = function(...args) {
+  originalPushState.apply(history, args);
+  checkUrlChange();
+};
+
+history.replaceState = function(...args) {
+  originalReplaceState.apply(history, args);
+  checkUrlChange();
+};
+
+window.addEventListener('popstate', checkUrlChange);
+window.addEventListener('hashchange', checkUrlChange);
+
 // ==================== ИНИЦИАЛИЗАЦИЯ ====================
 function init() {
-  console.log('TTM Extension v1.1');
+  console.log('TTM Extension v1.2 - SPA Navigation Fix');
   
   // Загружаем настройки и сразу пытаемся добавить кнопку
   chrome.storage.local.get(['settings'], (result) => {
