@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "Better Volga",
+  "version": "0.2",
+  "description": "Удобное хранение собственных шаблонов омничат \nБыстрый переход из ТТМ в форму ассистент \nУдобный учёт заявок",
+  "permissions": ["storage", "tabs"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Управление расширением"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["icon.png", "edit.png", "delete.png", "copy.png", "paste.png"],
+      "matches": ["https://omnichat.rt.ru/*", "https://www.ttm.rt.ru/*", "https://bzbti.rt.ru/*"]
+    }
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://omnichat.rt.ru/*"],
+      "js": ["content-omnichat.js", "content-accounting.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.ttm.rt.ru/*"],
+      "js": ["content-ttm.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://bzbti.rt.ru/vip/ispolzovanie-assistenta/*"],
+      "js": ["content-form.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "host_permissions": [
+    "https://omnichat.rt.ru/*",
+    "https://www.ttm.rt.ru/*",
+    "https://bzbti.rt.ru/*"
+  ]
+}

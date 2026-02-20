@@ -1,0 +1,871 @@
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    * { box-sizing: border-box; }
+    
+    body {
+      width: 450px;
+      min-height: 450px;
+      margin: 0;
+      padding: 16px;
+      font-family: Rostelecom Basis, Arial, sans-serif;
+      background: #f5f9fc;
+      color: #1a1a1a;
+    }
+
+    /* Табы */
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid #c0d3e2;
+      margin-bottom: 16px;
+    }
+    
+    .tab {
+      padding: 8px 16px;
+      cursor: pointer;
+      border: none;
+      background: none;
+      font-size: 14px;
+      color: #666;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    
+    .tab:hover {
+      color: #007bff;
+    }
+    
+    .tab.active {
+      color: #007bff;
+      border-bottom-color: #007bff;
+    }
+    
+    .tab-content {
+      display: none;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 18px;
+      color: #1a1a1a;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .filter-container {
+      position: relative;
+    }
+
+    .filter-select {
+      padding: 8px 30px 8px 12px;
+      border: 1px solid #c0d3e2;
+      border-radius: 4px;
+      background: white;
+      font-size: 14px;
+      cursor: pointer;
+      appearance: none;
+      min-width: 140px;
+      height: 36px;
+    }
+
+    .filter-arrow {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      pointer-events: none;
+      color: #666;
+    }
+
+    .add-btn {
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 14px;
+      height: 36px;
+    }
+
+    .add-btn:hover {
+      background: #0056b3;
+    }
+
+    .templates-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 350px;
+      overflow-y: auto;
+    }
+
+    .template-item {
+      background: white;
+      border: 1px solid #c0d3e2;
+      border-radius: 6px;
+      padding: 12px;
+      position: relative;
+    }
+
+    .template-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+
+    .template-title {
+      font-weight: bold;
+      margin: 0;
+      font-size: 14px;
+      color: #1a1a1a;
+      flex: 1;
+      padding-right: 8px;
+    }
+
+    .template-group {
+      font-size: 11px;
+      color: #666;
+      background: #f0f0f0;
+      padding: 2px 6px;
+      border-radius: 3px;
+      margin-top: 4px;
+      display: inline-block;
+    }
+
+    .template-actions {
+      display: flex;
+      gap: 4px;
+    }
+
+    .action-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 3px;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .action-btn img {
+      width: 16px;
+      height: 16px;
+      display: block;
+    }
+
+    .edit-btn:hover { background: #e6f0fa; }
+    .delete-btn:hover { background: #f8d7da; }
+    .copy-btn:hover { background: #e6f7ec; }
+    .paste-btn:hover { background: #e6f0fa; }
+
+    .template-body {
+      font-size: 12px;
+      color: #666;
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* Модальные окна */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .modal {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      width: 380px;
+      max-width: 90vw;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .modal-title {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      color: #666;
+    }
+
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #c0d3e2;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 14px;
+    }
+
+    textarea {
+      height: 100px;
+      resize: vertical;
+    }
+
+    .form-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .cancel-btn {
+      background: #6c757d;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .save-btn {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .empty-state {
+      text-align: center;
+      color: #666;
+      padding: 40px 20px;
+    }
+
+    .empty-state p {
+      margin: 8px 0;
+    }
+
+    .group-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .group-item:last-child {
+      border-bottom: none;
+    }
+
+    .group-actions {
+      display: flex;
+      gap: 4px;
+    }
+
+    .manage-groups-option {
+      border-top: 1px solid #c0d3e2;
+      margin-top: 4px;
+      padding-top: 4px;
+      font-style: italic;
+    }
+
+    /* Настройки */
+    .settings-section {
+      margin-bottom: 20px;
+    }
+    
+    .settings-title {
+      font-size: 14px;
+      font-weight: bold;
+      margin-bottom: 12px;
+      color: #1a1a1a;
+    }
+    
+    .setting-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px;
+      background: white;
+      border: 1px solid #c0d3e2;
+      border-radius: 6px;
+      margin-bottom: 8px;
+    }
+    
+    .setting-label {
+      font-size: 14px;
+      color: #333;
+    }
+    
+    .setting-description {
+      font-size: 12px;
+      color: #666;
+      margin-top: 4px;
+    }
+    
+    /* Переключатель */
+    .toggle-switch {
+      position: relative;
+      width: 44px;
+      height: 24px;
+    }
+    
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: 0.3s;
+      border-radius: 24px;
+    }
+    
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: 0.3s;
+      border-radius: 50%;
+    }
+    
+    .toggle-switch input:checked + .toggle-slider {
+      background-color: #007bff;
+    }
+    
+    .toggle-switch input:checked + .toggle-slider:before {
+      transform: translateX(20px);
+    }
+    
+    /* Сохраненные данные */
+    .saved-data-section {
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid #c0d3e2;
+    }
+    
+    .saved-data-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+    }
+    
+    .saved-data-label {
+      font-size: 12px;
+      color: #666;
+    }
+    
+    .saved-data-value {
+      font-size: 12px;
+      color: #333;
+      font-weight: 500;
+    }
+    
+    .clear-data-btn {
+      background: #dc3545;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      margin-top: 12px;
+    }
+    
+    .clear-data-btn:hover {
+      background: #c82333;
+    }
+
+    /* ==========================================================================
+       ВКЛАДКА УЧЁТ ЗАЯВОК
+       ========================================================================== */
+    
+    /* Дата */
+    .date-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: #e6f0fa;
+      border-radius: 6px;
+      margin-bottom: 12px;
+      font-size: 13px;
+      color: #333;
+    }
+    
+    .date-row strong {
+      color: #007bff;
+    }
+    
+    /* Форма */
+    .tickets-form label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 4px;
+    }
+    
+    .tickets-form input[type="text"],
+    .tickets-form textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #c0d3e2;
+      border-radius: 6px;
+      font-size: 14px;
+      margin-bottom: 10px;
+      font-family: inherit;
+      box-sizing: border-box;
+      background: white;
+      color: #333;
+    }
+    
+    .tickets-form textarea {
+      resize: vertical;
+      min-height: 50px;
+    }
+    
+    .time-inputs {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    
+    .time-group {
+      flex: 1;
+    }
+    
+    .time-group label {
+      display: block;
+      font-size: 11px;
+      color: #666;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    
+    .time-group input[type="number"] {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #c0d3e2;
+      border-radius: 6px;
+      font-size: 14px;
+      text-align: center;
+      background: white;
+      color: #333;
+    }
+    
+    /* Кнопки */
+    .tickets-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    
+    .tickets-buttons button {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .tickets-buttons .primary {
+      background: #28a745;
+      color: white;
+    }
+    
+    .tickets-buttons .primary:hover {
+      background: #218838;
+    }
+    
+    .tickets-buttons .warning {
+      background: #ffc107;
+      color: #333;
+    }
+    
+    .tickets-buttons .warning:hover {
+      background: #e0a800;
+    }
+    
+    .tickets-buttons .danger {
+      background: #dc3545;
+      color: white;
+    }
+    
+    .tickets-buttons .danger:hover {
+      background: #c82333;
+    }
+    
+    /* Статистика */
+    .tickets-stats {
+      display: flex;
+      justify-content: space-around;
+      padding: 12px;
+      background: white;
+      border: 1px solid #c0d3e2;
+      border-radius: 6px;
+      margin-bottom: 8px;
+    }
+    
+    .tickets-stats div {
+      text-align: center;
+      font-size: 12px;
+      color: #333;
+    }
+    
+    .tickets-stats strong {
+      display: block;
+      font-size: 18px;
+      margin-top: 4px;
+    }
+    
+    /* Показатели */
+    .tickets-performance,
+    .tickets-closure {
+      padding: 10px 12px;
+      font-size: 12px;
+      color: #333;
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
+      border-radius: 6px;
+      margin-bottom: 8px;
+    }
+    
+    /* Лента событий */
+    .tickets-list-section {
+      margin-top: 12px;
+    }
+    
+    .tickets-list-section h4 {
+      font-size: 12px;
+      color: #666;
+      margin: 0 0 8px 0;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    
+    .tickets-entries {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      max-height: 150px;
+      overflow-y: auto;
+      border: 1px solid #c0d3e2;
+      border-radius: 6px;
+      background: white;
+    }
+    
+    .tickets-entries li {
+      padding: 8px 12px;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 12px;
+      color: #333;
+    }
+    
+    .tickets-entries li:last-child {
+      border-bottom: none;
+    }
+    
+    /* Нижние кнопки */
+    .tickets-footer {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    
+    .tickets-footer button {
+      flex: 1;
+      padding: 10px 12px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .tickets-footer .success {
+      background: #17a2b8;
+      color: white;
+    }
+    
+    .tickets-footer .success:hover {
+      background: #138496;
+    }
+    
+    .tickets-footer .accent {
+      background: #6c757d;
+      color: white;
+    }
+    
+    .tickets-footer .accent:hover {
+      background: #5a6268;
+    }
+  </style>
+</head>
+<body>
+  <!-- Табы -->
+  <div class="tabs">
+    <button class="tab active" data-tab="templates">Шаблоны</button>
+    <button class="tab" data-tab="tickets">Учёт заявок</button>
+    <button class="tab" data-tab="settings">Настройки</button>
+  </div>
+  
+  <!-- Контент: Шаблоны -->
+  <div id="templates-tab" class="tab-content active">
+    <div class="header">
+      <h1>Мои шаблоны</h1>
+      <div class="header-right">
+        <div class="filter-container">
+          <select class="filter-select" id="groupFilter">
+            <option value="">Все группы</option>
+          </select>
+          <div class="filter-arrow">▼</div>
+        </div>
+        <button class="add-btn" id="addTemplateBtn">+ Добавить</button>
+      </div>
+    </div>
+
+    <div class="templates-list" id="templatesList">
+      <!-- Шаблоны будут загружаться здесь -->
+    </div>
+  </div>
+  
+  <!-- Контент: Учёт заявок -->
+  <div id="tickets-tab" class="tab-content">
+    <div class="header">
+      <h1>📊 Учёт заявок</h1>
+    </div>
+
+    <div class="date-row">
+      <span>Текущая дата:</span>
+      <strong id="currentDate">...</strong>
+    </div>
+
+    <div class="tickets-form">
+      <label>Номер заявки</label>
+      <input type="text" id="ticketNumber" placeholder="Например, 12345">
+      
+      <label>Комментарий (необязательно)</label>
+      <textarea id="ticketComment" rows="2" placeholder="Кратко опишите..."></textarea>
+      
+      <div class="time-inputs">
+        <div class="time-group">
+          <label>Отработано часов</label>
+          <input type="number" id="workHours" min="0" max="24" value="0">
+        </div>
+        <div class="time-group">
+          <label>Отработано минут</label>
+          <input type="number" id="workMinutes" min="0" max="59" value="0">
+        </div>
+      </div>
+      
+      <div class="tickets-buttons">
+        <button id="addClosed" class="primary">✅ Добавить: Закрыто</button>
+        <button id="addField" class="warning">🚗 Добавить: На выезд</button>
+        <button id="removeLast" class="danger">🗑️ Убрать прошлую запись</button>
+      </div>
+    </div>
+
+    <div class="tickets-stats">
+      <div>✅ Закрыто<br><strong id="countClosed">0</strong></div>
+      <div>🚗 На выезд<br><strong id="countField">0</strong></div>
+      <div>📊 Всего<br><strong id="countTotal">0</strong></div>
+    </div>
+    
+    <div class="tickets-performance" id="performance">Производительность: —</div>
+    <div class="tickets-closure" id="closurePercent">Процент закрытия: 0%</div>
+
+    <div class="tickets-list-section">
+      <h4>📋 Заявки за день</h4>
+      <ul class="tickets-entries" id="entries">
+        <li>Загрузка...</li>
+      </ul>
+    </div>
+
+    <div class="tickets-footer">
+      <button id="startNewDay" class="success">🔄 Начать смену</button>
+      <button id="finishDay" class="accent">📥 Скачать отчёт</button>
+    </div>
+  </div>
+  
+  <!-- Контент: Настройки -->
+  <div id="settings-tab" class="tab-content">
+    <div class="settings-section">
+      <div class="settings-title">Функционал расширения</div>
+      
+      <div class="setting-item">
+        <div>
+          <div class="setting-label">Шаблоны Omnichat</div>
+          <div class="setting-description">Добавляет вкладку "Дополнительно" с вашими шаблонами</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="settingOmnichatTemplates" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      
+      <div class="setting-item">
+        <div>
+          <div class="setting-label">Кнопка TTM → Форма</div>
+          <div class="setting-description">Добавляет кнопку для заполнения формы Ассистента</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="settingTTMButton" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      
+      <div class="setting-item">
+        <div>
+          <div class="setting-label">Панель "Учёт заявок"</div>
+          <div class="setting-description">Боковая панель на странице Omnichat для учёта заявок</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="settingAccountingPanel" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+    
+    <div class="settings-section">
+      <div class="settings-title">Сохраненные данные</div>
+      
+      <div class="saved-data-item">
+        <span class="saved-data-label">Регион:</span>
+        <span class="saved-data-value" id="savedRegion">-</span>
+      </div>
+      
+      <div class="saved-data-item">
+        <span class="saved-data-label">ФИО:</span>
+        <span class="saved-data-value" id="savedFIO">-</span>
+      </div>
+      
+      <button class="clear-data-btn" id="clearSavedData">Очистить сохраненные данные</button>
+    </div>
+  </div>
+
+  <!-- Модальное окно добавления/редактирования шаблона -->
+  <div class="modal-overlay" id="modalOverlay" style="display: none;">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modalTitle">Добавить шаблон</h3>
+        <button class="close-btn" id="closeModalBtn">&times;</button>
+      </div>
+      <form id="templateForm">
+        <input type="hidden" id="templateId">
+        <div class="form-group">
+          <label for="templateName">Название шаблона</label>
+          <input type="text" id="templateName" required maxlength="100">
+        </div>
+        <div class="form-group">
+          <label for="templateGroup">Группа</label>
+          <select id="templateGroup">
+            <option value="">Без группы</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="templateText">Текст шаблона</label>
+          <textarea id="templateText" required></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="cancel-btn" id="cancelBtn">Отмена</button>
+          <button type="submit" class="save-btn">Сохранить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Модальное окно управления группами -->
+  <div class="modal-overlay" id="groupsModalOverlay" style="display: none;">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Управление группами</h3>
+        <button class="close-btn" id="closeGroupsModalBtn">&times;</button>
+      </div>
+      <div class="form-group">
+        <label for="newGroupName">Новая группа</label>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="newGroupName" placeholder="Введите название группы" style="flex: 1;">
+          <button class="add-btn" id="addGroupBtn" style="width: auto;">Добавить</button>
+        </div>
+      </div>
+      <div class="groups-list" id="groupsList" style="max-height: 200px; overflow-y: auto; margin-top: 16px;">
+        <!-- Список групп будет загружаться здесь -->
+      </div>
+      <div class="form-actions">
+        <button type="button" class="cancel-btn" id="closeGroupsModalBtn2">Закрыть</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
