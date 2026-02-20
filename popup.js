@@ -226,7 +226,7 @@ clearSavedDataBtn.addEventListener('click', () => {
   }
 });
 
-// ==================== УЧЁТ ЗАЯВОК ====================
+// ==================== УЧЁТ ЗАЯВОК (обновлено с отображением минут в производительности) ====================
 function updateTicketsUI(date, data) {
   if (!data) data = { entries: [], hours: 0, minutes: 0 };
   ticketEls.currentDate.textContent = date;
@@ -252,7 +252,8 @@ function updateTicketsUI(date, data) {
     const lunch = totalH >= 12 ? 1.75 : 0.75;
     const work = totalH - lunch;
     const perf = work > 0 ? (entries.length / work).toFixed(2) : 0;
-    ticketEls.performance.textContent = `Производительность: ${perf}`;
+    // Отображаем производительность с указанием часов и минут в скобках
+    ticketEls.performance.textContent = `Производительность: ${perf} (за ${h}ч ${m}м)`;
   } else {
     ticketEls.performance.textContent = 'Производительность: —';
   }

@@ -1,6 +1,6 @@
 // content-accounting.js
 // Боковая панель "Учёт заявок" для сайта omnichat.rt.ru
-// Версия 2.0 - улучшенные стили
+// Версия 2.4 – минуты и процент, производительность со скобками
 
 (() => {
   'use strict';
@@ -46,43 +46,33 @@
   };
 
   const detectTheme = () => {
-    // 1. Проверяем style attribute на body
     const bodyStyle = document.body.getAttribute('style') || '';
     if (bodyStyle.includes('color-scheme: dark')) return true;
     if (bodyStyle.includes('color-scheme: light')) return false;
 
-    // 2. Проверяем известные классы темной темы
     const darkClasses = ['huKXZo', 'boAFNW', 'gTOzCX', 'bBfYSh'];
     for (const cls of darkClasses) {
       if (document.querySelector(`[class*="${cls}"]`)) return true;
     }
 
-    // 3. Проверяем цвет ТЕКСТА на body 
     const bodyColor = getComputedStyle(document.body).color;
     const textBrightness = getColorBrightness(bodyColor);
     if (textBrightness !== null && textBrightness > 200) return true;
 
-    // 4. Проверяем цвет ФОНА
     const bodyBg = getComputedStyle(document.body).backgroundColor;
     const bgBrightness = getColorBrightness(bodyBg);
     if (bgBrightness !== null && bgBrightness < 50) return true;
 
-    // 5. Фоллбэк: ищем большие темные блоки
     const allDivs = document.querySelectorAll('div');
-    
     for (let i = 0; i < Math.min(allDivs.length, 50); i++) {
       const div = allDivs[i];
       if (div.closest('.tickets-sidebar') || div.closest('.tickets-toggle-btn')) continue;
-      
       const rect = div.getBoundingClientRect();
       if (rect.width < 300 || rect.height < 300) continue; 
-      
       const bg = getComputedStyle(div).backgroundColor;
       const b = getColorBrightness(bg);
-      
       if (b !== null && b < 60) return true; 
     }
-    
     return false;
   };
 
@@ -99,7 +89,7 @@
     applyTheme(dark);
   };
 
-  // ==================== СТИЛИ ====================
+  // ==================== СТИЛИ (кнопки как в старой версии) ====================
   const injectStyles = () => {
     if (document.getElementById('accounting-styles')) return;
     
@@ -107,7 +97,7 @@
     style.id = 'accounting-styles';
     style.textContent = `
       /* ==========================================================================
-         1. КНОПКА ОТКРЫТИЯ/ЗАКРЫТИЯ ПАНЕЛИ
+         1. КНОПКА ОТКРЫТИЯ/ЗАКРЫТИЯ ПАНЕЛИ (без изменений)
          ========================================================================== */
       .tickets-toggle-btn {
         position: fixed !important;
@@ -184,7 +174,7 @@
       }
 
       /* ==========================================================================
-         2. БОКОВАЯ ПАНЕЛЬ (КОМПАКТНАЯ)
+         2. БОКОВАЯ ПАНЕЛЬ 
          ========================================================================== */
       .tickets-sidebar {
         position: fixed;
@@ -211,12 +201,10 @@
         clip-path: inset(0 0 0 0);
       }
 
-      /* Все дочерние элементы без собственных transition */
       .tickets-sidebar * {
         transition: none !important;
       }
 
-      /* Восстанавливаем transition только для интерактивных элементов */
       .tickets-sidebar button {
         transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.1s ease !important;
       }
@@ -252,13 +240,16 @@
         resize: none;
       }
 
+      /* Поля ввода времени */
       .tickets-sidebar .time-inputs {
         display: flex;
         gap: 8px;
         margin-bottom: 12px;
       }
 
-      .tickets-sidebar .time-group { flex: 1; }
+      .tickets-sidebar .time-group {
+        flex: 1;
+      }
 
       .tickets-sidebar .time-group label {
         font-size: 10px !important;
@@ -271,30 +262,29 @@
       }
 
       /* ==========================================================================
-         3. КНОПКИ ПАНЕЛИ
+         3. КНОПКИ ПАНЕЛИ (как в старой версии – прозрачные с обводкой)
          ========================================================================== */
       .tickets-sidebar .buttons {
         display: flex;
-        flex-direction: column;
         gap: 6px;
         margin: 12px 0;
       }
 
-      .tickets-sidebar .buttons button {
+      .tickets-sidebar button {
         width: 100%;
+        cursor: pointer;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: none !important;
+      }
+
+      .tickets-sidebar .buttons button {
         padding: 10px 8px !important;
         font-size: 12px !important;
         font-weight: 600;
         border-radius: 6px;
-        cursor: pointer;
-        border: none !important;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-
-      .tickets-sidebar button:active {
-        transform: scale(0.98);
       }
 
       /* Закрыто (Primary) */
@@ -452,7 +442,7 @@
       .tickets-sidebar .list li:last-child { border-bottom: none; }
 
       /* ==========================================================================
-         5. ТЕМНАЯ ТЕМА
+         5. ТЕМНАЯ ТЕМА (кнопки как в старой версии)
          ========================================================================== */
       .tickets-sidebar.dark-theme {
         background: #1a1a1a !important;
@@ -519,7 +509,7 @@
         color: #d1d5db !important; 
       }
 
-      /* Кнопки в темной теме */
+      /* Кнопки в тёмной теме (прозрачные с обводкой) */
       .tickets-sidebar.dark-theme button.primary { 
         background-color: transparent !important; 
         border: 1px solid #10b981 !important; 
@@ -649,7 +639,8 @@
       const lunch = totalH >= 12 ? 1.75 : 0.75;
       const workTime = totalH - lunch;
       const perf = workTime > 0 ? (totalCount / workTime).toFixed(2) : 0;
-      els.perf.textContent = `Производительность: ${perf}`;
+      // Формат как в старой версии: "Производительность: 4.39 (за 12ч 10м)"
+      els.perf.textContent = `Производительность: ${perf} (за ${hours}ч ${minutes}м)`;
     } else {
       els.perf.textContent = 'Производительность: —';
     }
@@ -736,7 +727,8 @@
       });
       
       $('sidebar-ticketNumber').value = ''; $('sidebar-ticketComment').value = '';
-      $('sidebar-workHours').value = 0; $('sidebar-workMinutes').value = 0;
+      $('sidebar-workHours').value = 0;
+      $('sidebar-workMinutes').value = 0;
     },
 
     exportCSV: async () => {
@@ -763,16 +755,12 @@
   // ==================== СЛУШАТЕЛЬ STORAGE ====================
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local') {
-      // Проверяем изменение настроек
       if (changes.settings) {
         const newSettings = changes.settings.newValue;
         settings = newSettings;
-        
-        // Если панель отключена - удаляем её
         if (!newSettings.accountingPanel && isInitialized) {
           removeSidebar();
         }
-        // Если панель включена - создаём
         if (newSettings.accountingPanel && !isInitialized) {
           createSidebar();
         }
@@ -833,10 +821,10 @@
         </div>
         <div class="performance" id="sidebar-performance">Производительность: —</div>
         <div class="closure-percent" id="sidebar-closurePercent">Процент закрытия: 0%</div>
-        <div class="list"><h4>📋 Лента событий</h4><ul id="sidebar-entries"><li>Загрузка...</li></ul></div>
+        <div class="list"><h4>📋 Лента событий:</h4><ul id="sidebar-entries"><li>Загрузка...</li></ul></div>
         <div class="footer-buttons">
           <button id="sidebar-startNewDay" class="success">🔄 Новый день</button>
-          <button id="sidebar-finishDay" class="accent">📥 Отчет</button>
+          <button id="sidebar-finishDay" class="accent">📥 Скачать отчет</button>
         </div>
       </div>
     `);
@@ -869,16 +857,14 @@
     Logic.init();
     isInitialized = true;
     
-    // Таймер для проверки темы (раз в 0.8с)
     setInterval(checkAndApplyTheme, 800);
     setTimeout(checkAndApplyTheme, 1000);
   };
 
   // ==================== ИНИЦИАЛИЗАЦИЯ ====================
   const init = () => {
-    console.log('Accounting Panel v2.0');
+    console.log('Accounting Panel v2.4');
     
-    // Загружаем настройки
     chrome.storage.local.get(['settings'], (result) => {
       settings = result.settings || { omnichatTemplates: true, ttmButton: true, accountingPanel: true };
       
@@ -888,14 +874,12 @@
     });
   };
 
-  // ==================== ЗАПУСК ====================
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
     init();
   }
 
-  // Observer для динамической инициализации
   new MutationObserver(() => {
     if (!isInitialized && settings.accountingPanel) {
       createSidebar();
