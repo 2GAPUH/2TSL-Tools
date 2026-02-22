@@ -4,14 +4,23 @@
   <style>
     * { box-sizing: border-box; }
     
-    body {
+    html, body {
       width: 450px;
-      min-height: 450px;
+      min-height: 100px;
       margin: 0;
-      padding: 16px;
+      padding: 8px;
       font-family: Rostelecom Basis, Arial, sans-serif;
       background: #f5f9fc;
       color: #1a1a1a;
+      overflow-x: hidden;
+    }
+    
+    html {
+      height: fit-content;
+    }
+    
+    body {
+      height: fit-content;
     }
 
     /* Табы */
@@ -43,10 +52,36 @@
     
     .tab-content {
       display: none;
+      overflow: hidden;
     }
     
     .tab-content.active {
       display: block;
+    }
+    
+    /* Фиксированная высота вкладок для корректного размера popup */
+    #templates-tab.active {
+      max-height: 520px;
+      overflow-y: auto;
+    }
+    
+    #tickets-tab.active {
+      max-height: 520px;
+      overflow-y: auto;
+    }
+    
+    #settings-tab.active {
+      max-height: 520px;
+      overflow-y: auto;
+    }
+
+    /* Фикс для размеров popup */
+    .tab-content.active > *:first-child {
+      margin-top: 0;
+    }
+    
+    .tab-content.active > *:last-child {
+      margin-bottom: 0;
     }
 
     .header {
@@ -442,145 +477,176 @@
     }
 
     /* ==========================================================================
-       ВКЛАДКА УЧЁТ ЗАЯВОК (Как в ориге)
+       ВКЛАДКА УЧЁТ ЗАЯВОК
        ========================================================================== */
+    
+    /* Дата */
     .date-row {
       display: flex;
       justify-content: space-between;
-      background: #f6f6f6;
-      padding: 8px;
+      padding: 8px 12px;
+      background: #e6f0fa;
       border-radius: 6px;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
+      font-size: 13px;
+      color: #333;
     }
-
-    .form label {
-      display: block;
+    
+    .date-row strong {
+      color: #007bff;
+    }
+    
+    /* Форма */
+    .tickets-form label {
       font-size: 12px;
-      margin-bottom: 8px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 4px;
     }
-
-    input, textarea, select {
+    
+    .tickets-form input[type="text"],
+    .tickets-form textarea {
       width: 100%;
-      box-sizing: border-box;
-      padding: 8px;
-      margin-top: 4px;
+      padding: 10px 12px;
       border: 1px solid #c0d3e2;
       border-radius: 6px;
-      font-size: 13px;
+      font-size: 14px;
+      margin-bottom: 10px;
       font-family: inherit;
+      box-sizing: border-box;
+      background: white;
+      color: #333;
     }
-
-    textarea {
-      height: 60px;
+    
+    .tickets-form textarea {
       resize: vertical;
+      min-height: 50px;
     }
-
+    
     .time-inputs {
       display: flex;
       gap: 12px;
-      margin-bottom: 8px;
+      margin-bottom: 12px;
     }
-
+    
     .time-group {
       flex: 1;
     }
-
+    
     .time-group label {
       display: block;
-      font-size: 12px;
+      font-size: 11px;
+      color: #666;
       margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
     }
-
-    .time-group input {
+    
+    .time-group input[type="number"] {
       width: 100%;
-      padding: 8px;
+      padding: 10px;
       border: 1px solid #c0d3e2;
       border-radius: 6px;
-      font-size: 13px;
-      font-family: inherit;
-    }
-
-    .buttons {
-      display: flex;
-      gap: 8px;
-      margin-top: 8px;
-      flex-wrap: wrap;
-    }
-
-    button {
-      cursor: pointer;
-      border: 0;
-      border-radius: 6px;
-      padding: 8px 10px;
-      font-size: 13px;
-      transition: background-color 0.2s;
-    }
-
-    .primary {
-      background: #2563eb;
-      color: white;
-    }
-    .primary:hover {
-      background: #1d4ed8;
-    }
-
-    .warning {
-      background: #f59e0b;
-      color: #111827;
-    }
-    .warning:hover {
-      background: #d97706;
-    }
-
-    .danger {
-      background: #ef4444;
-      color: white;
-    }
-    .danger:hover {
-      background: #dc2626;
-    }
-
-    .success {
-      background: #10b981;
-      color: white;
-    }
-    .success:hover {
-      background: #059669;
-    }
-
-    .accent {
-      background: #7c3aed;
-      color: white;
-    }
-    .accent:hover {
-      background: #6d28d9;
-    }
-
-    .stats {
-      display: flex;
-      gap: 12px;
-      margin-top: 12px;
-      flex-wrap: wrap;
-    }
-
-    .performance, .closure-percent {
-      margin-top: 8px;
-      padding: 8px;
-      background: #f8f9fa;
-      border-radius: 4px;
-      font-size: 13px;
-    }
-
-    .list {
-      margin-top: 16px;
-    }
-
-    .list h2 {
       font-size: 14px;
+      text-align: center;
+      background: white;
+      color: #333;
+    }
+    
+    /* Кнопки */
+    .tickets-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    
+    .tickets-buttons button {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .tickets-buttons .primary {
+      background: #28a745;
+      color: white;
+    }
+    
+    .tickets-buttons .primary:hover {
+      background: #218838;
+    }
+    
+    .tickets-buttons .warning {
+      background: #ffc107;
+      color: #333;
+    }
+    
+    .tickets-buttons .warning:hover {
+      background: #e0a800;
+    }
+    
+    .tickets-buttons .danger {
+      background: #dc3545;
+      color: white;
+    }
+    
+    .tickets-buttons .danger:hover {
+      background: #c82333;
+    }
+    
+    /* Статистика */
+    .tickets-stats {
+      display: flex;
+      justify-content: space-around;
+      padding: 12px;
+      background: white;
+      border: 1px solid #c0d3e2;
+      border-radius: 6px;
       margin-bottom: 8px;
     }
-
-    .list ul {
+    
+    .tickets-stats div {
+      text-align: center;
+      font-size: 12px;
+      color: #333;
+    }
+    
+    .tickets-stats strong {
+      display: block;
+      font-size: 18px;
+      margin-top: 4px;
+    }
+    
+    /* Показатели */
+    .tickets-performance,
+    .tickets-closure {
+      padding: 10px 12px;
+      font-size: 12px;
+      color: #333;
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
+      border-radius: 6px;
+      margin-bottom: 8px;
+    }
+    
+    /* Лента событий */
+    .tickets-list-section {
+      margin-top: 12px;
+    }
+    
+    .tickets-list-section h4 {
+      font-size: 12px;
+      color: #666;
+      margin: 0 0 8px 0;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    
+    .tickets-entries {
       list-style: none;
       padding: 0;
       margin: 0;
@@ -590,21 +656,52 @@
       border-radius: 6px;
       background: white;
     }
-
-    .list li {
-      padding: 8px;
+    
+    .tickets-entries li {
+      padding: 8px 12px;
       border-bottom: 1px solid #f0f0f0;
       font-size: 12px;
+      color: #333;
     }
-
-    .list li:last-child {
+    
+    .tickets-entries li:last-child {
       border-bottom: none;
     }
-
-    .footer-buttons {
+    
+    /* Нижние кнопки */
+    .tickets-footer {
       display: flex;
-      gap: 8px;
+      gap: 10px;
       margin-top: 12px;
+    }
+    
+    .tickets-footer button {
+      flex: 1;
+      padding: 10px 12px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .tickets-footer .success {
+      background: #17a2b8;
+      color: white;
+    }
+    
+    .tickets-footer .success:hover {
+      background: #138496;
+    }
+    
+    .tickets-footer .accent {
+      background: #6c757d;
+      color: white;
+    }
+    
+    .tickets-footer .accent:hover {
+      background: #5a6268;
     }
   </style>
 </head>
@@ -627,7 +724,7 @@
           </select>
           <div class="filter-arrow">▼</div>
         </div>
-        <button class="add-btn" id="addTemplateBtn">+ Добавить</button>
+        <button class="add-btn" id="addTemplateBtn">Добавить</button>
       </div>
     </div>
 
@@ -636,63 +733,61 @@
     </div>
   </div>
   
-  <!-- Контент: Учёт заявок (старая версия) -->
+  <!-- Контент: Учёт заявок -->
   <div id="tickets-tab" class="tab-content">
     <div class="header">
-      <h1>Учет заявок</h1>
+      <h1>📊 Учёт заявок</h1>
     </div>
 
     <div class="date-row">
-      <span>Текущая дата:</span> <strong id="currentDate"></strong>
+      <span>Текущая дата:</span>
+      <strong id="currentDate">...</strong>
     </div>
 
-    <div class="form">
-      <label>
-        Номер заявки
-        <input id="ticketNumber" type="text" placeholder="Например, 12345">
-      </label>
-      <label>
-        Комментарий (необязательно)
-        <textarea id="ticketComment" rows="2" placeholder="Кратко опишите..."></textarea>
-      </label>
+    <div class="tickets-form">
+      <label>Номер заявки</label>
+      <input type="text" id="ticketNumber" placeholder="Например, 12345">
+      
+      <label>Комментарий (необязательно)</label>
+      <textarea id="ticketComment" rows="2" placeholder="Кратко опишите..."></textarea>
+      
       <div class="time-inputs">
         <div class="time-group">
-          <label>
-            Отработано часов
-            <input id="workHours" type="number" min="0" max="24" step="1" placeholder="Час" value="0">
-          </label>
+          <label>Отработано часов</label>
+          <input type="number" id="workHours" min="0" max="24" value="0">
         </div>
         <div class="time-group">
-          <label>
-            Отработано минут
-            <input id="workMinutes" type="number" min="0" max="59" step="1" placeholder="Мин" value="0">
-          </label>
+          <label>Отработано минут</label>
+          <input type="number" id="workMinutes" min="0" max="59" value="0">
         </div>
       </div>
-      <div class="buttons">
-        <button id="addClosed" class="primary">Добавить: Закрыто</button>
-        <button id="addField" class="warning">Добавить: На выезд</button>
-        <button id="removeLast" class="danger">Убрать прошлую запись</button>
+      
+      <div class="tickets-buttons">
+        <button id="addClosed" class="primary">✅ Добавить: Закрыто</button>
+        <button id="addField" class="warning">🚗 Добавить: На выезд</button>
+        <button id="removeLast" class="danger">🗑️ Убрать прошлую запись</button>
       </div>
     </div>
 
-    <div class="stats">
-      <span>Закрыто: <strong id="countClosed">0</strong></span>
-      <span>На выезд: <strong id="countField">0</strong></span>
-      <span>Всего: <strong id="countTotal">0</strong></span>
+    <div class="tickets-stats">
+      <div>✅ Закрыто<br><strong id="countClosed">0</strong></div>
+      <div>🚗 На выезд<br><strong id="countField">0</strong></div>
+      <div>📊 Всего<br><strong id="countTotal">0</strong></div>
+    </div>
+    
+    <div class="tickets-performance" id="performance">Производительность: —</div>
+    <div class="tickets-closure" id="closurePercent">Процент закрытия: 0%</div>
+
+    <div class="tickets-list-section">
+      <h4>📋 Заявки за день</h4>
+      <ul class="tickets-entries" id="entries">
+        <li>Загрузка...</li>
+      </ul>
     </div>
 
-    <div class="performance" id="performance"></div>
-    <div class="closure-percent" id="closurePercent"></div>
-
-    <div class="list">
-      <h2>Заявки за день</h2>
-      <ul id="entries"></ul>
-    </div>
-
-    <div class="footer-buttons">
-      <button id="startNewDay" class="success">Начать смену</button>
-      <button id="finishDay" class="accent">Скачать отчет</button>
+    <div class="tickets-footer">
+      <button id="startNewDay" class="success">🔄 Начать смену</button>
+      <button id="finishDay" class="accent">📥 Скачать отчёт</button>
     </div>
   </div>
   

@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "Better Volga",
-  "version": "0.2",
-  "description": "Удобное хранение собственных шаблонов омничат \nБыстрый переход из ТТМ в форму ассистент \nУдобный учёт заявок",
+  "name": "2TSL toolbox",
+  "version": "0.2.2",
+  "update_url": "http://158.160.227.37/BetterVolga/updates.xml",
+  "description": "Удобное хранение собственных шаблонов омничат. Быстрый переход из ТТМ в форму ассистент. Удобный учёт заявок",
   "permissions": ["storage", "tabs"],
   "action": {
     "default_popup": "popup.html",

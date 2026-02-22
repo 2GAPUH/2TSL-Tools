@@ -74,6 +74,30 @@ const ticketEls = {
 };
 
 // ==================== ТАБЫ ====================
+function resizePopup() {
+  // Получаем активную вкладку
+  const activeTab = document.querySelector('.tab-content.active');
+  if (!activeTab) return;
+  
+  // Сбрасываем высоту body для пересчёта
+  document.body.style.height = 'auto';
+  document.documentElement.style.height = 'auto';
+  
+  // Принудительный reflow
+  void document.body.offsetHeight;
+  
+  // Вычисляем новую высоту: header + tabs + tab content + padding
+  const headerHeight = document.querySelector('.tabs').offsetHeight || 41;
+  const tabContentHeight = activeTab.offsetHeight;
+  const padding = 32; // 16px top + 16px bottom
+  
+  const totalHeight = headerHeight + tabContentHeight + padding;
+  
+  // Устанавливаем высоту
+  document.documentElement.style.height = totalHeight + 'px';
+  document.body.style.height = totalHeight + 'px';
+}
+
 document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -89,6 +113,13 @@ document.querySelectorAll('.tab').forEach(tab => {
     if (tab.dataset.tab === 'settings') {
       loadSavedFormData();
     }
+    
+    // Изменяем размер popup под содержимое с задержкой для отрисовки
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        resizePopup();
+      });
+    });
   });
 });
 
@@ -123,6 +154,13 @@ function loadAllData() {
     renderGroupsList();
     applySettings();
     updateTicketsUI(activeWorkingDate, allData[activeWorkingDate]);
+    
+    // Изменяем размер popup после загрузки данных
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        resizePopup();
+      });
+    });
   });
 }
 
@@ -141,6 +179,13 @@ function switchToTab(tabName) {
     if (tabName === 'settings') {
       loadSavedFormData();
     }
+    
+    // Пересчитываем размер
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        resizePopup();
+      });
+    });
   }
 }
 
@@ -226,7 +271,7 @@ clearSavedDataBtn.addEventListener('click', () => {
   }
 });
 
-// ==================== УЧЁТ ЗАЯВОК (обновлено с отображением минут в производительности) ====================
+// ==================== УЧЁТ ЗАЯВОК ====================
 function updateTicketsUI(date, data) {
   if (!data) data = { entries: [], hours: 0, minutes: 0 };
   ticketEls.currentDate.textContent = date;
@@ -252,8 +297,7 @@ function updateTicketsUI(date, data) {
     const lunch = totalH >= 12 ? 1.75 : 0.75;
     const work = totalH - lunch;
     const perf = work > 0 ? (entries.length / work).toFixed(2) : 0;
-    // Отображаем производительность с указанием часов и минут в скобках
-    ticketEls.performance.textContent = `Производительность: ${perf} (за ${h}ч ${m}м)`;
+    ticketEls.performance.textContent = `Производительность: ${perf}`;
   } else {
     ticketEls.performance.textContent = 'Производительность: —';
   }

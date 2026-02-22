@@ -1,6 +1,7 @@
 // content-form.js
 // Для сайта bzbti.rt.ru/vip/ispolzovanie-assistenta/
 // Автозаполнение формы
+// Версия 1.1 - исправлено сохранение региона и РФ клиента
 
 // ==================== ПЕРЕМЕННЫЕ ====================
 let settings = { omnichatTemplates: true, ttmButton: true };
@@ -81,6 +82,7 @@ function fillRadioField(fieldId, value) {
       return true;
     }
     
+    console.log(`Radio ${fieldId} со значением "${value}" не найден`);
     return false;
   }, `Ошибка заполнения radio ${fieldId}`);
 }
@@ -134,11 +136,15 @@ function fillTextarea(fieldId, value) {
 // ==================== СОХРАНЕНИЕ ДАННЫХ ====================
 function saveFormData() {
   safelyExecute(() => {
+    const newRegion = '';
+    const newFio = '';
+    
     // Сохраняем регион
     const regionRadios = document.querySelectorAll(`input[name*="${FORM_FIELDS.region}"]`);
     for (const radio of regionRadios) {
       if (radio.checked) {
         savedFormData.region = radio.value;
+        console.log('Сохранён регион:', radio.value);
         break;
       }
     }
@@ -147,12 +153,44 @@ function saveFormData() {
     const fioField = document.getElementById(FORM_FIELDS.fio);
     if (fioField?.value) {
       savedFormData.fio = fioField.value;
+      console.log('Сохранено ФИО:', fioField.value);
     }
     
     // Записываем в хранилище
-    chrome.storage.local.set({ savedFormData });
-    console.log('Данные формы сохранены:', savedFormData);
+    chrome.storage.local.set({ savedFormData }, () => {
+      console.log('Данные формы сохранены в storage:', savedFormData);
+    });
   }, 'Ошибка сохранения данных формы');
+}
+
+// Сохранение региона при изменении
+function setupRegionChangeListener() {
+  const regionRadios = document.querySelectorAll(`input[name*="${FORM_FIELDS.region}"]`);
+  regionRadios.forEach(radio => {
+    radio.addEventListener('change', () => {
+      if (radio.checked) {
+        savedFormData.region = radio.value;
+        chrome.storage.local.set({ savedFormData }, () => {
+          console.log('Регион изменён и сохранён:', radio.value);
+        });
+      }
+    });
+  });
+}
+
+// Сохранение ФИО при потере фокуса
+function setupFioChangeListener() {
+  const fioField = document.getElementById(FORM_FIELDS.fio);
+  if (fioField) {
+    fioField.addEventListener('blur', () => {
+      if (fioField.value) {
+        savedFormData.fio = fioField.value;
+        chrome.storage.local.set({ savedFormData }, () => {
+          console.log('ФИО сохранено:', fioField.value);
+        });
+      }
+    });
+  }
 }
 
 // ==================== ОСНОВНАЯ ФУНКЦИЯ ЗАПОЛНЕНИЯ ====================
@@ -161,6 +199,8 @@ function fillForm() {
   
   safelyExecute(() => {
     console.log('Заполнение формы...');
+    console.log('savedFormData:', savedFormData);
+    console.log('ttmFormData:', ttmFormData);
     
     // 1. Дата - текущая дата
     fillTextField(FORM_FIELDS.date, formatDate());
@@ -182,19 +222,25 @@ function fillForm() {
         fillTextField(FORM_FIELDS.incidentNumber, ttmFormData.incidentNumber);
       }
       
-      // Технология подключения
+      // Технология подключения (парсится из наименования услуги)
       if (ttmFormData.serviceName) {
+        console.log('Технология из TTM:', ttmFormData.serviceName);
         fillRadioField(FORM_FIELDS.technology, ttmFormData.serviceName);
       }
       
-      // РФ Клиента
+      // РФ Клиента (из поля "РФ подключения" в ТТМ)
       if (ttmFormData.clientRF) {
+        console.log('РФ клиента из TTM:', ttmFormData.clientRF);
         fillTextField(FORM_FIELDS.clientRF, ttmFormData.clientRF);
       }
     }
     
     isFormFilled = true;
     console.log('Форма заполнена');
+    
+    // Устанавливаем слушатели изменений для сохранения региона и ФИО
+    setupRegionChangeListener();
+    setupFioChangeListener();
     
     // Добавляем обработчик на отправку формы для сохранения данных
     const form = document.getElementById('wpforms-form-2176');
@@ -211,7 +257,7 @@ function fillForm() {
 
 // ==================== ИНИЦИАЛИЗАЦИЯ ====================
 function init() {
-  console.log('Form Autofill v1.0');
+  console.log('Form Autofill v1.1');
   
   // Загружаем настройки и сохраненные данные
   chrome.storage.local.get(['settings', 'savedFormData', 'ttmFormData'], (result) => {

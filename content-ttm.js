@@ -1,7 +1,7 @@
 // content-ttm.js
 // Для сайта ttm.rt.ru
 // Добавляет кнопку для перехода на форму Ассистента
-// Версия 1.2 - исправлена проблема с SPA навигацией
+// Версия 1.3 - исправлено получение технологии и РФ подключения
 
 // ==================== ПЕРЕМЕННЫЕ ====================
 let settings = { omnichatTemplates: true, ttmButton: true, accountingPanel: true };
@@ -18,6 +18,17 @@ function safelyExecute(callback, errorMsg = 'Ошибка') {
 // ==================== ПОЛУЧЕНИЕ ДАННЫХ ИЗ TTM ====================
 function getIncidentNumber() {
   return safelyExecute(() => {
+    // Ищем по data-qa-id содержащему ticket-id
+    const ticketIdEl = document.querySelector('[data-qa-id*="ticket-id"]');
+    if (ticketIdEl) {
+      const text = ticketIdEl.textContent?.trim();
+      if (text) {
+        const match = text.match(/\d+/);
+        if (match) return match[0];
+      }
+    }
+    
+    // Альтернативные селекторы
     const selectors = [
       '[data-qa-id*="incident"]',
       '[data-qa-id*="number"]',
@@ -45,40 +56,55 @@ function getIncidentNumber() {
   }, 'Ошибка получения номера инцидента');
 }
 
+// Парсинг технологии из наименования услуги
+// Формат: "ТНГ_РТ_Аист_100_890 переход (FTTx)" -> "FTTx"
+function parseTechnologyFromServiceName(serviceName) {
+  if (!serviceName) return '';
+  
+  const text = serviceName.toLowerCase();
+  
+  // Ищем технологию в скобках: (FTTx), (xDSL), (xPON), (DOCSIS)
+  const bracketMatch = serviceName.match(/\((fttx|xdsl|xpon|docsis)\)/i);
+  if (bracketMatch) {
+    const tech = bracketMatch[1].toUpperCase();
+    // Нормализуем название
+    if (tech === 'FTTX') return 'FTTx';
+    if (tech === 'XDSL') return 'xDSL';
+    if (tech === 'XPON') return 'xPON';
+    if (tech === 'DOCSIS') return 'DOCSIS';
+    return tech;
+  }
+  
+  // Если нет скобок, ищем в тексте
+  if (text.includes('fttx') || text.includes('fttb')) return 'FTTx';
+  if (text.includes('xdsl') || text.includes('adsl') || text.includes('vdsl')) return 'xDSL';
+  if (text.includes('xpon') || text.includes('gpon') || text.includes('pon')) return 'xPON';
+  if (text.includes('docsis')) return 'DOCSIS';
+  
+  return '';
+}
+
 function getServiceName() {
   return safelyExecute(() => {
-    const selectors = [
-      '[data-qa-id*="service"]',
-      '[data-qa-id*="product"]',
-      '[class*="service-name"]',
-      '[class*="product-name"]'
-    ];
-    
-    for (const selector of selectors) {
-      try {
-        const el = document.querySelector(selector);
-        if (el?.textContent) {
-          const text = el.textContent.toLowerCase();
-          if (text.includes('xdsl') || text.includes('adsl') || text.includes('vdsl')) return 'xDSL';
-          if (text.includes('fttx') || text.includes('fttb')) return 'FTTx';
-          if (text.includes('xpon') || text.includes('gpon') || text.includes('pon')) return 'xPON';
-          if (text.includes('docsis')) return 'DOCSIS';
-          return el.textContent.trim();
-        }
-      } catch (e) {}
+    // Ищем поле "Наименование услуги" по data-qa-id
+    const serviceNameEl = document.querySelector('[data-qa-id*="service-name"]');
+    if (serviceNameEl) {
+      // Ищем значение внутри элемента (обычно в <span> или <p>)
+      const valueEl = serviceNameEl.querySelector('span, p') || serviceNameEl;
+      const serviceName = valueEl?.textContent?.trim();
+      if (serviceName) {
+        return parseTechnologyFromServiceName(serviceName);
+      }
     }
     
-    const labels = document.querySelectorAll('label, .label, .field-label');
-    for (const label of labels) {
-      const labelText = label.textContent?.toLowerCase() || '';
-      if (labelText.includes('услуг') || labelText.includes('сервис') || labelText.includes('продукт')) {
-        const valueEl = label.nextElementSibling || label.parentElement?.querySelector('.value, .field-value, [class*="value"]');
-        if (valueEl?.textContent) {
-          const text = valueEl.textContent.toLowerCase();
-          if (text.includes('xdsl') || text.includes('adsl')) return 'xDSL';
-          if (text.includes('fttx') || text.includes('fttb')) return 'FTTx';
-          if (text.includes('pon')) return 'xPON';
-          if (text.includes('docsis')) return 'DOCSIS';
+    // Альтернативный поиск по label
+    const listItems = document.querySelectorAll('mat-list-item');
+    for (const item of listItems) {
+      const smallEl = item.querySelector('small.mat-line');
+      if (smallEl && smallEl.textContent?.includes('Наименование услуги')) {
+        const pEl = item.querySelector('p.mat-line');
+        if (pEl?.textContent) {
+          return parseTechnologyFromServiceName(pEl.textContent.trim());
         }
       }
     }
@@ -89,27 +115,27 @@ function getServiceName() {
 
 function getClientRF() {
   return safelyExecute(() => {
-    const selectors = [
-      '[data-qa-id*="address"]',
-      '[data-qa-id*="client"]',
-      '[class*="address"]',
-      '[class*="location"]'
-    ];
+    // Ищем поле "РФ подключения" по data-qa-id
+    const rfEl = document.querySelector('[data-qa-id*="selected-rf"]');
+    if (rfEl) {
+      // Ищем значение внутри элемента
+      const valueEl = rfEl.querySelector('p.mat-line') || rfEl;
+      const rfText = valueEl?.textContent?.trim();
+      if (rfText) {
+        // Очищаем от лишних пробелов
+        return rfText.replace(/\s+/g, ' ').trim();
+      }
+    }
     
-    for (const selector of selectors) {
-      const el = document.querySelector(selector);
-      if (el?.textContent) {
-        const text = el.textContent.trim();
-        const parts = text.split(',').map(p => p.trim());
-        if (parts.length >= 2) {
-          const region = parts[1];
-          if (region && region.length > 0) {
-            return region;
-          }
+    // Альтернативный поиск по label в списке
+    const listItems = document.querySelectorAll('mat-list-item');
+    for (const item of listItems) {
+      const smallEl = item.querySelector('small.mat-line');
+      if (smallEl && smallEl.textContent?.includes('РФ подключения')) {
+        const pEl = item.querySelector('p.mat-line');
+        if (pEl?.textContent) {
+          return pEl.textContent.trim().replace(/\s+/g, ' ');
         }
-        
-        const rfMatch = text.match(/([А-Я][а-я]+(?:ский|ая|ое|ие)\s*(?:филиал)?)/i);
-        if (rfMatch) return rfMatch[1];
       }
     }
     
@@ -166,6 +192,8 @@ function openAssistantForm() {
     const incidentNumber = getIncidentNumber();
     const serviceName = getServiceName();
     const clientRF = getClientRF();
+    
+    console.log('Данные из TTM:', { incidentNumber, serviceName, clientRF });
     
     const formData = {
       incidentNumber,
@@ -241,7 +269,7 @@ window.addEventListener('hashchange', checkUrlChange);
 
 // ==================== ИНИЦИАЛИЗАЦИЯ ====================
 function init() {
-  console.log('TTM Extension v1.2 - SPA Navigation Fix');
+  console.log('TTM Extension v1.3');
   
   // Загружаем настройки и сразу пытаемся добавить кнопку
   chrome.storage.local.get(['settings'], (result) => {
