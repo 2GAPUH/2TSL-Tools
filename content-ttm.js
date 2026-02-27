@@ -4,7 +4,7 @@
 // Версия 1.4 - добавлена напоминалка
 
 // ==================== ПЕРЕМЕННЫЕ ====================
-let settings = { omnichatTemplates: true, ttmButton: true, accountingPanel: true, grafanaSSH: true, reminder: true };
+let settings = { omnichatTemplates: true, ttmButton: true, accountingPanel: true, grafanaSSH: true, reminder: true, darkMode: false };
 let isButtonAdded = false;
 let settingsLoaded = false;
 let lastUrl = window.location.href; // Отслеживание URL для SPA навигации
@@ -254,6 +254,14 @@ function openTimerModal() {
   const incidentNumber = getIncidentNumber();
   const ticketUrl = window.location.href;
   
+  // Определяем цвета в зависимости от темы
+  const isDark = settings.darkMode;
+  const bgColor = isDark ? '#16213e' : 'white';
+  const textColor = isDark ? '#eaeaea' : '#333';
+  const mutedColor = isDark ? '#888' : '#666';
+  const borderColor = isDark ? '#2a3f5f' : '#e0e0e0';
+  const inputBg = isDark ? '#1a1a2e' : 'white';
+  
   const modal = document.createElement('div');
   modal.id = 'tsl-timer-modal';
   modal.innerHTML = `
@@ -318,7 +326,7 @@ function openTimerModal() {
     }
     
     #tsl-timer-modal .tsl-modal-content {
-      background: white;
+      background: ${bgColor};
       border-radius: 8px;
       width: 360px;
       max-width: 90vw;
@@ -330,13 +338,13 @@ function openTimerModal() {
       justify-content: space-between;
       align-items: center;
       padding: 16px;
-      border-bottom: 1px solid #e0e0e0;
+      border-bottom: 1px solid ${borderColor};
     }
     
     #tsl-timer-modal .tsl-modal-header h3 {
       margin: 0;
       font-size: 16px;
-      color: #333;
+      color: ${textColor};
     }
     
     #tsl-timer-modal .tsl-modal-close {
@@ -344,7 +352,7 @@ function openTimerModal() {
       border: none;
       font-size: 24px;
       cursor: pointer;
-      color: #666;
+      color: ${mutedColor};
       padding: 0;
       line-height: 1;
     }
@@ -362,7 +370,7 @@ function openTimerModal() {
       margin-bottom: 6px;
       font-size: 13px;
       font-weight: 500;
-      color: #333;
+      color: ${textColor};
     }
     
     #tsl-timer-modal .tsl-form-group input[type="number"],
@@ -370,10 +378,12 @@ function openTimerModal() {
     #tsl-timer-modal .tsl-form-group textarea {
       width: 100%;
       padding: 10px 12px;
-      border: 1px solid #ccc;
+      border: 1px solid ${borderColor};
       border-radius: 4px;
       font-size: 14px;
       box-sizing: border-box;
+      background: ${inputBg};
+      color: ${textColor};
     }
     
     #tsl-timer-modal .tsl-form-group textarea {
@@ -391,6 +401,7 @@ function openTimerModal() {
       gap: 6px;
       cursor: pointer;
       font-size: 13px;
+      color: ${textColor};
     }
     
     #tsl-timer-modal .tsl-radio input[type="radio"] {
@@ -402,7 +413,7 @@ function openTimerModal() {
       justify-content: flex-end;
       gap: 8px;
       padding: 12px 16px;
-      border-top: 1px solid #e0e0e0;
+      border-top: 1px solid ${borderColor};
     }
     
     #tsl-timer-modal .tsl-btn {
@@ -590,7 +601,7 @@ function init() {
   
   // Загружаем настройки и сразу пытаемся добавить кнопки
   chrome.storage.local.get(['settings'], (result) => {
-    settings = result.settings || { omnichatTemplates: true, ttmButton: true, accountingPanel: true, grafanaSSH: true, reminder: true };
+    settings = result.settings || { omnichatTemplates: true, ttmButton: true, accountingPanel: true, grafanaSSH: true, reminder: true, darkMode: false };
     settingsLoaded = true;
     
     // Пробуем сразу

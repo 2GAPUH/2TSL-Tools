@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "2TSL toolbox",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "update_url": "http://158.160.227.37/BetterVolga/updates.xml",
-  "description": "Удобное хранение собственных шаблонов омничат. Быстрый переход из ТТМ в форму ассистент. Удобный учёт заявок. Переход из Grafana на SSH. Напоминалка для заявок",
+  "description": "Набор инструментов для повышения эффективности работы: управление шаблонами, навигация между системами, напоминания и автоматизация рутинных задач.",
   "permissions": ["storage", "tabs", "notifications", "alarms"],
   "action": {
     "default_popup": "popup.html",

@@ -4,15 +4,45 @@
   <style>
     * { box-sizing: border-box; }
     
+    /* CSS переменные для светлой и тёмной темы */
+    :root {
+      --bg-primary: #f5f9fc;
+      --bg-secondary: white;
+      --bg-tertiary: #e6f0fa;
+      --text-primary: #1a1a1a;
+      --text-secondary: #333;
+      --text-muted: #666;
+      --border-color: #c0d3e2;
+      --border-light: #e0e0e0;
+      --hover-bg: #e6f0fa;
+      --input-bg: white;
+      --shadow-color: rgba(0, 0, 0, 0.1);
+    }
+    
+    html.dark-mode {
+      --bg-primary: #1a1a2e;
+      --bg-secondary: #16213e;
+      --bg-tertiary: #0f3460;
+      --text-primary: #eaeaea;
+      --text-secondary: #ccc;
+      --text-muted: #888;
+      --border-color: #2a3f5f;
+      --border-light: #1e3a5f;
+      --hover-bg: #1e3a5f;
+      --input-bg: #1a1a2e;
+      --shadow-color: rgba(0, 0, 0, 0.4);
+    }
+    
     html, body {
       width: 450px;
       min-height: 100px;
       margin: 0;
       padding: 8px;
       font-family: Rostelecom Basis, Arial, sans-serif;
-      background: #f5f9fc;
-      color: #1a1a1a;
+      background: var(--bg-primary);
+      color: var(--text-primary);
       overflow-x: hidden;
+      transition: background-color 0.3s, color 0.3s;
     }
     
     html {
@@ -26,7 +56,7 @@
     /* Табы */
     .tabs {
       display: flex;
-      border-bottom: 1px solid #c0d3e2;
+      border-bottom: 1px solid var(--border-color);
       margin-bottom: 16px;
     }
     
@@ -36,7 +66,7 @@
       border: none;
       background: none;
       font-size: 14px;
-      color: #666;
+      color: var(--text-muted);
       border-bottom: 2px solid transparent;
       transition: all 0.2s;
     }
@@ -105,7 +135,7 @@
     h1 {
       margin: 0;
       font-size: 18px;
-      color: #1a1a1a;
+      color: var(--text-primary);
     }
 
     .header-right {
@@ -120,9 +150,10 @@
 
     .filter-select {
       padding: 8px 30px 8px 12px;
-      border: 1px solid #c0d3e2;
+      border: 1px solid var(--border-color);
       border-radius: 4px;
-      background: white;
+      background: var(--input-bg);
+      color: var(--text-primary);
       font-size: 14px;
       cursor: pointer;
       appearance: none;
@@ -136,7 +167,7 @@
       top: 50%;
       transform: translateY(-50%);
       pointer-events: none;
-      color: #666;
+      color: var(--text-muted);
     }
 
     .add-btn {
@@ -163,8 +194,8 @@
     }
 
     .template-item {
-      background: white;
-      border: 1px solid #c0d3e2;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
       border-radius: 6px;
       padding: 12px;
       position: relative;
@@ -181,15 +212,15 @@
       font-weight: bold;
       margin: 0;
       font-size: 14px;
-      color: #1a1a1a;
+      color: var(--text-primary);
       flex: 1;
       padding-right: 8px;
     }
 
     .template-group {
       font-size: 11px;
-      color: #666;
-      background: #f0f0f0;
+      color: var(--text-muted);
+      background: var(--bg-tertiary);
       padding: 2px 6px;
       border-radius: 3px;
       margin-top: 4px;
@@ -220,14 +251,14 @@
       display: block;
     }
 
-    .edit-btn:hover { background: #e6f0fa; }
+    .edit-btn:hover { background: var(--hover-bg); }
     .delete-btn:hover { background: #f8d7da; }
     .copy-btn:hover { background: #e6f7ec; }
-    .paste-btn:hover { background: #e6f0fa; }
+    .paste-btn:hover { background: var(--hover-bg); }
 
     .template-body {
       font-size: 12px;
-      color: #666;
+      color: var(--text-muted);
       margin: 0;
       white-space: pre-wrap;
       word-break: break-word;
@@ -248,13 +279,14 @@
     }
 
     .modal {
-      background: white;
+      background: var(--bg-secondary);
       padding: 20px;
       border-radius: 8px;
       width: 380px;
       max-width: 90vw;
       max-height: 90vh;
       overflow-y: auto;
+      color: var(--text-primary);
     }
 
     .modal-header {
@@ -274,7 +306,7 @@
       border: none;
       font-size: 20px;
       cursor: pointer;
-      color: #666;
+      color: var(--text-muted);
     }
 
     .form-group {
@@ -286,15 +318,18 @@
       margin-bottom: 4px;
       font-size: 14px;
       font-weight: bold;
+      color: var(--text-primary);
     }
 
     input, textarea, select {
       width: 100%;
       padding: 8px;
-      border: 1px solid #c0d3e2;
+      border: 1px solid var(--border-color);
       border-radius: 4px;
       font-family: inherit;
       font-size: 14px;
+      background: var(--input-bg);
+      color: var(--text-primary);
     }
 
     textarea {
@@ -329,7 +364,7 @@
 
     .empty-state {
       text-align: center;
-      color: #666;
+      color: var(--text-muted);
       padding: 40px 20px;
     }
 
@@ -342,7 +377,7 @@
       justify-content: space-between;
       align-items: center;
       padding: 8px 0;
-      border-bottom: 1px solid #f0f0f0;
+      border-bottom: 1px solid var(--border-light);
     }
 
     .group-item:last-child {
@@ -355,7 +390,7 @@
     }
 
     .manage-groups-option {
-      border-top: 1px solid #c0d3e2;
+      border-top: 1px solid var(--border-color);
       margin-top: 4px;
       padding-top: 4px;
       font-style: italic;
@@ -370,7 +405,7 @@
       font-size: 14px;
       font-weight: bold;
       margin-bottom: 12px;
-      color: #1a1a1a;
+      color: var(--text-primary);
     }
     
     .setting-item {
@@ -378,20 +413,20 @@
       justify-content: space-between;
       align-items: center;
       padding: 12px;
-      background: white;
-      border: 1px solid #c0d3e2;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
       border-radius: 6px;
       margin-bottom: 8px;
     }
     
     .setting-label {
       font-size: 14px;
-      color: #333;
+      color: var(--text-primary);
     }
     
     .setting-description {
       font-size: 12px;
-      color: #666;
+      color: var(--text-muted);
       margin-top: 4px;
     }
     
@@ -444,7 +479,7 @@
     .saved-data-section {
       margin-top: 20px;
       padding-top: 16px;
-      border-top: 1px solid #c0d3e2;
+      border-top: 1px solid var(--border-color);
     }
     
     .saved-data-item {
@@ -456,12 +491,12 @@
     
     .saved-data-label {
       font-size: 12px;
-      color: #666;
+      color: var(--text-muted);
     }
     
     .saved-data-value {
       font-size: 12px;
-      color: #333;
+      color: var(--text-secondary);
       font-weight: 500;
     }
     
@@ -489,11 +524,11 @@
       display: flex;
       justify-content: space-between;
       padding: 8px 12px;
-      background: #e6f0fa;
+      background: var(--bg-tertiary);
       border-radius: 6px;
       margin-bottom: 12px;
       font-size: 13px;
-      color: #333;
+      color: var(--text-secondary);
     }
     
     .date-row strong {
@@ -504,7 +539,7 @@
     .tickets-form label {
       font-size: 12px;
       font-weight: 600;
-      color: #333;
+      color: var(--text-primary);
       margin-bottom: 4px;
     }
     
@@ -512,14 +547,14 @@
     .tickets-form textarea {
       width: 100%;
       padding: 10px 12px;
-      border: 1px solid #c0d3e2;
+      border: 1px solid var(--border-color);
       border-radius: 6px;
       font-size: 14px;
       margin-bottom: 10px;
       font-family: inherit;
       box-sizing: border-box;
-      background: white;
-      color: #333;
+      background: var(--input-bg);
+      color: var(--text-primary);
     }
     
     .tickets-form textarea {
@@ -540,7 +575,7 @@
     .time-group label {
       display: block;
       font-size: 11px;
-      color: #666;
+      color: var(--text-muted);
       margin-bottom: 4px;
       text-transform: uppercase;
       letter-spacing: 0.3px;
@@ -549,12 +584,12 @@
     .time-group input[type="number"] {
       width: 100%;
       padding: 10px;
-      border: 1px solid #c0d3e2;
+      border: 1px solid var(--border-color);
       border-radius: 6px;
       font-size: 14px;
       text-align: center;
-      background: white;
-      color: #333;
+      background: var(--input-bg);
+      color: var(--text-primary);
     }
     
     /* Кнопки */
@@ -607,8 +642,8 @@
       display: flex;
       justify-content: space-around;
       padding: 12px;
-      background: white;
-      border: 1px solid #c0d3e2;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
       border-radius: 6px;
       margin-bottom: 8px;
     }
@@ -616,7 +651,7 @@
     .tickets-stats div {
       text-align: center;
       font-size: 12px;
-      color: #333;
+      color: var(--text-secondary);
     }
     
     .tickets-stats strong {
@@ -630,9 +665,9 @@
     .tickets-closure {
       padding: 10px 12px;
       font-size: 12px;
-      color: #333;
-      background: #f8f9fa;
-      border: 1px solid #e9ecef;
+      color: var(--text-secondary);
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
       border-radius: 6px;
       margin-bottom: 8px;
     }
@@ -644,7 +679,7 @@
     
     .tickets-list-section h4 {
       font-size: 12px;
-      color: #666;
+      color: var(--text-muted);
       margin: 0 0 8px 0;
       text-transform: uppercase;
       letter-spacing: 0.3px;
@@ -656,16 +691,16 @@
       margin: 0;
       max-height: 150px;
       overflow-y: auto;
-      border: 1px solid #c0d3e2;
+      border: 1px solid var(--border-color);
       border-radius: 6px;
-      background: white;
+      background: var(--bg-secondary);
     }
     
     .tickets-entries li {
       padding: 8px 12px;
-      border-bottom: 1px solid #f0f0f0;
+      border-bottom: 1px solid var(--border-light);
       font-size: 12px;
-      color: #333;
+      color: var(--text-secondary);
     }
     
     .tickets-entries li:last-child {
@@ -719,8 +754,8 @@
     }
     
     .reminder-item {
-      background: white;
-      border: 1px solid #c0d3e2;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
       border-radius: 6px;
       padding: 12px;
     }
@@ -746,8 +781,8 @@
     
     .reminder-time {
       font-size: 12px;
-      color: #666;
-      background: #f0f0f0;
+      color: var(--text-muted);
+      background: var(--bg-tertiary);
       padding: 4px 8px;
       border-radius: 4px;
     }
@@ -764,7 +799,7 @@
     
     .reminder-description {
       font-size: 12px;
-      color: #333;
+      color: var(--text-secondary);
       margin-bottom: 8px;
     }
     
@@ -783,7 +818,7 @@
     }
     
     .reminder-btn-edit {
-      background: #e6f0fa;
+      background: var(--hover-bg);
       color: #007bff;
     }
     
@@ -802,7 +837,7 @@
     
     .reminder-empty {
       text-align: center;
-      color: #666;
+      color: var(--text-muted);
       padding: 40px 20px;
     }
     
@@ -954,6 +989,21 @@
         </div>
         <label class="toggle-switch">
           <input type="checkbox" id="settingReminder" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+    
+    <div class="settings-section">
+      <div class="settings-title">Оформление</div>
+      
+      <div class="setting-item">
+        <div>
+          <div class="setting-label">Тёмная тема</div>
+          <div class="setting-description">Включить тёмный режим для расширения</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="settingDarkMode">
           <span class="toggle-slider"></span>
         </label>
       </div>

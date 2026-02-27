@@ -17,7 +17,8 @@ let settings = {
   ttmButton: true,
   accountingPanel: true,
   grafanaSSH: true,
-  reminder: true
+  reminder: true,
+  darkMode: false
 };
 let savedFormData = {
   region: '',
@@ -53,6 +54,7 @@ const settingTTMButton = document.getElementById('settingTTMButton');
 const settingAccountingPanel = document.getElementById('settingAccountingPanel');
 const settingGrafanaSSH = document.getElementById('settingGrafanaSSH');
 const settingReminder = document.getElementById('settingReminder');
+const settingDarkMode = document.getElementById('settingDarkMode');
 const savedRegion = document.getElementById('savedRegion');
 const savedFIO = document.getElementById('savedFIO');
 const clearSavedDataBtn = document.getElementById('clearSavedData');
@@ -135,7 +137,7 @@ function loadAllData() {
   chrome.storage.local.get(['templates', 'groups', 'settings', 'savedFormData', 'lastActiveTab', 'currentWorkingDate', 'requestsByDate', 'reminders'], (result) => {
     templates = result.templates || [];
     groups = result.groups || [];
-    settings = result.settings || { omnichatTemplates: true, ttmButton: true, accountingPanel: true, grafanaSSH: true, reminder: true };
+    settings = result.settings || { omnichatTemplates: true, ttmButton: true, accountingPanel: true, grafanaSSH: true, reminder: true, darkMode: false };
     savedFormData = result.savedFormData || { region: '', fio: '' };
     lastActiveTab = result.lastActiveTab || 'templates';
     activeWorkingDate = result.currentWorkingDate || getTodayStr();
@@ -231,6 +233,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
     // Проверяем изменение настроек
     if (changes.settings) {
       settings = changes.settings.newValue;
+      applyDarkMode();
     }
     if (changes.templates || changes.groups) {
       chrome.storage.local.get(['templates', 'groups'], (res) => {
@@ -252,6 +255,16 @@ function applySettings() {
   settingAccountingPanel.checked = settings.accountingPanel;
   settingGrafanaSSH.checked = settings.grafanaSSH;
   settingReminder.checked = settings.reminder;
+  settingDarkMode.checked = settings.darkMode;
+  applyDarkMode();
+}
+
+function applyDarkMode() {
+  if (settings.darkMode) {
+    document.documentElement.classList.add('dark-mode');
+  } else {
+    document.documentElement.classList.remove('dark-mode');
+  }
 }
 
 function loadSavedFormData() {
@@ -282,6 +295,12 @@ settingGrafanaSSH.addEventListener('change', (e) => {
 settingReminder.addEventListener('change', (e) => {
   settings.reminder = e.target.checked;
   saveSettings();
+});
+
+settingDarkMode.addEventListener('change', (e) => {
+  settings.darkMode = e.target.checked;
+  saveSettings();
+  applyDarkMode();
 });
 
 clearSavedDataBtn.addEventListener('click', () => {
@@ -852,16 +871,24 @@ function editReminderTime(id) {
   // Находим элемент напоминания, под которым нужно показать форму
   const reminderItem = document.querySelector(`.reminder-item[data-id="${id}"]`);
   
+  // Определяем цвета в зависимости от темы
+  const isDark = settings.darkMode;
+  const bgColor = isDark ? '#16213e' : 'white';
+  const textColor = isDark ? '#eaeaea' : '#333';
+  const mutedColor = isDark ? '#888' : '#666';
+  const borderColor = isDark ? '#2a3f5f' : '#c0d3e2';
+  const inputBg = isDark ? '#1a1a2e' : 'white';
+  
   const modal = document.createElement('div');
   modal.id = 'edit-reminder-modal';
   modal.innerHTML = `
     <div class="reminder-edit-content" style="
       position: relative;
-      background: white;
+      background: ${bgColor};
       border-radius: 8px;
       width: 100%;
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-      border: 1px solid #c0d3e2;
+      border: 1px solid ${borderColor};
       margin-top: 10px;
     ">
         <div class="tsl-modal-header" style="
@@ -869,20 +896,20 @@ function editReminderTime(id) {
           justify-content: space-between;
           align-items: center;
           padding: 12px 16px;
-          border-bottom: 1px solid #e0e0e0;
+          border-bottom: 1px solid ${borderColor};
         ">
-          <h3 style="margin: 0; font-size: 14px; color: #333;">✏️ Изменить время для #${reminder.ticketNumber}</h3>
-          <button class="tsl-modal-close" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #666;">&times;</button>
+          <h3 style="margin: 0; font-size: 14px; color: ${textColor};">✏️ Изменить время для #${reminder.ticketNumber}</h3>
+          <button class="tsl-modal-close" style="background: none; border: none; font-size: 20px; cursor: pointer; color: ${mutedColor};">&times;</button>
         </div>
         <div class="tsl-modal-body" style="padding: 12px 16px;">
           <div class="tsl-form-group" style="margin-bottom: 12px;">
-            <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 500; color: #333;">Тип времени</label>
+            <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 500; color: ${textColor};">Тип времени</label>
             <div style="display: flex; flex-wrap: wrap; gap: 12px;">
-              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; white-space: nowrap;">
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; white-space: nowrap; color: ${textColor};">
                 <input type="radio" name="editTimerType" value="minutes" checked>
                 <span>Через N минут</span>
               </label>
-              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; white-space: nowrap;">
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; white-space: nowrap; color: ${textColor};">
                 <input type="radio" name="editTimerType" value="time">
                 <span>В указанное время</span>
               </label>
@@ -890,39 +917,45 @@ function editReminderTime(id) {
           </div>
           
           <div class="tsl-form-group tsl-minutes-group" style="margin-bottom: 12px;">
-            <label style="display: block; margin-bottom: 4px; font-size: 12px; font-weight: 500; color: #333;">Минуты</label>
+            <label style="display: block; margin-bottom: 4px; font-size: 12px; font-weight: 500; color: ${textColor};">Минуты</label>
             <input type="number" id="editTimerMinutes" placeholder="Например: 30" min="1" max="1440" style="
               width: 100%;
               padding: 8px 10px;
-              border: 1px solid #ccc;
+              border: 1px solid ${borderColor};
               border-radius: 4px;
               font-size: 13px;
               box-sizing: border-box;
+              background: ${inputBg};
+              color: ${textColor};
             ">
           </div>
           
           <div class="tsl-form-group tsl-time-group" style="display: none; margin-bottom: 12px;">
-            <label style="display: block; margin-bottom: 4px; font-size: 12px; font-weight: 500; color: #333;">Время (ЧЧ:ММ)</label>
+            <label style="display: block; margin-bottom: 4px; font-size: 12px; font-weight: 500; color: ${textColor};">Время (ЧЧ:ММ)</label>
             <input type="time" id="editTimerTime" style="
               width: 100%;
               padding: 8px 10px;
-              border: 1px solid #ccc;
+              border: 1px solid ${borderColor};
               border-radius: 4px;
               font-size: 13px;
               box-sizing: border-box;
+              background: ${inputBg};
+              color: ${textColor};
             ">
           </div>
           
           <div class="tsl-form-group" style="margin-bottom: 12px;">
-            <label style="display: block; margin-bottom: 4px; font-size: 12px; font-weight: 500; color: #333;">Описание</label>
+            <label style="display: block; margin-bottom: 4px; font-size: 12px; font-weight: 500; color: ${textColor};">Описание</label>
             <textarea id="editTimerDescription" placeholder="Описание напоминания" rows="2" style="
               width: 100%;
               padding: 8px 10px;
-              border: 1px solid #ccc;
+              border: 1px solid ${borderColor};
               border-radius: 4px;
               font-size: 13px;
               box-sizing: border-box;
               resize: vertical;
+              background: ${inputBg};
+              color: ${textColor};
             ">${reminder.description || ''}</textarea>
           </div>
         </div>
@@ -931,7 +964,7 @@ function editReminderTime(id) {
           justify-content: flex-end;
           gap: 8px;
           padding: 10px 16px;
-          border-top: 1px solid #e0e0e0;
+          border-top: 1px solid ${borderColor};
         ">
           <button class="tsl-btn tsl-btn-secondary" id="editCancelBtn" style="
             padding: 6px 14px;
