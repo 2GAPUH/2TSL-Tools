@@ -74,6 +74,10 @@
       max-height: 520px;
       overflow-y: auto;
     }
+    
+    #reminders-tab.active {
+      overflow-y: auto;
+    }
 
     /* Фикс для размеров popup */
     .tab-content.active > *:first-child {
@@ -703,6 +707,108 @@
     .tickets-footer .accent:hover {
       background: #5a6268;
     }
+    
+    /* ==========================================================================
+       ВКЛАДКА НАПОМИНАЛКА
+       ========================================================================== */
+    
+    .reminders-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .reminder-item {
+      background: white;
+      border: 1px solid #c0d3e2;
+      border-radius: 6px;
+      padding: 12px;
+    }
+    
+    .reminder-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    
+    .reminder-ticket {
+      font-weight: bold;
+      font-size: 14px;
+      color: #007bff;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    
+    .reminder-ticket:hover {
+      text-decoration: underline;
+    }
+    
+    .reminder-time {
+      font-size: 12px;
+      color: #666;
+      background: #f0f0f0;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+    
+    .reminder-time.notified {
+      background: #d4edda;
+      color: #155724;
+    }
+    
+    .reminder-time.overdue {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    
+    .reminder-description {
+      font-size: 12px;
+      color: #333;
+      margin-bottom: 8px;
+    }
+    
+    .reminder-actions {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .reminder-btn {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    
+    .reminder-btn-edit {
+      background: #e6f0fa;
+      color: #007bff;
+    }
+    
+    .reminder-btn-edit:hover {
+      background: #cce4f7;
+    }
+    
+    .reminder-btn-delete {
+      background: #f8d7da;
+      color: #dc3545;
+    }
+    
+    .reminder-btn-delete:hover {
+      background: #f5c6cb;
+    }
+    
+    .reminder-empty {
+      text-align: center;
+      color: #666;
+      padding: 40px 20px;
+    }
+    
+    .reminder-empty p {
+      margin: 8px 0;
+    }
   </style>
 </head>
 <body>
@@ -710,6 +816,7 @@
   <div class="tabs">
     <button class="tab active" data-tab="templates">Шаблоны</button>
     <button class="tab" data-tab="tickets">Учёт заявок</button>
+    <button class="tab" data-tab="reminders">Напоминалка</button>
     <button class="tab" data-tab="settings">Настройки</button>
   </div>
   
@@ -839,6 +946,17 @@
           <span class="toggle-slider"></span>
         </label>
       </div>
+      
+      <div class="setting-item">
+        <div>
+          <div class="setting-label">Напоминалка</div>
+          <div class="setting-description">Кнопка таймера в TTM для напоминаний о заявках</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="settingReminder" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
     </div>
     
     <div class="settings-section">
@@ -855,6 +973,17 @@
       </div>
       
       <button class="clear-data-btn" id="clearSavedData">Очистить сохраненные данные</button>
+    </div>
+  </div>
+  
+  <!-- Контент: Напоминалка -->
+  <div id="reminders-tab" class="tab-content">
+    <div class="header">
+      <h1>⏰ Напоминалка</h1>
+    </div>
+    
+    <div class="reminders-list" id="remindersList">
+      <!-- Напоминания будут загружаться здесь -->
     </div>
   </div>
 

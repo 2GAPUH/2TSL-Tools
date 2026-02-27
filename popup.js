@@ -16,7 +16,8 @@ let settings = {
   omnichatTemplates: true,
   ttmButton: true,
   accountingPanel: true,
-  grafanaSSH: true
+  grafanaSSH: true,
+  reminder: true
 };
 let savedFormData = {
   region: '',
@@ -51,9 +52,13 @@ const settingOmnichatTemplates = document.getElementById('settingOmnichatTemplat
 const settingTTMButton = document.getElementById('settingTTMButton');
 const settingAccountingPanel = document.getElementById('settingAccountingPanel');
 const settingGrafanaSSH = document.getElementById('settingGrafanaSSH');
+const settingReminder = document.getElementById('settingReminder');
 const savedRegion = document.getElementById('savedRegion');
 const savedFIO = document.getElementById('savedFIO');
 const clearSavedDataBtn = document.getElementById('clearSavedData');
+
+// Напоминалка
+const remindersList = document.getElementById('remindersList');
 
 // Учёт заявок
 const ticketEls = {
@@ -127,13 +132,14 @@ document.querySelectorAll('.tab').forEach(tab => {
 
 // ==================== ЗАГРУЗКА ДАННЫХ ====================
 function loadAllData() {
-  chrome.storage.local.get(['templates', 'groups', 'settings', 'savedFormData', 'lastActiveTab', 'currentWorkingDate', 'requestsByDate'], (result) => {
+  chrome.storage.local.get(['templates', 'groups', 'settings', 'savedFormData', 'lastActiveTab', 'currentWorkingDate', 'requestsByDate', 'reminders'], (result) => {
     templates = result.templates || [];
     groups = result.groups || [];
-    settings = result.settings || { omnichatTemplates: true, ttmButton: true, accountingPanel: true, grafanaSSH: true };
+    settings = result.settings || { omnichatTemplates: true, ttmButton: true, accountingPanel: true, grafanaSSH: true, reminder: true };
     savedFormData = result.savedFormData || { region: '', fio: '' };
     lastActiveTab = result.lastActiveTab || 'templates';
     activeWorkingDate = result.currentWorkingDate || getTodayStr();
+    reminders = result.reminders || [];
     
     // Если переменной еще нет в памяти - создаем
     if (!result.currentWorkingDate) {
@@ -156,6 +162,7 @@ function loadAllData() {
     renderGroupsList();
     applySettings();
     updateTicketsUI(activeWorkingDate, allData[activeWorkingDate]);
+    renderReminders(); // Загружаем напоминания сразу
     
     // Изменяем размер popup после загрузки данных
     requestAnimationFrame(() => {
@@ -244,6 +251,7 @@ function applySettings() {
   settingTTMButton.checked = settings.ttmButton;
   settingAccountingPanel.checked = settings.accountingPanel;
   settingGrafanaSSH.checked = settings.grafanaSSH;
+  settingReminder.checked = settings.reminder;
 }
 
 function loadSavedFormData() {
@@ -268,6 +276,11 @@ settingAccountingPanel.addEventListener('change', (e) => {
 
 settingGrafanaSSH.addEventListener('change', (e) => {
   settings.grafanaSSH = e.target.checked;
+  saveSettings();
+});
+
+settingReminder.addEventListener('change', (e) => {
+  settings.reminder = e.target.checked;
   saveSettings();
 });
 
@@ -729,3 +742,322 @@ templateForm.addEventListener('submit', (e) => {
 
 // ==================== ИНИЦИАЛИЗАЦИЯ ====================
 document.addEventListener('DOMContentLoaded', loadAllData);
+
+// ==================== НАПОМИНАЛКА ====================
+let reminders = [];
+
+function formatReminderTime(timestamp) {
+  const date = new Date(timestamp);
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+  
+  const timeStr = date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  
+  if (isToday) {
+    return `Сегодня ${timeStr}`;
+  } else {
+    const dateStr = date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+    return `${dateStr} ${timeStr}`;
+  }
+}
+
+function getTimeStatus(reminder) {
+  const now = Date.now();
+  const diff = reminder.remindAt - now;
+  
+  if (reminder.notified) {
+    return 'notified'; // Уведомление уже показано
+  } else if (diff < 0) {
+    return 'overdue'; // Просрочено
+  } else if (diff < 60000) {
+    return 'soon'; // Меньше минуты
+  }
+  return 'pending'; // Ожидает
+}
+
+function renderReminders() {
+  if (reminders.length === 0) {
+    remindersList.innerHTML = `
+      <div class="reminder-empty">
+        <p>Нет активных напоминаний</p>
+        <p>Нажмите кнопку ⏰ в TTM, чтобы создать напоминание</p>
+      </div>
+    `;
+    return;
+  }
+  
+  // Сортируем по времени (ближайшие сначала)
+  const sorted = [...reminders].sort((a, b) => a.remindAt - b.remindAt);
+  
+  remindersList.innerHTML = sorted.map(reminder => {
+    const status = getTimeStatus(reminder);
+    const statusClass = status === 'notified' ? 'notified' : status === 'overdue' ? 'overdue' : '';
+    const statusText = status === 'notified' ? '✅ Выполнено' : 
+                       status === 'overdue' ? '❌ Просрочено' : 
+                       formatReminderTime(reminder.remindAt);
+    
+    return `
+      <div class="reminder-item" data-id="${reminder.id}">
+        <div class="reminder-header">
+          <a class="reminder-ticket" href="${reminder.ticketUrl}" target="_blank" title="Открыть заявку">
+            #${reminder.ticketNumber}
+          </a>
+          <span class="reminder-time ${statusClass}">${statusText}</span>
+        </div>
+        ${reminder.description ? `<div class="reminder-description">${escapeHtml(reminder.description)}</div>` : ''}
+        <div class="reminder-actions">
+          ${status !== 'notified' ? `<button class="reminder-btn reminder-btn-edit" data-id="${reminder.id}">
+            ✏️ Изменить время
+          </button>` : ''}
+          <button class="reminder-btn reminder-btn-delete" data-id="${reminder.id}">
+            🗑️ Удалить
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+  
+  // Добавляем обработчики
+  remindersList.querySelectorAll('.reminder-btn-delete').forEach(btn => {
+    btn.addEventListener('click', () => deleteReminder(btn.dataset.id));
+  });
+  
+  remindersList.querySelectorAll('.reminder-btn-edit').forEach(btn => {
+    btn.addEventListener('click', () => editReminderTime(btn.dataset.id));
+  });
+}
+
+async function loadReminders() {
+  const result = await chrome.storage.local.get(['reminders']);
+  reminders = result.reminders || [];
+  renderReminders();
+}
+
+async function deleteReminder(id) {
+  if (!confirm('Удалить это напоминание?')) return;
+  
+  await chrome.runtime.sendMessage({ action: 'removeReminder', reminderId: id });
+  reminders = reminders.filter(r => r.id !== id);
+  renderReminders();
+}
+
+function editReminderTime(id) {
+  const reminder = reminders.find(r => r.id === id);
+  if (!reminder) return;
+  
+  // Создаём модальное окно редактирования
+  const existingModal = document.getElementById('edit-reminder-modal');
+  if (existingModal) existingModal.remove();
+  
+  // Находим элемент напоминания, под которым нужно показать форму
+  const reminderItem = document.querySelector(`.reminder-item[data-id="${id}"]`);
+  
+  const modal = document.createElement('div');
+  modal.id = 'edit-reminder-modal';
+  modal.innerHTML = `
+    <div class="reminder-edit-content" style="
+      position: relative;
+      background: white;
+      border-radius: 8px;
+      width: 100%;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      border: 1px solid #c0d3e2;
+      margin-top: 10px;
+    ">
+        <div class="tsl-modal-header" style="
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 12px 16px;
+          border-bottom: 1px solid #e0e0e0;
+        ">
+          <h3 style="margin: 0; font-size: 14px; color: #333;">✏️ Изменить время для #${reminder.ticketNumber}</h3>
+          <button class="tsl-modal-close" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #666;">&times;</button>
+        </div>
+        <div class="tsl-modal-body" style="padding: 12px 16px;">
+          <div class="tsl-form-group" style="margin-bottom: 12px;">
+            <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 500; color: #333;">Тип времени</label>
+            <div style="display: flex; flex-wrap: wrap; gap: 12px;">
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; white-space: nowrap;">
+                <input type="radio" name="editTimerType" value="minutes" checked>
+                <span>Через N минут</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; white-space: nowrap;">
+                <input type="radio" name="editTimerType" value="time">
+                <span>В указанное время</span>
+              </label>
+            </div>
+          </div>
+          
+          <div class="tsl-form-group tsl-minutes-group" style="margin-bottom: 12px;">
+            <label style="display: block; margin-bottom: 4px; font-size: 12px; font-weight: 500; color: #333;">Минуты</label>
+            <input type="number" id="editTimerMinutes" placeholder="Например: 30" min="1" max="1440" style="
+              width: 100%;
+              padding: 8px 10px;
+              border: 1px solid #ccc;
+              border-radius: 4px;
+              font-size: 13px;
+              box-sizing: border-box;
+            ">
+          </div>
+          
+          <div class="tsl-form-group tsl-time-group" style="display: none; margin-bottom: 12px;">
+            <label style="display: block; margin-bottom: 4px; font-size: 12px; font-weight: 500; color: #333;">Время (ЧЧ:ММ)</label>
+            <input type="time" id="editTimerTime" style="
+              width: 100%;
+              padding: 8px 10px;
+              border: 1px solid #ccc;
+              border-radius: 4px;
+              font-size: 13px;
+              box-sizing: border-box;
+            ">
+          </div>
+          
+          <div class="tsl-form-group" style="margin-bottom: 12px;">
+            <label style="display: block; margin-bottom: 4px; font-size: 12px; font-weight: 500; color: #333;">Описание</label>
+            <textarea id="editTimerDescription" placeholder="Описание напоминания" rows="2" style="
+              width: 100%;
+              padding: 8px 10px;
+              border: 1px solid #ccc;
+              border-radius: 4px;
+              font-size: 13px;
+              box-sizing: border-box;
+              resize: vertical;
+            ">${reminder.description || ''}</textarea>
+          </div>
+        </div>
+        <div class="tsl-modal-footer" style="
+          display: flex;
+          justify-content: flex-end;
+          gap: 8px;
+          padding: 10px 16px;
+          border-top: 1px solid #e0e0e0;
+        ">
+          <button class="tsl-btn tsl-btn-secondary" id="editCancelBtn" style="
+            padding: 6px 14px;
+            border: none;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+            background: #6c757d;
+            color: white;
+          ">Отмена</button>
+          <button class="tsl-btn tsl-btn-primary" id="editSaveBtn" style="
+            padding: 6px 14px;
+            border: none;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+          ">Сохранить</button>
+        </div>
+      </div>
+  `;
+  
+  // Добавляем модальное окно после конкретного элемента напоминания
+  if (reminderItem) {
+    reminderItem.parentNode.insertBefore(modal, reminderItem.nextSibling);
+  } else {
+    // Fallback - добавляем в конец списка
+    remindersList.parentNode.insertBefore(modal, remindersList.nextSibling);
+  }
+  
+  // Изменяем размер popup под содержимое
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      resizePopup();
+    });
+  });
+  
+  // Функция для закрытия
+  const closeModal = () => {
+    modal.remove();
+    // Восстанавливаем размер после закрытия
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        resizePopup();
+      });
+    });
+  };
+  
+  // Обработчики
+  const closeBtn = modal.querySelector('.tsl-modal-close');
+  const cancelBtn = modal.querySelector('#editCancelBtn');
+  const saveBtn = modal.querySelector('#editSaveBtn');
+  const radioButtons = modal.querySelectorAll('input[name="editTimerType"]');
+  const minutesGroup = modal.querySelector('.tsl-minutes-group');
+  const timeGroup = modal.querySelector('.tsl-time-group');
+  
+  closeBtn.addEventListener('click', closeModal);
+  cancelBtn.addEventListener('click', closeModal);
+  
+  // Переключение типа
+  radioButtons.forEach(radio => {
+    radio.addEventListener('change', (e) => {
+      if (e.target.value === 'minutes') {
+        minutesGroup.style.display = 'block';
+        timeGroup.style.display = 'none';
+      } else {
+        minutesGroup.style.display = 'none';
+        timeGroup.style.display = 'block';
+      }
+    });
+  });
+  
+  // Сохранение
+  saveBtn.addEventListener('click', () => {
+    const timerType = modal.querySelector('input[name="editTimerType"]:checked').value;
+    const minutes = modal.querySelector('#editTimerMinutes').value;
+    const specificTime = modal.querySelector('#editTimerTime').value;
+    const description = modal.querySelector('#editTimerDescription').value.trim();
+    
+    let newRemindAt = null;
+    
+    if (timerType === 'minutes') {
+      if (!minutes) {
+        alert('Укажите количество минут');
+        return;
+      }
+      newRemindAt = Date.now() + (parseInt(minutes) * 60 * 1000);
+    } else {
+      if (!specificTime) {
+        alert('Укажите время напоминания');
+        return;
+      }
+      
+      const [hours, mins] = specificTime.split(':').map(Number);
+      const now = new Date();
+      const targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, mins);
+      
+      if (targetDate.getTime() <= now.getTime()) {
+        targetDate.setDate(targetDate.getDate() + 1);
+      }
+      
+      newRemindAt = targetDate.getTime();
+    }
+    
+    chrome.runtime.sendMessage({
+      action: 'updateReminder',
+      data: { id, remindAt: newRemindAt, description }
+    }, (response) => {
+      if (response?.success) {
+        reminder.remindAt = newRemindAt;
+        reminder.description = description;
+        reminder.notified = false;
+        renderReminders();
+        closeModal();
+      } else {
+        alert('Ошибка при обновлении напоминания');
+      }
+    });
+  });
+}
+
+// Слушаем изменения в storage для напоминаний
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.reminders) {
+    reminders = changes.reminders.newValue || [];
+    renderReminders();
+  }
+});
