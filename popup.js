@@ -15,7 +15,8 @@ let groups = [];
 let settings = {
   omnichatTemplates: true,
   ttmButton: true,
-  accountingPanel: true
+  accountingPanel: true,
+  grafanaSSH: true
 };
 let savedFormData = {
   region: '',
@@ -49,6 +50,7 @@ const addGroupBtn = document.getElementById('addGroupBtn');
 const settingOmnichatTemplates = document.getElementById('settingOmnichatTemplates');
 const settingTTMButton = document.getElementById('settingTTMButton');
 const settingAccountingPanel = document.getElementById('settingAccountingPanel');
+const settingGrafanaSSH = document.getElementById('settingGrafanaSSH');
 const savedRegion = document.getElementById('savedRegion');
 const savedFIO = document.getElementById('savedFIO');
 const clearSavedDataBtn = document.getElementById('clearSavedData');
@@ -128,7 +130,7 @@ function loadAllData() {
   chrome.storage.local.get(['templates', 'groups', 'settings', 'savedFormData', 'lastActiveTab', 'currentWorkingDate', 'requestsByDate'], (result) => {
     templates = result.templates || [];
     groups = result.groups || [];
-    settings = result.settings || { omnichatTemplates: true, ttmButton: true, accountingPanel: true };
+    settings = result.settings || { omnichatTemplates: true, ttmButton: true, accountingPanel: true, grafanaSSH: true };
     savedFormData = result.savedFormData || { region: '', fio: '' };
     lastActiveTab = result.lastActiveTab || 'templates';
     activeWorkingDate = result.currentWorkingDate || getTodayStr();
@@ -241,6 +243,7 @@ function applySettings() {
   settingOmnichatTemplates.checked = settings.omnichatTemplates;
   settingTTMButton.checked = settings.ttmButton;
   settingAccountingPanel.checked = settings.accountingPanel;
+  settingGrafanaSSH.checked = settings.grafanaSSH;
 }
 
 function loadSavedFormData() {
@@ -260,6 +263,11 @@ settingTTMButton.addEventListener('change', (e) => {
 
 settingAccountingPanel.addEventListener('change', (e) => {
   settings.accountingPanel = e.target.checked;
+  saveSettings();
+});
+
+settingGrafanaSSH.addEventListener('change', (e) => {
+  settings.grafanaSSH = e.target.checked;
   saveSettings();
 });
 
