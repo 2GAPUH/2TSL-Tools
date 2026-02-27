@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "2TSL toolbox",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "update_url": "http://158.160.227.37/BetterVolga/updates.xml",
   "description": "Набор инструментов для повышения эффективности работы: управление шаблонами, навигация между системами, напоминания и автоматизация рутинных задач.",
   "permissions": ["storage", "tabs", "notifications", "alarms"],
@@ -14,7 +14,23 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["icon.png", "edit.png", "delete.png", "copy.png", "paste.png"],
+      "resources": [
+        "icons/icon.png", "icons/icon_white.png",
+        "icons/edit.png", "icons/edit_white.png",
+        "icons/delete.png", "icons/delete_white.png",
+        "icons/copy.png", "icons/copy_white.png",
+        "icons/paste.png", "icons/paste_white.png",
+        "icons/folder.png", "icons/folder_white.png",
+        "icons/clipboard.png", "icons/clipboard_white.png",
+        "icons/clock.png", "icons/clock_white.png",
+        "icons/settings.png", "icons/settings_white.png",
+        "icons/message-circle-plus.png", "icons/message-circle-plus_white.png",
+        "icons/save.png", "icons/save_white.png",
+        "icons/cancel.png", "icons/cancel_white.png",
+        "icons/zap.png", "icons/zap_white.png",
+        "icons/palette.png", "icons/palette_white.png",
+        "icons/check-check.png", "icons/check-check_white.png"
+      ],
       "matches": ["https://omnichat.rt.ru/*", "https://www.ttm.rt.ru/*", "https://bzbti.rt.ru/*", "https://epd.rt.ru/*", "http://10.77.19.50/*", "http://10.144.39.131/*", "http://10.160.191.178/*"]
     }
   ],

@@ -170,7 +170,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     // Показываем уведомление
     chrome.notifications.create(reminder.id, {
       type: 'basic',
-      iconUrl: 'icon.png',
+      iconUrl: 'icons/icon.png',
       title: `⏰ Напоминание: Заявка #${reminder.ticketNumber}`,
       message: reminder.description || 'Пора заняться этой заявкой!',
       priority: 2,
@@ -250,7 +250,7 @@ chrome.runtime.onStartup.addListener(async () => {
       // Время уже прошло - показываем уведомление сразу
       chrome.notifications.create(reminder.id, {
         type: 'basic',
-        iconUrl: 'icon.png',
+        iconUrl: 'icons/icon.png',
         title: `⏰ Просроченное напоминание: Заявка #${reminder.ticketNumber}`,
         message: reminder.description || 'Пора заняться этой заявкой!',
         priority: 2,

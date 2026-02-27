@@ -1,3 +1,19 @@
+// ==================== ИКОНКИ ====================
+function getIconUrl(iconName) {
+  const isDark = settings.darkMode;
+  const suffix = isDark ? '_white' : '';
+  return chrome.runtime.getURL(`icons/${iconName}${suffix}.png`);
+}
+
+function updateIcons() {
+  const icons = document.querySelectorAll('[data-icon]');
+  
+  icons.forEach(icon => {
+    const iconName = icon.dataset.icon;
+    icon.src = getIconUrl(iconName);
+  });
+}
+
 // ==================== ХЕЛПЕРЫ ====================
 const pad2 = (n) => String(n).padStart(2, "0");
 const getTodayStr = () => {
@@ -265,6 +281,7 @@ function applyDarkMode() {
   } else {
     document.documentElement.classList.remove('dark-mode');
   }
+  updateIcons();
 }
 
 function loadSavedFormData() {
@@ -318,7 +335,7 @@ function updateTicketsUI(date, data) {
   
   const entries = data.entries || [];
   ticketEls.entries.innerHTML = entries.length ? entries.map(e => `
-    <li>[${e.time}] ${e.type==='closed'?'✅':'🚗'} ${e.number||''} ${e.comment||''}</li>
+    <li>[${e.time}] ${e.type==='closed'?'Закрыто':'Выезд'} ${e.number||''} ${e.comment||''}</li>
   `).join('') : '<li>Записей нет</li>';
   
   const closed = entries.filter(e => e.type === 'closed').length;
@@ -467,16 +484,16 @@ function renderTemplates() {
         </div>
         <div class="template-actions">
           <button class="action-btn copy-btn" data-id="${template.id}" title="Копировать">
-            <img src="${chrome.runtime.getURL('copy.png')}" alt="Копировать">
+            <img src="${getIconUrl('copy')}" alt="Копировать">
           </button>
           <button class="action-btn paste-btn" data-id="${template.id}" title="Вставить в сообщение">
-            <img src="${chrome.runtime.getURL('paste.png')}" alt="Вставить">
+            <img src="${getIconUrl('paste')}" alt="Вставить">
           </button>
           <button class="action-btn edit-btn" data-id="${template.id}" title="Редактировать">
-            <img src="${chrome.runtime.getURL('edit.png')}" alt="Редактировать">
+            <img src="${getIconUrl('edit')}" alt="Редактировать">
           </button>
           <button class="action-btn delete-btn" data-id="${template.id}" title="Удалить">
-            <img src="${chrome.runtime.getURL('delete.png')}" alt="Удалить">
+            <img src="${getIconUrl('delete')}" alt="Удалить">
           </button>
         </div>
       </div>
@@ -518,7 +535,7 @@ function renderGroupsList() {
       <span>${escapeHtml(g)}</span>
       <div class="group-actions">
         <button class="action-btn delete-btn" data-group="${escapeHtml(g)}" title="Удалить">
-          <img src="${chrome.runtime.getURL('delete.png')}" alt="Удалить">
+          <img src="${getIconUrl('delete')}" alt="Удалить">
         </button>
       </div>
     </div>
@@ -799,7 +816,7 @@ function renderReminders() {
     remindersList.innerHTML = `
       <div class="reminder-empty">
         <p>Нет активных напоминаний</p>
-        <p>Нажмите кнопку ⏰ в TTM, чтобы создать напоминание</p>
+        <p>Нажмите кнопку таймера в TTM, чтобы создать напоминание</p>
       </div>
     `;
     return;
@@ -811,8 +828,8 @@ function renderReminders() {
   remindersList.innerHTML = sorted.map(reminder => {
     const status = getTimeStatus(reminder);
     const statusClass = status === 'notified' ? 'notified' : status === 'overdue' ? 'overdue' : '';
-    const statusText = status === 'notified' ? '✅ Выполнено' : 
-                       status === 'overdue' ? '❌ Просрочено' : 
+    const statusText = status === 'notified' ? 'Выполнено' : 
+                       status === 'overdue' ? 'Просрочено' : 
                        formatReminderTime(reminder.remindAt);
     
     return `
@@ -826,10 +843,10 @@ function renderReminders() {
         ${reminder.description ? `<div class="reminder-description">${escapeHtml(reminder.description)}</div>` : ''}
         <div class="reminder-actions">
           ${status !== 'notified' ? `<button class="reminder-btn reminder-btn-edit" data-id="${reminder.id}">
-            ✏️ Изменить время
+            Изменить время
           </button>` : ''}
           <button class="reminder-btn reminder-btn-delete" data-id="${reminder.id}">
-            🗑️ Удалить
+            Удалить
           </button>
         </div>
       </div>
@@ -898,7 +915,7 @@ function editReminderTime(id) {
           padding: 12px 16px;
           border-bottom: 1px solid ${borderColor};
         ">
-          <h3 style="margin: 0; font-size: 14px; color: ${textColor};">✏️ Изменить время для #${reminder.ticketNumber}</h3>
+          <h3 style="margin: 0; font-size: 14px; color: ${textColor};">Изменить время для #${reminder.ticketNumber}</h3>
           <button class="tsl-modal-close" style="background: none; border: none; font-size: 20px; cursor: pointer; color: ${mutedColor};">&times;</button>
         </div>
         <div class="tsl-modal-body" style="padding: 12px 16px;">
