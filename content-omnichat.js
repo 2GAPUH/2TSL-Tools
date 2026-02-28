@@ -313,6 +313,7 @@ function updateTabButtons(activeButton) {
     const inactiveClasses = getTabClasses(false);
     const spanClasses = getTabSpanClasses();
     
+    // Сначала сбрасываем все кнопки в неактивное состояние
     document.querySelectorAll(SELECTORS.wrapperTabs + ' button').forEach(btn => {
       btn.setAttribute('aria-selected', 'false');
       btn.className = inactiveClasses;
@@ -320,8 +321,12 @@ function updateTabButtons(activeButton) {
       if (span) span.className = spanClasses;
     });
     
+    // Затем активируем нужную кнопку
     activeButton.setAttribute('aria-selected', 'true');
     activeButton.className = activeClasses;
+    // Обновляем классы span для активной кнопки
+    const activeSpan = activeButton.querySelector('span');
+    if (activeSpan) activeSpan.className = spanClasses;
   }, 'Ошибка обновления вкладок');
 }
 
@@ -582,6 +587,48 @@ function initializeWhenReady() {
   }, 'Ошибка инициализации');
 }
 
+// Функция для отключения функционала
+function disableOmnichatTemplates() {
+  // Удаляем кнопку "Дополнительно"
+  document.querySelector(SELECTORS.tabAdditional)?.remove();
+  
+  // Восстанавливаем оригинальный контент
+  restoreOriginalContent();
+  
+  // Скрываем кастомный поиск
+  if (customSearchContainer) {
+    customSearchContainer.style.display = 'none';
+  }
+  if (originalSearchContainer) {
+    originalSearchContainer.style.display = '';
+  }
+  
+  // Сбрасываем состояние
+  isInitialized = false;
+  currentSelectedGroup = '';
+  
+  console.log('[Omnichat] Шаблоны отключены');
+}
+
+// Слушатель изменений настроек
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.settings) {
+    const oldSettings = settings;
+    settings = changes.settings.newValue || { omnichatTemplates: true, ttmButton: true };
+    
+    // Если настройка была выключена
+    if (oldSettings.omnichatTemplates && !settings.omnichatTemplates) {
+      disableOmnichatTemplates();
+    }
+    
+    // Если настройка была включена
+    if (!oldSettings.omnichatTemplates && settings.omnichatTemplates) {
+      // Пробуем инициализировать
+      setTimeout(initializeWhenReady, 500);
+    }
+  }
+});
+
 function init() {
   console.log('Omnichat Templates v7.0');
   
@@ -620,6 +667,7 @@ if (document.readyState === 'loading') {
 
 // Observer
 new MutationObserver(() => {
+  // Проверяем настройку перед попыткой инициализации
   if (!isInitialized && settings.omnichatTemplates && document.querySelector(SELECTORS.tabsGroup)) {
     initializeWhenReady();
   }

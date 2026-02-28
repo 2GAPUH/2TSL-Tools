@@ -4,11 +4,15 @@
 (function() {
   'use strict';
 
+  // Глобальные настройки
+  let settings = { grafanaSSH: true };
+  let observer = null;
+
   // Маппинг регионов на SSH серверы
   const SSH_SERVERS = {
     'волга': 'http://10.77.19.50/stb_ssh/',
     'юг': 'http://10.144.39.131/stb_ssh/',
-    'сз': 'http://10.160.191.178/stb_ssh/'
+    'северо-запад': 'http://10.160.191.178/stb_ssh/'
   };
 
   // Функция для определения SSH сервера по региону
@@ -111,7 +115,7 @@
       // Ищем ячейку с регионом
       if ((text.toLowerCase().includes('волга') || 
            text.toLowerCase().includes('юг') || 
-           text.toLowerCase().includes('сз')) && 
+           text.toLowerCase().includes('северо-запад')) && 
           text.includes('/') && !regionCell) {
         regionCell = cell;
       }
@@ -150,7 +154,7 @@
           } else if (dataSource.toLowerCase().includes('ug') || dataSource.toLowerCase().includes('yug')) {
             sshUrl = SSH_SERVERS['юг'];
           } else if (dataSource.toLowerCase().includes('sz')) {
-            sshUrl = SSH_SERVERS['сз'];
+            sshUrl = SSH_SERVERS['северо-запад'];
           }
         }
         
@@ -165,9 +169,29 @@
     }
   }
 
+  // Функция для отключения кликабельности IP
+  function disableIPClickable() {
+    document.querySelectorAll('[data-ssh-clickable="true"]').forEach(el => {
+      el.style.cssText = '';
+      el.title = '';
+      el.removeAttribute('data-ssh-clickable');
+      // Удаляем все обработчики событий клонируя элемент
+      const newEl = el.cloneNode(true);
+      el.parentNode.replaceChild(newEl, el);
+    });
+    console.log('[2TSL] Функционал Grafana → SSH отключён');
+  }
+
   // Функция для отслеживания изменений в DOM
   function observeDOM() {
-    const observer = new MutationObserver((mutations) => {
+    if (observer) {
+      observer.disconnect();
+    }
+    
+    observer = new MutationObserver((mutations) => {
+      // Проверяем глобальную настройку
+      if (!settings.grafanaSSH) return;
+      
       let shouldCheck = false;
       mutations.forEach(mutation => {
         if (mutation.addedNodes.length > 0) {
@@ -182,13 +206,7 @@
       });
       
       if (shouldCheck) {
-        // Проверяем настройку перед обработкой
-        chrome.storage.local.get(['settings'], (result) => {
-          const settings = result.settings || { grafanaSSH: true };
-          if (settings.grafanaSSH) {
-            processGrafanaTable();
-          }
-        });
+        processGrafanaTable();
       }
     });
 
@@ -198,13 +216,33 @@
     });
   }
 
+  // Слушатель изменений настроек
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.settings) {
+      const oldSettings = settings;
+      settings = changes.settings.newValue || { grafanaSSH: true };
+      
+      // Если настройка была выключена
+      if (oldSettings.grafanaSSH && !settings.grafanaSSH) {
+        disableIPClickable();
+        if (observer) observer.disconnect();
+      }
+      
+      // Если настройка была включена
+      if (!oldSettings.grafanaSSH && settings.grafanaSSH) {
+        processGrafanaTable();
+        observeDOM();
+      }
+    }
+  });
+
   // Инициализация
   function init() {
     console.log('[2TSL] Grafana content script загружен');
     
     // Проверяем настройку перед запуском
     chrome.storage.local.get(['settings'], (result) => {
-      const settings = result.settings || { grafanaSSH: true };
+      settings = result.settings || { grafanaSSH: true };
       
       if (settings.grafanaSSH) {
         // Первичная попытка

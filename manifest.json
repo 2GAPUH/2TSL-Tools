@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "2TSL toolbox",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "update_url": "http://158.160.227.37/BetterVolga/updates.xml",
   "description": "Набор инструментов для повышения эффективности работы: управление шаблонами, навигация между системами, напоминания и автоматизация рутинных задач.",
   "permissions": ["storage", "tabs", "notifications", "alarms"],

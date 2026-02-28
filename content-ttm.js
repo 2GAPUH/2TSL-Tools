@@ -223,10 +223,17 @@ function addButtonToToolbar() {
       return false;
     }
     
-    if (!document.querySelector('[data-qa-id="assistant-form-btn"]')) {
+    // Добавляем кнопку Ассистента только если настройка включена
+    if (settings.ttmButton !== false && !document.querySelector('[data-qa-id="assistant-form-btn"]')) {
       const assistantButton = createAssistantButton();
       toolbar.appendChild(assistantButton);
       console.log('[TTM] Кнопка Ассистента добавлена');
+    }
+    
+    // Удаляем кнопку Ассистента если настройка выключена
+    if (settings.ttmButton === false) {
+      const existingAssistantBtn = document.querySelector('[data-qa-id="assistant-form-btn"]');
+      if (existingAssistantBtn) existingAssistantBtn.remove();
     }
     
     if (settings.reminder && !document.querySelector('[data-qa-id="timer-btn"]')) {
@@ -704,6 +711,17 @@ chrome.storage.onChanged.addListener((changes, area) => {
     const oldSettings = settings;
     settings = changes.settings.newValue;
     
+    // Обработка изменения ttmButton
+    if (oldSettings.ttmButton && !settings.ttmButton) {
+      const assistantBtn = document.querySelector('[data-qa-id="assistant-form-btn"]');
+      if (assistantBtn) assistantBtn.remove();
+    }
+    
+    if (!oldSettings.ttmButton && settings.ttmButton) {
+      tryAddButton();
+    }
+    
+    // Обработка изменения reminder
     if (oldSettings.reminder && !settings.reminder) {
       const timerBtn = document.querySelector('[data-qa-id="timer-btn"]');
       if (timerBtn) timerBtn.remove();
@@ -713,6 +731,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
       tryAddButton();
     }
     
+    // Обработка изменения ttmOnyma
     if (oldSettings.ttmOnyma !== settings.ttmOnyma) {
       addOnymaButtonToQuickAccess();
     }
