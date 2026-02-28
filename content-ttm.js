@@ -1,13 +1,13 @@
 // content-ttm.js
 // Для сайта ttm.rt.ru
-// Добавляет кнопку для перехода на форму Ассистента и кнопку таймера
-// Версия 1.4 - добавлена напоминалка
+// Добавляет кнопку для перехода на форму Ассистента, кнопку таймера и кнопку перехода в Onyma
+// Версия 1.6 - исправлен поиск ИЛС, убраны лишние логи
 
 // ==================== ПЕРЕМЕННЫЕ ====================
-let settings = { omnichatTemplates: true, ttmButton: true, accountingPanel: true, grafanaSSH: true, reminder: true, darkMode: false };
+let settings = { omnichatTemplates: true, ttmButton: true, accountingPanel: true, grafanaSSH: true, reminder: true, ttmOnyma: true, darkMode: false };
 let isButtonAdded = false;
 let settingsLoaded = false;
-let lastUrl = window.location.href; // Отслеживание URL для SPA навигации
+let lastUrl = window.location.href;
 
 // ==================== УТИЛИТЫ ====================
 function safelyExecute(callback, errorMsg = 'Ошибка') {
@@ -18,7 +18,6 @@ function safelyExecute(callback, errorMsg = 'Ошибка') {
 // ==================== ПОЛУЧЕНИЕ ДАННЫХ ИЗ TTM ====================
 function getIncidentNumber() {
   return safelyExecute(() => {
-    // Ищем по data-qa-id содержащему ticket-id
     const ticketIdEl = document.querySelector('[data-qa-id*="ticket-id"]');
     if (ticketIdEl) {
       const text = ticketIdEl.textContent?.trim();
@@ -28,7 +27,6 @@ function getIncidentNumber() {
       }
     }
     
-    // Альтернативные селекторы
     const selectors = [
       '[data-qa-id*="incident"]',
       '[data-qa-id*="number"]',
@@ -56,18 +54,14 @@ function getIncidentNumber() {
   }, 'Ошибка получения номера инцидента');
 }
 
-// Парсинг технологии из наименования услуги
-// Формат: "ТНГ_РТ_Аист_100_890 переход (FTTx)" -> "FTTx"
 function parseTechnologyFromServiceName(serviceName) {
   if (!serviceName) return '';
   
   const text = serviceName.toLowerCase();
   
-  // Ищем технологию в скобках: (FTTx), (xDSL), (xPON), (DOCSIS)
   const bracketMatch = serviceName.match(/\((fttx|xdsl|xpon|docsis)\)/i);
   if (bracketMatch) {
     const tech = bracketMatch[1].toUpperCase();
-    // Нормализуем название
     if (tech === 'FTTX') return 'FTTx';
     if (tech === 'XDSL') return 'xDSL';
     if (tech === 'XPON') return 'xPON';
@@ -75,7 +69,6 @@ function parseTechnologyFromServiceName(serviceName) {
     return tech;
   }
   
-  // Если нет скобок, ищем в тексте
   if (text.includes('fttx') || text.includes('fttb')) return 'FTTx';
   if (text.includes('xdsl') || text.includes('adsl') || text.includes('vdsl')) return 'xDSL';
   if (text.includes('xpon') || text.includes('gpon') || text.includes('pon')) return 'xPON';
@@ -86,10 +79,8 @@ function parseTechnologyFromServiceName(serviceName) {
 
 function getServiceName() {
   return safelyExecute(() => {
-    // Ищем поле "Наименование услуги" по data-qa-id
     const serviceNameEl = document.querySelector('[data-qa-id*="service-name"]');
     if (serviceNameEl) {
-      // Ищем значение внутри элемента (обычно в <span> или <p>)
       const valueEl = serviceNameEl.querySelector('span, p') || serviceNameEl;
       const serviceName = valueEl?.textContent?.trim();
       if (serviceName) {
@@ -97,7 +88,6 @@ function getServiceName() {
       }
     }
     
-    // Альтернативный поиск по label
     const listItems = document.querySelectorAll('mat-list-item');
     for (const item of listItems) {
       const smallEl = item.querySelector('small.mat-line');
@@ -115,19 +105,15 @@ function getServiceName() {
 
 function getClientRF() {
   return safelyExecute(() => {
-    // Ищем поле "РФ подключения" по data-qa-id
     const rfEl = document.querySelector('[data-qa-id*="selected-rf"]');
     if (rfEl) {
-      // Ищем значение внутри элемента
       const valueEl = rfEl.querySelector('p.mat-line') || rfEl;
       const rfText = valueEl?.textContent?.trim();
       if (rfText) {
-        // Очищаем от лишних пробелов
         return rfText.replace(/\s+/g, ' ').trim();
       }
     }
     
-    // Альтернативный поиск по label в списке
     const listItems = document.querySelectorAll('mat-list-item');
     for (const item of listItems) {
       const smallEl = item.querySelector('small.mat-line');
@@ -141,6 +127,46 @@ function getClientRF() {
     
     return '';
   }, 'Ошибка получения РФ клиента');
+}
+
+// Получение лицевого счёта (ИЛС клиента)
+function getIlsAccount() {
+  return safelyExecute(() => {
+    // Способ 1: прямой поиск по data-qa-id с -value
+    const valueEl = document.querySelector('[data-qa-id*="list-item-new-order-8"][data-qa-id*="-value"]');
+    if (valueEl?.textContent) {
+      return valueEl.textContent.trim();
+    }
+    
+    // Способ 2: поиск по mat-list-item с data-qa-id содержащим "list-item-new-order-8"
+    const listItems = document.querySelectorAll('mat-list-item');
+    for (const item of listItems) {
+      const qaId = item.getAttribute('data-qa-id') || '';
+      if (qaId.includes('list-item-new-order-8')) {
+        const pEl = item.querySelector('p');
+        if (pEl?.textContent) {
+          return pEl.textContent.trim();
+        }
+      }
+    }
+    
+    // Способ 3: поиск по label "ИЛС клиента"
+    for (const item of listItems) {
+      const smallEl = item.querySelector('small');
+      if (smallEl && smallEl.textContent?.includes('ИЛС клиента')) {
+        const pEl = item.querySelector('p');
+        if (pEl?.textContent) {
+          return pEl.textContent.trim();
+        }
+        const divEl = item.querySelector('div.mat-line');
+        if (divEl?.textContent) {
+          return divEl.textContent.trim();
+        }
+      }
+    }
+    
+    return '';
+  }, 'Ошибка получения лицевого счёта');
 }
 
 // ==================== КНОПКА ====================
@@ -167,6 +193,29 @@ function createAssistantButton() {
   return button;
 }
 
+// Кнопка перехода в Onyma
+function createOnymaButton() {
+  const button = document.createElement('button');
+  button.setAttribute('mat-icon-button', '');
+  button.className = 'mat-focus-indicator mat-tooltip-trigger mat-icon-button mat-button-base mat-primary';
+  button.setAttribute('data-qa-id', 'onyma-btn');
+  button.title = 'Найти в Onyma';
+  
+  button.innerHTML = `
+    <span class="mat-button-wrapper">
+      <mat-icon role="img" class="mat-icon notranslate material-icons mat-icon-no-color" aria-hidden="true" data-mat-icon-type="font">search</mat-icon>
+    </span>
+    <span matripple="" class="mat-ripple mat-button-ripple mat-button-ripple-round"></span>
+    <span class="mat-button-focus-overlay"></span>
+  `;
+  
+  button.addEventListener('click', () => {
+    openOnyma();
+  });
+  
+  return button;
+}
+
 function addButtonToToolbar() {
   return safelyExecute(() => {
     const toolbar = document.querySelector('.tasks-toolbar');
@@ -174,22 +223,57 @@ function addButtonToToolbar() {
       return false;
     }
     
-    // Добавляем кнопку Ассистента
     if (!document.querySelector('[data-qa-id="assistant-form-btn"]')) {
       const assistantButton = createAssistantButton();
       toolbar.appendChild(assistantButton);
-      console.log('Кнопка Ассистента добавлена');
+      console.log('[TTM] Кнопка Ассистента добавлена');
     }
     
-    // Добавляем кнопку Таймера (если включена настройка)
     if (settings.reminder && !document.querySelector('[data-qa-id="timer-btn"]')) {
       const timerButton = createTimerButton();
       toolbar.appendChild(timerButton);
-      console.log('Кнопка Таймера добавлена');
+      console.log('[TTM] Кнопка Таймера добавлена');
     }
     
     return true;
   }, 'Ошибка добавления кнопки');
+}
+
+// Добавление кнопки в quick-access toolbar (для Onyma)
+function addOnymaButtonToQuickAccess() {
+  return safelyExecute(() => {
+    const quickAccessToolbar = document.querySelector('.quick-access__button-list');
+    if (!quickAccessToolbar) {
+      return false;
+    }
+    
+    // Проверяем, включена ли настройка
+    const isSettingEnabled = settings.ttmOnyma !== false;
+    if (!isSettingEnabled) {
+      const existingBtn = document.querySelector('[data-qa-id="onyma-btn"]');
+      if (existingBtn) existingBtn.remove();
+      return false;
+    }
+    
+    // Получаем лицевой счёт
+    const ilsAccount = getIlsAccount();
+    
+    // Проверяем, начинается ли с цифры 4
+    if (!ilsAccount || !ilsAccount.startsWith('4')) {
+      const existingBtn = document.querySelector('[data-qa-id="onyma-btn"]');
+      if (existingBtn) existingBtn.remove();
+      return false;
+    }
+    
+    // Добавляем кнопку если её нет
+    if (!document.querySelector('[data-qa-id="onyma-btn"]')) {
+      const onymaButton = createOnymaButton();
+      quickAccessToolbar.appendChild(onymaButton);
+      console.log('[TTM] Кнопка Onyma добавлена, ИЛС:', ilsAccount);
+    }
+    
+    return true;
+  }, 'Ошибка добавления кнопки Onyma');
 }
 
 // ==================== ОТКРЫТИЕ ФОРМЫ ====================
@@ -199,7 +283,7 @@ function openAssistantForm() {
     const serviceName = getServiceName();
     const clientRF = getClientRF();
     
-    console.log('Данные из TTM:', { incidentNumber, serviceName, clientRF });
+    console.log('[TTM] Данные:', { incidentNumber, serviceName, clientRF });
     
     const formData = {
       incidentNumber,
@@ -209,14 +293,34 @@ function openAssistantForm() {
     };
     
     chrome.storage.local.set({ ttmFormData: formData }, () => {
-      console.log('Данные TTM сохранены:', formData);
-      
       chrome.runtime.sendMessage({
         action: 'openForm',
         url: 'https://bzbti.rt.ru/vip/ispolzovanie-assistenta/'
       });
     });
   }, 'Ошибка при открытии формы');
+}
+
+// ==================== ОТКРЫТИЕ ONYMA ====================
+function openOnyma() {
+  safelyExecute(() => {
+    const ilsAccount = getIlsAccount();
+    
+    if (!ilsAccount) {
+      alert('Не удалось найти лицевой счёт');
+      return;
+    }
+    
+    console.log('[TTM] Открытие Onyma с ИЛС:', ilsAccount);
+    
+    // Сохраняем ИЛС для передачи на страницу Onyma
+    chrome.storage.local.set({ onymaSearchData: { ilsAccount, timestamp: Date.now() } }, () => {
+      chrome.runtime.sendMessage({
+        action: 'openForm',
+        url: 'https://onymaweb.south.rt.ru/onyma/main/dogsearch.htms'
+      });
+    });
+  }, 'Ошибка при открытии Onyma');
 }
 
 // ==================== ТАЙМЕР / НАПОМИНАЛКА ====================
@@ -244,7 +348,6 @@ function createTimerButton() {
 }
 
 function openTimerModal() {
-  // Удаляем существующее модальное окно если есть
   const existingModal = document.getElementById('tsl-timer-modal');
   if (existingModal) {
     existingModal.remove();
@@ -254,7 +357,6 @@ function openTimerModal() {
   const incidentNumber = getIncidentNumber();
   const ticketUrl = window.location.href;
   
-  // Определяем цвета в зависимости от темы
   const isDark = settings.darkMode;
   const bgColor = isDark ? '#16213e' : 'white';
   const textColor = isDark ? '#eaeaea' : '#333';
@@ -309,7 +411,6 @@ function openTimerModal() {
     </div>
   `;
   
-  // Стили для модального окна
   const style = document.createElement('style');
   style.textContent = `
     #tsl-timer-modal .tsl-modal-overlay {
@@ -447,7 +548,6 @@ function openTimerModal() {
   document.head.appendChild(style);
   document.body.appendChild(modal);
   
-  // Обработчики событий
   const closeBtn = modal.querySelector('.tsl-modal-close');
   const cancelBtn = modal.querySelector('#tslCancelTimer');
   const saveBtn = modal.querySelector('#tslSaveTimer');
@@ -458,7 +558,6 @@ function openTimerModal() {
   closeBtn.addEventListener('click', () => modal.remove());
   cancelBtn.addEventListener('click', () => modal.remove());
   
-  // Переключение типа напоминания
   radioButtons.forEach(radio => {
     radio.addEventListener('change', (e) => {
       if (e.target.value === 'minutes') {
@@ -471,7 +570,6 @@ function openTimerModal() {
     });
   });
   
-  // Сохранение
   saveBtn.addEventListener('click', () => {
     const timerType = modal.querySelector('input[name="timerType"]:checked').value;
     const minutes = modal.querySelector('#timerMinutes').value;
@@ -502,7 +600,6 @@ function openTimerModal() {
     }, (response) => {
       if (response && response.success) {
         modal.remove();
-        // Показываем краткое уведомление об успехе
         showSuccessToast('Напоминание сохранено!');
       } else {
         alert('Ошибка при сохранении напоминания');
@@ -510,7 +607,6 @@ function openTimerModal() {
     });
   });
   
-  // Закрытие по клику на overlay
   modal.querySelector('.tsl-modal-overlay').addEventListener('click', (e) => {
     if (e.target.classList.contains('tsl-modal-overlay')) {
       modal.remove();
@@ -546,39 +642,35 @@ function showSuccessToast(message) {
 function tryAddButton() {
   if (!settingsLoaded) return;
   
-  // Проверяем, существует ли кнопка в DOM прямо сейчас
   const existingAssistantBtn = document.querySelector('[data-qa-id="assistant-form-btn"]');
   const existingTimerBtn = document.querySelector('[data-qa-id="timer-btn"]');
+  const existingOnymaBtn = document.querySelector('[data-qa-id="onyma-btn"]');
   
-  // Сбрасываем флаг если кнопок нет
-  if (!existingAssistantBtn && !existingTimerBtn) {
+  if (!existingAssistantBtn && !existingTimerBtn && !existingOnymaBtn) {
     isButtonAdded = false;
   }
   
   if (addButtonToToolbar()) {
     isButtonAdded = true;
   }
+  
+  addOnymaButtonToQuickAccess();
 }
 
 // ==================== ОТСЛЕЖИВАНИЕ SPA НАВИГАЦИИ ====================
 function checkUrlChange() {
   const currentUrl = window.location.href;
   if (currentUrl !== lastUrl) {
-    console.log('URL изменился:', lastUrl, '->', currentUrl);
     lastUrl = currentUrl;
-    // Сбрасываем флаг при смене URL
     isButtonAdded = false;
-    // Пробуем добавить кнопку на новой странице
     setTimeout(tryAddButton, 500);
     setTimeout(tryAddButton, 1500);
     setTimeout(tryAddButton, 3000);
   }
 }
 
-// Периодическая проверка изменения URL (для SPA)
 setInterval(checkUrlChange, 500);
 
-// Также слушаем события history API
 const originalPushState = history.pushState;
 const originalReplaceState = history.replaceState;
 
@@ -597,46 +689,43 @@ window.addEventListener('hashchange', checkUrlChange);
 
 // ==================== ИНИЦИАЛИЗАЦИЯ ====================
 function init() {
-  console.log('TTM Extension v1.4');
-  
-  // Загружаем настройки и сразу пытаемся добавить кнопки
   chrome.storage.local.get(['settings'], (result) => {
-    settings = result.settings || { omnichatTemplates: true, ttmButton: true, accountingPanel: true, grafanaSSH: true, reminder: true, darkMode: false };
+    settings = result.settings || { omnichatTemplates: true, ttmButton: true, accountingPanel: true, grafanaSSH: true, reminder: true, ttmOnyma: true, darkMode: false };
     settingsLoaded = true;
     
-    // Пробуем сразу
     tryAddButton();
-    // И через задержку
     setTimeout(tryAddButton, 1000);
     setTimeout(tryAddButton, 3000);
   });
 }
 
-// Слушатель изменений настроек
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes.settings) {
     const oldSettings = settings;
     settings = changes.settings.newValue;
     
-    // Удаляем кнопку таймера если настройка отключена
     if (oldSettings.reminder && !settings.reminder) {
       const timerBtn = document.querySelector('[data-qa-id="timer-btn"]');
       if (timerBtn) timerBtn.remove();
     }
     
-    // Добавляем кнопку таймера если настройка включена
     if (!oldSettings.reminder && settings.reminder) {
       tryAddButton();
+    }
+    
+    if (oldSettings.ttmOnyma !== settings.ttmOnyma) {
+      addOnymaButtonToQuickAccess();
     }
   }
 });
 
-// Observer для динамического добавления
 const observer = new MutationObserver(() => {
-  // Проверяем что настройки загружены
-  if (settingsLoaded && !isButtonAdded) {
-    if (document.querySelector('.tasks-toolbar')) {
+  if (settingsLoaded) {
+    if (document.querySelector('.tasks-toolbar') && !isButtonAdded) {
       tryAddButton();
+    }
+    if (document.querySelector('.quick-access__button-list')) {
+      addOnymaButtonToQuickAccess();
     }
   }
 });
@@ -648,5 +737,4 @@ if (document.readyState === 'loading') {
   init();
 }
 
-// Запускаем observer сразу, но он будет ждать settingsLoaded
 observer.observe(document.body, { childList: true, subtree: true });
