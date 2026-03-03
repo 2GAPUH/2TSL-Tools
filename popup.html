@@ -1108,6 +1108,49 @@
       
       <button class="clear-data-btn" id="clearSavedData">Очистить сохраненные данные</button>
     </div>
+    
+    <div class="settings-section">
+      <div class="settings-title">
+        <span style="font-size: 16px;">💬</span>
+        Обратная связь
+      </div>
+      
+      <button class="feedback-btn" id="openFeedbackBtn" style="width: 100%; padding: 12px; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; transition: background 0.2s;">
+        📝 Оставить отзыв или предложение
+      </button>
+    </div>
+  </div>
+
+  <!-- Модальное окно обратной связи -->
+  <div class="modal-overlay" id="feedbackModalOverlay" style="display: none;">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">💬 Обратная связь</h3>
+        <button class="close-btn" id="closeFeedbackModalBtn">&times;</button>
+      </div>
+      <form id="feedbackForm">
+        <div class="form-group">
+          <label for="feedbackType">Тип обращения</label>
+          <select id="feedbackType" required>
+            <option value="feedback">Отзыв о расширении</option>
+            <option value="bug">Сообщить о баге</option>
+            <option value="suggestion">Предложение по улучшению</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="feedbackMessage">Сообщение</label>
+          <textarea id="feedbackMessage" required placeholder="Опишите ваш отзыв, проблему или предложение..." style="height: 120px;"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="feedbackEmail">Email (необязательно)</label>
+          <input type="email" id="feedbackEmail" placeholder="Для ответа на ваше сообщение">
+        </div>
+        <div class="form-actions">
+          <button type="button" class="cancel-btn" id="cancelFeedbackBtn">Отмена</button>
+          <button type="submit" class="save-btn" id="submitFeedbackBtn">Отправить</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <!-- Модальное окно добавления/редактирования шаблона -->

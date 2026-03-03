@@ -1,6 +1,60 @@
 // background.js
 // Service worker для Manifest V3
 
+const API_URL = 'http://158.160.132.18:3001';
+
+// ==================== СЧЁТЧИК ПОЛЬЗОВАТЕЛЕЙ ====================
+
+// Генерация уникального ID пользователя
+async function getUserId() {
+  const result = await chrome.storage.local.get(['userId']);
+  if (result.userId) {
+    return result.userId;
+  }
+  
+  // Генерируем новый ID
+  const userId = 'user_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+  await chrome.storage.local.set({ userId });
+  return userId;
+}
+
+// Регистрация пользователя на сервере
+async function registerUser() {
+  try {
+    const userId = await getUserId();
+    const manifest = chrome.runtime.getManifest();
+    
+    await fetch(`${API_URL}/api/user/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId,
+        version: manifest.version
+      })
+    });
+    
+    console.log('[2TSL] Пользователь зарегистрирован:', userId);
+  } catch (error) {
+    console.error('[2TSL] Ошибка регистрации:', error);
+  }
+}
+
+// При установке расширения
+chrome.runtime.onInstalled.addListener(async (details) => {
+  console.log('[2TSL] Расширение установлено:', details.reason);
+  
+  // Регистрируем пользователя
+  await registerUser();
+});
+
+// При запуске браузера
+chrome.runtime.onStartup.addListener(async () => {
+  // Обновляем активность пользователя
+  await registerUser();
+});
+
+// ==================== ОБРАБОТКА СООБЩЕНИЙ ====================
+
 // Обработка сообщений от content scripts
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'openForm') {

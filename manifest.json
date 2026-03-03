@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "2TSL toolbox",
-  "version": "0.4.4",
+  "version": "0.5.0",
   "update_url": "http://158.160.227.37/BetterVolga/updates.xml",
   "description": "Набор инструментов для повышения эффективности работы: управление шаблонами, навигация между системами, напоминания и автоматизация рутинных задач.",
   "permissions": ["storage", "tabs", "notifications", "alarms"],
@@ -78,6 +78,7 @@
     "http://10.77.19.50/*",
     "http://10.144.39.131/*",
     "http://10.160.191.178/*",
-    "https://onymaweb.south.rt.ru/*"
+    "https://onymaweb.south.rt.ru/*",
+    "http://158.160.132.18:3001/*"
   ]
 }

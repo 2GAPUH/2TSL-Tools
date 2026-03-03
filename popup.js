@@ -1119,3 +1119,83 @@ chrome.storage.onChanged.addListener((changes, area) => {
     renderReminders();
   }
 });
+
+// ==================== ОБРАТНАЯ СВЯЗЬ ====================
+const API_URL = 'http://158.160.132.18:3001';
+
+const feedbackModalOverlay = document.getElementById('feedbackModalOverlay');
+const feedbackForm = document.getElementById('feedbackForm');
+const openFeedbackBtn = document.getElementById('openFeedbackBtn');
+const closeFeedbackModalBtn = document.getElementById('closeFeedbackModalBtn');
+const cancelFeedbackBtn = document.getElementById('cancelFeedbackBtn');
+
+// Открытие модального окна
+openFeedbackBtn.addEventListener('click', () => {
+  feedbackModalOverlay.style.display = 'flex';
+});
+
+// Закрытие модального окна
+function closeFeedbackModal() {
+  feedbackModalOverlay.style.display = 'none';
+  feedbackForm.reset();
+}
+
+closeFeedbackModalBtn.addEventListener('click', closeFeedbackModal);
+cancelFeedbackBtn.addEventListener('click', closeFeedbackModal);
+
+feedbackModalOverlay.addEventListener('click', (e) => {
+  if (e.target === feedbackModalOverlay) {
+    closeFeedbackModal();
+  }
+});
+
+// Отправка отзыва
+feedbackForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  
+  const type = document.getElementById('feedbackType').value;
+  const message = document.getElementById('feedbackMessage').value.trim();
+  const email = document.getElementById('feedbackEmail').value.trim();
+  
+  if (!message) {
+    alert('Введите сообщение');
+    return;
+  }
+  
+  const submitBtn = document.getElementById('submitFeedbackBtn');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Отправка...';
+  
+  try {
+    // Получаем версию из манифеста
+    const manifestData = chrome.runtime.getManifest();
+    
+    const response = await fetch(`${API_URL}/api/feedback`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        type,
+        message,
+        email: email || null,
+        version: manifestData.version
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      alert('Спасибо за ваш отзыв!');
+      closeFeedbackModal();
+    } else {
+      alert('Ошибка: ' + (data.error || 'Не удалось отправить'));
+    }
+  } catch (error) {
+    console.error('Failed to send feedback:', error);
+    alert('Не удалось отправить отзыв. Проверьте подключение к интернету.');
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Отправить';
+  }
+});
