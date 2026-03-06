@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "2TSL toolbox",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "update_url": "http://158.160.227.37/BetterVolga/updates.xml",
   "description": "Набор инструментов для повышения эффективности работы: управление шаблонами, навигация между системами, напоминания и автоматизация рутинных задач.",
   "permissions": ["storage", "tabs", "notifications", "alarms"],
@@ -68,6 +68,11 @@
       "matches": ["https://onymaweb.south.rt.ru/*"],
       "js": ["content-onyma.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["http://sipal.sz.rt.ru/*"],
+      "js": ["content-sipal.js"],
+      "run_at": "document_idle"
     }
   ],
   "host_permissions": [
@@ -79,6 +84,7 @@
     "http://10.144.39.131/*",
     "http://10.160.191.178/*",
     "https://onymaweb.south.rt.ru/*",
+    "http://sipal.sz.rt.ru/*",
     "http://158.160.132.18:3001/*"
   ]
 }

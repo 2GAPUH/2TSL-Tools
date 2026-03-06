@@ -1,10 +1,10 @@
 // content-ttm.js
 // Для сайта ttm.rt.ru
-// Добавляет кнопку для перехода на форму Ассистента, кнопку таймера и кнопку перехода в Onyma
-// Версия 1.6 - исправлен поиск ИЛС, убраны лишние логи
+// Добавляет кнопку для перехода на форму Ассистента, кнопку таймера, кнопку перехода в Onyma и кнопку перехода в SIPAL
+// Версия 1.7 - добавлен переход TTM -> SIPAL для лицевых счетов начинающихся с 2
 
 // ==================== ПЕРЕМЕННЫЕ ====================
-let settings = { omnichatTemplates: true, ttmButton: true, accountingPanel: true, grafanaSSH: true, reminder: true, ttmOnyma: true, darkMode: false };
+let settings = { omnichatTemplates: true, ttmButton: true, accountingPanel: true, grafanaSSH: true, reminder: true, ttmOnyma: true, ttmSipal: true, darkMode: false };
 let isButtonAdded = false;
 let settingsLoaded = false;
 let lastUrl = window.location.href;
@@ -216,6 +216,29 @@ function createOnymaButton() {
   return button;
 }
 
+// Кнопка перехода в SIPAL
+function createSipalButton() {
+  const button = document.createElement('button');
+  button.setAttribute('mat-icon-button', '');
+  button.className = 'mat-focus-indicator mat-tooltip-trigger mat-icon-button mat-button-base mat-primary';
+  button.setAttribute('data-qa-id', 'sipal-btn');
+  button.title = 'Найти в SIPAL';
+  
+  button.innerHTML = `
+    <span class="mat-button-wrapper">
+      <mat-icon role="img" class="mat-icon notranslate material-icons mat-icon-no-color" aria-hidden="true" data-mat-icon-type="font">location_searching</mat-icon>
+    </span>
+    <span matripple="" class="mat-ripple mat-button-ripple mat-button-ripple-round"></span>
+    <span class="mat-button-focus-overlay"></span>
+  `;
+  
+  button.addEventListener('click', () => {
+    openSipal();
+  });
+  
+  return button;
+}
+
 function addButtonToToolbar() {
   return safelyExecute(() => {
     const toolbar = document.querySelector('.tasks-toolbar');
@@ -283,6 +306,43 @@ function addOnymaButtonToQuickAccess() {
   }, 'Ошибка добавления кнопки Onyma');
 }
 
+// Добавление кнопки SIPAL в quick-access toolbar
+function addSipalButtonToQuickAccess() {
+  return safelyExecute(() => {
+    const quickAccessToolbar = document.querySelector('.quick-access__button-list');
+    if (!quickAccessToolbar) {
+      return false;
+    }
+    
+    // Проверяем, включена ли настройка
+    const isSettingEnabled = settings.ttmSipal !== false;
+    if (!isSettingEnabled) {
+      const existingBtn = document.querySelector('[data-qa-id="sipal-btn"]');
+      if (existingBtn) existingBtn.remove();
+      return false;
+    }
+    
+    // Получаем лицевой счёт
+    const ilsAccount = getIlsAccount();
+    
+    // Проверяем, начинается ли с цифры 2
+    if (!ilsAccount || !ilsAccount.startsWith('2')) {
+      const existingBtn = document.querySelector('[data-qa-id="sipal-btn"]');
+      if (existingBtn) existingBtn.remove();
+      return false;
+    }
+    
+    // Добавляем кнопку если её нет
+    if (!document.querySelector('[data-qa-id="sipal-btn"]')) {
+      const sipalButton = createSipalButton();
+      quickAccessToolbar.appendChild(sipalButton);
+      console.log('[TTM] Кнопка SIPAL добавлена, ИЛС:', ilsAccount);
+    }
+    
+    return true;
+  }, 'Ошибка добавления кнопки SIPAL');
+}
+
 // ==================== ОТКРЫТИЕ ФОРМЫ ====================
 function openAssistantForm() {
   safelyExecute(() => {
@@ -328,6 +388,28 @@ function openOnyma() {
       });
     });
   }, 'Ошибка при открытии Onyma');
+}
+
+// ==================== ОТКРЫТИЕ SIPAL ====================
+function openSipal() {
+  safelyExecute(() => {
+    const ilsAccount = getIlsAccount();
+    
+    if (!ilsAccount) {
+      alert('Не удалось найти лицевой счёт');
+      return;
+    }
+    
+    console.log('[TTM] Открытие SIPAL с ИЛС:', ilsAccount);
+    
+    // Сохраняем ИЛС для передачи на страницу SIPAL
+    chrome.storage.local.set({ sipalSearchData: { ilsAccount, timestamp: Date.now() } }, () => {
+      chrome.runtime.sendMessage({
+        action: 'openForm',
+        url: 'http://sipal.sz.rt.ru/'
+      });
+    });
+  }, 'Ошибка при открытии SIPAL');
 }
 
 // ==================== ТАЙМЕР / НАПОМИНАЛКА ====================
@@ -652,8 +734,9 @@ function tryAddButton() {
   const existingAssistantBtn = document.querySelector('[data-qa-id="assistant-form-btn"]');
   const existingTimerBtn = document.querySelector('[data-qa-id="timer-btn"]');
   const existingOnymaBtn = document.querySelector('[data-qa-id="onyma-btn"]');
+  const existingSipalBtn = document.querySelector('[data-qa-id="sipal-btn"]');
   
-  if (!existingAssistantBtn && !existingTimerBtn && !existingOnymaBtn) {
+  if (!existingAssistantBtn && !existingTimerBtn && !existingOnymaBtn && !existingSipalBtn) {
     isButtonAdded = false;
   }
   
@@ -662,6 +745,7 @@ function tryAddButton() {
   }
   
   addOnymaButtonToQuickAccess();
+  addSipalButtonToQuickAccess();
 }
 
 // ==================== ОТСЛЕЖИВАНИЕ SPA НАВИГАЦИИ ====================
@@ -697,7 +781,7 @@ window.addEventListener('hashchange', checkUrlChange);
 // ==================== ИНИЦИАЛИЗАЦИЯ ====================
 function init() {
   chrome.storage.local.get(['settings'], (result) => {
-    settings = result.settings || { omnichatTemplates: true, ttmButton: true, accountingPanel: true, grafanaSSH: true, reminder: true, ttmOnyma: true, darkMode: false };
+    settings = result.settings || { omnichatTemplates: true, ttmButton: true, accountingPanel: true, grafanaSSH: true, reminder: true, ttmOnyma: true, ttmSipal: true, darkMode: false };
     settingsLoaded = true;
     
     tryAddButton();
@@ -735,6 +819,11 @@ chrome.storage.onChanged.addListener((changes, area) => {
     if (oldSettings.ttmOnyma !== settings.ttmOnyma) {
       addOnymaButtonToQuickAccess();
     }
+    
+    // Обработка изменения ttmSipal
+    if (oldSettings.ttmSipal !== settings.ttmSipal) {
+      addSipalButtonToQuickAccess();
+    }
   }
 });
 
@@ -745,6 +834,7 @@ const observer = new MutationObserver(() => {
     }
     if (document.querySelector('.quick-access__button-list')) {
       addOnymaButtonToQuickAccess();
+      addSipalButtonToQuickAccess();
     }
   }
 });

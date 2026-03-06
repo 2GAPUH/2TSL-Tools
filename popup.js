@@ -35,6 +35,7 @@ let settings = {
   grafanaSSH: true,
   reminder: true,
   ttmOnyma: true,
+  ttmSipal: true,
   darkMode: false
 };
 let savedFormData = {
@@ -72,6 +73,7 @@ const settingAccountingPanel = document.getElementById('settingAccountingPanel')
 const settingGrafanaSSH = document.getElementById('settingGrafanaSSH');
 const settingReminder = document.getElementById('settingReminder');
 const settingTTMOnyma = document.getElementById('settingTTMOnyma');
+const settingTTMSipal = document.getElementById('settingTTMSipal');
 const settingDarkMode = document.getElementById('settingDarkMode');
 const savedRegion = document.getElementById('savedRegion');
 const savedFIO = document.getElementById('savedFIO');
@@ -155,7 +157,7 @@ function loadAllData() {
   chrome.storage.local.get(['templates', 'groups', 'settings', 'savedFormData', 'lastActiveTab', 'currentWorkingDate', 'requestsByDate', 'reminders'], (result) => {
     templates = result.templates || [];
     groups = result.groups || [];
-    settings = result.settings || { omnichatTemplates: true, ttmButton: true, accountingPanel: true, grafanaSSH: true, reminder: true, ttmOnyma: true, darkMode: false };
+    settings = result.settings || { omnichatTemplates: true, ttmButton: true, accountingPanel: true, grafanaSSH: true, reminder: true, ttmOnyma: true, ttmSipal: true, darkMode: false };
     savedFormData = result.savedFormData || { region: '', fio: '' };
     lastActiveTab = result.lastActiveTab || 'templates';
     activeWorkingDate = result.currentWorkingDate || getTodayStr();
@@ -274,6 +276,7 @@ function applySettings() {
   settingGrafanaSSH.checked = settings.grafanaSSH;
   settingReminder.checked = settings.reminder;
   settingTTMOnyma.checked = settings.ttmOnyma;
+  settingTTMSipal.checked = settings.ttmSipal;
   settingDarkMode.checked = settings.darkMode;
   applyDarkMode();
 }
@@ -319,6 +322,11 @@ settingReminder.addEventListener('change', (e) => {
 
 settingTTMOnyma.addEventListener('change', (e) => {
   settings.ttmOnyma = e.target.checked;
+  saveSettings();
+});
+
+settingTTMSipal.addEventListener('change', (e) => {
+  settings.ttmSipal = e.target.checked;
   saveSettings();
 });
 
