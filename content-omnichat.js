@@ -1,6 +1,6 @@
 // content-omnichat.js
 // Для сайта omnichat.rt.ru
-// Версия 7.0 - с поддержкой настроек
+// Версия 8.0 - с кликабельными НЛС и номерами заявок
 
 // ==================== ПЕРЕМЕННЫЕ ====================
 let originalSearchContainer = null;
@@ -14,7 +14,9 @@ let groupFilterSelect = null;
 let currentSelectedGroup = "";
 let isDarkTheme = false;
 let currentLoadingId = 0;
-let settings = { omnichatTemplates: true, ttmButton: true };
+let settings = { omnichatTemplates: true, ttmButton: true, omnichatTTMLinks: true };
+let ttmLinksObserver = null;
+let processedElements = new WeakSet();
 
 // ==================== СЕЛЕКТОРЫ ====================
 const SELECTORS = {
@@ -83,6 +85,343 @@ function detectTheme() {
     if (rgb) isDarkTheme = (parseInt(rgb[1]) + parseInt(rgb[2]) + parseInt(rgb[3])) < 384;
     return isDarkTheme;
   }, 'Ошибка определения темы');
+}
+
+// ==================== КЛИКАБЕЛЬНЫЕ ССЫЛКИ В TTM ====================
+// Паттерны для поиска НЛС и номеров заявок
+const NLS_PATTERN = /\b(\d{3}\s?\d{3}\s?\d{3}\s?\d{3})\b/g;
+const TICKET_PATTERN = /(?:задание|заявк[аиуе]|обращение\s*№?)\s*[:#]?\s*(\d{7,10})\b/gi;
+const APPEAL_NUMBER_PATTERN = /обращение\s*№?\s*(\d{7,10})/gi;
+
+function injectTTMLinksStyles() {
+  if (document.getElementById('omnichat-ttm-links-styles')) return;
+  
+  const style = document.createElement('style');
+  style.id = 'omnichat-ttm-links-styles';
+  style.textContent = `
+    .tsl-ttm-link {
+      color: #007bff !important;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+    .tsl-ttm-link:hover {
+      color: #0056b3 !important;
+      text-decoration: underline;
+      background-color: rgba(0, 123, 255, 0.1);
+    }
+    .dark-theme .tsl-ttm-link {
+      color: #4da3ff !important;
+    }
+    .dark-theme .tsl-ttm-link:hover {
+      color: #80bdff !important;
+      background-color: rgba(77, 163, 255, 0.1);
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+function openInTTM(searchValue) {
+  if (!searchValue) return;
+  
+  // Убираем пробелы из НЛС
+  const cleanValue = searchValue.replace(/\s+/g, '');
+  
+  console.log('[Omnichat] Открытие TTM с поиском:', cleanValue);
+  
+  // Сохраняем данные для TTM
+  chrome.storage.local.set({ 
+    ttmSearchData: { 
+      searchValue: cleanValue, 
+      timestamp: Date.now() 
+    } 
+  }, () => {
+    chrome.runtime.sendMessage({
+      action: 'openForm',
+      url: 'https://www.ttm.rt.ru/'
+    });
+  });
+}
+
+function createClickableLink(text, value) {
+  const link = document.createElement('span');
+  link.className = 'tsl-ttm-link';
+  link.textContent = text;
+  link.title = `Найти "${value}" в TTM`;
+  link.addEventListener('click', (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    openInTTM(value);
+  });
+  return link;
+}
+
+function processTextNode(textNode) {
+  if (!textNode || textNode.nodeType !== Node.TEXT_NODE) return false;
+  
+  const text = textNode.textContent;
+  if (!text || text.length < 9) return false;
+  
+  // Быстрая проверка: есть ли вообще цифры в тексте?
+  if (!/\d/.test(text)) return false;
+  
+  // Проверяем, не находится ли текст внутри уже созданной ссылки или input
+  let parent = textNode.parentElement;
+  while (parent) {
+    if (parent.classList && parent.classList.contains('tsl-ttm-link')) return false;
+    const tag = parent.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SCRIPT' || tag === 'STYLE') return false;
+    if (parent.isContentEditable) return false;
+    // Пропускаем если уже в нашей обёртке
+    if (parent.classList && parent.classList.contains('tsl-text-wrapper')) return false;
+    parent = parent.parentElement;
+  }
+  
+  const fragments = [];
+  let lastIndex = 0;
+  let hasMatches = false;
+  
+  // Ищем НЛС (формат: 302 015 877 617 или 302015877617)
+  let match;
+  const nlsRegex = /\b(\d{3}[\s]?\d{3}[\s]?\d{3}[\s]?\d{3})\b/g;
+  while ((match = nlsRegex.exec(text)) !== null) {
+    const matchedText = match[0];
+    const cleanValue = matchedText.replace(/\s+/g, '');
+    
+    // Проверяем что это НЛС (начинается с 2, 3 или 4)
+    if (!/^[234]/.test(cleanValue)) continue;
+    
+    hasMatches = true;
+    if (match.index > lastIndex) {
+      fragments.push(document.createTextNode(text.slice(lastIndex, match.index)));
+    }
+    fragments.push(createClickableLink(matchedText, cleanValue));
+    lastIndex = match.index + matchedText.length;
+  }
+  
+  // Ищем номера заданий (формат: "Создано задание 353126203" или "номер задания 17947846")
+  if (!hasMatches) {
+    const ticketRegex = /(?:задание|заявк[аиуе]|номер\s+задания)\s*(\d{7,10})\b/gi;
+    while ((match = ticketRegex.exec(text)) !== null) {
+      hasMatches = true;
+      const ticketNumber = match[1];
+      const fullMatch = match[0];
+      
+      if (match.index > lastIndex) {
+        fragments.push(document.createTextNode(text.slice(lastIndex, match.index)));
+      }
+      fragments.push(createClickableLink(ticketNumber, ticketNumber));
+      lastIndex = match.index + fullMatch.length;
+    }
+  }
+  
+  // Ищем "Обращение № 6207809026"
+  if (!hasMatches) {
+    const appealRegex = /обращение\s*№?\s*(\d{7,10})\b/gi;
+    while ((match = appealRegex.exec(text)) !== null) {
+      hasMatches = true;
+      const ticketNumber = match[1];
+      const fullMatch = match[0];
+      
+      if (match.index > lastIndex) {
+        fragments.push(document.createTextNode(text.slice(lastIndex, match.index)));
+      }
+      fragments.push(createClickableLink(ticketNumber, ticketNumber));
+      lastIndex = match.index + fullMatch.length;
+    }
+  }
+  
+  if (!hasMatches || fragments.length === 0) return false;
+  
+  // Добавляем оставшийся текст
+  if (lastIndex < text.length) {
+    fragments.push(document.createTextNode(text.slice(lastIndex)));
+  }
+  
+  // Заменяем текстовый узел на фрагменты
+  const span = document.createElement('span');
+  span.className = 'tsl-text-wrapper';
+  fragments.forEach(f => span.appendChild(f));
+  
+  try {
+    textNode.parentNode.replaceChild(span, textNode);
+    console.log('[Omnichat] Создана ссылка для:', text.slice(0, 50));
+    return true;
+  } catch (e) {
+    console.warn('[Omnichat] Ошибка замены узла:', e);
+    return false;
+  }
+}
+
+function processElementForLinks(element) {
+  if (!element || !settings.omnichatTTMLinks) {
+    console.log('[Omnichat] processElementForLinks skip:', { element: !!element, setting: settings.omnichatTTMLinks });
+    return;
+  }
+  
+  let processedCount = 0;
+  
+  const walker = document.createTreeWalker(
+    element,
+    NodeFilter.SHOW_TEXT,
+    {
+      acceptNode: (node) => {
+        const parent = node.parentElement;
+        if (!parent) return NodeFilter.FILTER_REJECT;
+        
+        // Пропускаем уже созданные ссылки
+        if (parent.classList && parent.classList.contains('tsl-ttm-link')) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        
+        const tag = parent.tagName.toLowerCase();
+        if (['script', 'style', 'noscript', 'iframe', 'input', 'textarea'].includes(tag)) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        
+        // Проверяем contenteditable
+        if (parent.isContentEditable || parent.closest('[contenteditable="true"]')) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        
+        // Пропускаем если уже в обёртке tsl-text-wrapper
+        if (parent.classList && parent.classList.contains('tsl-text-wrapper')) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        
+        // Быстрый фильтр по длине и наличию цифр
+        const text = node.textContent;
+        if (!text || text.length < 9 || !/\d/.test(text)) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    }
+  );
+  
+  const textNodes = [];
+  while (walker.nextNode()) {
+    textNodes.push(walker.currentNode);
+  }
+  
+  if (textNodes.length > 0) {
+    console.log('[Omnichat] Найдено текстовых узлов для обработки:', textNodes.length);
+    textNodes.forEach(node => {
+      if (processTextNode(node)) {
+        processedCount++;
+      }
+    });
+  }
+}
+
+function processChatMessages() {
+  // Находим все контейнеры сообщений и обрабатываем их
+  const messageContainers = document.querySelectorAll('#scroll-box-root, [data-testid="appeal-preview"]');
+  console.log('[Omnichat] Найдено контейнеров сообщений:', messageContainers.length);
+  
+  messageContainers.forEach(container => {
+    processElementForLinks(container);
+  });
+}
+
+function startTTMLinksObserver() {
+  if (ttmLinksObserver) return;
+  
+  let debounceTimer = null;
+  let pendingNodes = new Set();
+  
+  ttmLinksObserver = new MutationObserver((mutations) => {
+    if (!settings.omnichatTTMLinks) return;
+    
+    for (const mutation of mutations) {
+      if (mutation.type === 'childList') {
+        mutation.addedNodes.forEach(node => {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            pendingNodes.add(node);
+          }
+        });
+      }
+    }
+    
+    // Debounce - обрабатываем накопленные узлы
+    if (debounceTimer) clearTimeout(debounceTimer);
+    
+    debounceTimer = setTimeout(() => {
+      if (pendingNodes.size === 0) return;
+      
+      console.log('[Omnichat] Обработка накопленных узлов:', pendingNodes.size);
+      
+      pendingNodes.forEach(node => {
+        if (document.contains(node)) {
+          processElementForLinks(node);
+        }
+      });
+      
+      pendingNodes.clear();
+    }, 150);
+  });
+  
+  ttmLinksObserver.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+  
+  // Слушаем переключение табов чатов
+  document.addEventListener('click', (e) => {
+    const tab = e.target.closest('[data-testid="appeal-preview"]');
+    if (tab) {
+      console.log('[Omnichat] Переключение таба чата');
+      // Даем время на загрузку контента
+      setTimeout(() => processChatMessages(), 300);
+      setTimeout(() => processChatMessages(), 1000);
+    }
+  }, true);
+}
+
+function stopTTMLinksObserver() {
+  if (ttmLinksObserver) {
+    ttmLinksObserver.disconnect();
+    ttmLinksObserver = null;
+  }
+}
+
+function initTTMLinks() {
+  console.log('[Omnichat] initTTMLinks called, settings.omnichatTTMLinks =', settings.omnichatTTMLinks);
+  if (!settings.omnichatTTMLinks) return;
+  
+  injectTTMLinksStyles();
+  
+  // Первичная обработка
+  setTimeout(() => {
+    console.log('[Omnichat] Первичная обработка DOM...');
+    processChatMessages();
+    startTTMLinksObserver();
+  }, 500);
+  
+  // Повторная обработка через 2 секунды
+  setTimeout(() => {
+    console.log('[Omnichat] Повторная обработка DOM...');
+    processChatMessages();
+  }, 2000);
+}
+
+function disableTTMLinks() {
+  stopTTMLinksObserver();
+  // Удаляем стили
+  document.getElementById('omnichat-ttm-links-styles')?.remove();
+  // Удаляем ссылки (заменяем на текст)
+  document.querySelectorAll('.tsl-ttm-link').forEach(link => {
+    const text = document.createTextNode(link.textContent);
+    const wrapper = link.closest('.tsl-text-wrapper');
+    if (wrapper) {
+      wrapper.replaceWith(...wrapper.childNodes);
+    } else {
+      link.replaceWith(text);
+    }
+  });
+  // Очищаем Set
+  processedElements = new WeakSet();
+  console.log('[Omnichat] TTM Links отключены');
 }
 
 // ==================== КЛАССЫ ====================
@@ -614,32 +953,47 @@ function disableOmnichatTemplates() {
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes.settings) {
     const oldSettings = settings;
-    settings = changes.settings.newValue || { omnichatTemplates: true, ttmButton: true };
+    settings = changes.settings.newValue || { omnichatTemplates: true, ttmButton: true, omnichatTTMLinks: true };
     
-    // Если настройка была выключена
+    // Если настройка шаблонов была выключена
     if (oldSettings.omnichatTemplates && !settings.omnichatTemplates) {
       disableOmnichatTemplates();
     }
     
-    // Если настройка была включена
+    // Если настройка шаблонов была включена
     if (!oldSettings.omnichatTemplates && settings.omnichatTemplates) {
       // Пробуем инициализировать
       setTimeout(initializeWhenReady, 500);
+    }
+    
+    // Если настройка TTM Links была выключена
+    if (oldSettings.omnichatTTMLinks && !settings.omnichatTTMLinks) {
+      disableTTMLinks();
+    }
+    
+    // Если настройка TTM Links была включена
+    if (!oldSettings.omnichatTTMLinks && settings.omnichatTTMLinks) {
+      initTTMLinks();
     }
   }
 });
 
 function init() {
-  console.log('Omnichat Templates v7.0');
+  console.log('Omnichat Templates v8.0');
   
   // Загружаем настройки
   chrome.storage.local.get(['settings'], (result) => {
-    settings = result.settings || { omnichatTemplates: true, ttmButton: true };
+    settings = result.settings || { omnichatTemplates: true, ttmButton: true, omnichatTTMLinks: true };
     
     if (settings.omnichatTemplates) {
       injectTemplateStyles();
       setTimeout(initializeWhenReady, 1000);
       setTimeout(() => { if (!isInitialized) initializeWhenReady(); }, 3000);
+    }
+    
+    // Инициализируем TTM Links
+    if (settings.omnichatTTMLinks) {
+      initTTMLinks();
     }
   });
 }

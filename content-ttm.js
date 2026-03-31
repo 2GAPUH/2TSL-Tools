@@ -1,10 +1,10 @@
 // content-ttm.js
 // Для сайта ttm.rt.ru
 // Добавляет кнопку для перехода на форму Ассистента, кнопку таймера, кнопку перехода в Onyma и кнопку перехода в SIPAL
-// Версия 1.7 - добавлен переход TTM -> SIPAL для лицевых счетов начинающихся с 2
+// Версия 1.8 - добавлен автопоиск из Omnichat
 
 // ==================== ПЕРЕМЕННЫЕ ====================
-let settings = { omnichatTemplates: true, ttmButton: true, accountingPanel: true, grafanaSSH: true, reminder: true, ttmOnyma: true, ttmSipal: true, darkMode: false };
+let settings = { omnichatTemplates: true, ttmButton: true, accountingPanel: true, grafanaSSH: true, reminder: true, ttmOnyma: true, ttmSipal: true, omnichatTTMLinks: true, darkMode: false };
 let isButtonAdded = false;
 let settingsLoaded = false;
 let lastUrl = window.location.href;
@@ -13,6 +13,92 @@ let lastUrl = window.location.href;
 function safelyExecute(callback, errorMsg = 'Ошибка') {
   try { return callback(); } 
   catch (e) { console.error(errorMsg + ':', e); return null; }
+}
+
+// ==================== АВТОПОИСК ИЗ OMNICHAT ====================
+function fillSearchAndExecute() {
+  chrome.storage.local.get(['ttmSearchData'], (result) => {
+    if (!result.ttmSearchData) {
+      return;
+    }
+    
+    const { searchValue, timestamp } = result.ttmSearchData;
+    
+    // Проверяем, не устарели ли данные (30 секунд)
+    if (Date.now() - timestamp > 30000) {
+      chrome.storage.local.remove(['ttmSearchData']);
+      return;
+    }
+    
+    console.log('[TTM] Автопоиск:', searchValue);
+    chrome.storage.local.remove(['ttmSearchData']);
+    
+    // Ищем поле поиска
+    const searchInput = document.querySelector('[data-qa-id="ticket-global-search-input"]') ||
+                        document.querySelector('#searchField') ||
+                        document.querySelector('input[placeholder*="быстрый поиск" i]') ||
+                        document.querySelector('input[placeholder*="поиск" i]');
+    
+    if (!searchInput) {
+      console.warn('[TTM] Поле поиска не найдено');
+      return;
+    }
+    
+    // Находим форму
+    const searchForm = searchInput.closest('form');
+    
+    // Заполняем поле
+    searchInput.value = searchValue;
+    searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+    searchInput.dispatchEvent(new Event('change', { bubbles: true }));
+    
+    // Фокусируемся и запускаем поиск
+    setTimeout(() => {
+      searchInput.focus();
+      
+      // Способ 1: Submit формы (самый надежный)
+      if (searchForm) {
+        console.log('[TTM] Отправка формы поиска');
+        searchForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      }
+      
+      // Способ 2: Клик по кнопке поиска
+      const searchButton = document.querySelector('[data-qa-id="ticket-global-search-input-icon"]')?.closest('button') ||
+                           searchForm?.querySelector('button[type="submit"]');
+      if (searchButton) {
+        console.log('[TTM] Клик по кнопке поиска');
+        searchButton.click();
+      }
+      
+      // Способ 3: Enter для надежности
+      const enterEvent = new KeyboardEvent('keydown', {
+        key: 'Enter',
+        code: 'Enter',
+        keyCode: 13,
+        which: 13,
+        bubbles: true,
+        cancelable: true
+      });
+      searchInput.dispatchEvent(enterEvent);
+      
+      console.log('[TTM] Поиск выполнен для:', searchValue);
+    }, 300);
+  });
+}
+
+function initAutoSearch() {
+  // Запускаем с задержкой, чтобы страница успела загрузиться
+  if (document.readyState === 'complete') {
+    setTimeout(fillSearchAndExecute, 500);
+  } else {
+    window.addEventListener('load', () => {
+      setTimeout(fillSearchAndExecute, 500);
+    });
+  }
+  // Дополнительная попытка через 1 секунду
+  setTimeout(fillSearchAndExecute, 1000);
+  // И через 2 секунды
+  setTimeout(fillSearchAndExecute, 2000);
 }
 
 // ==================== ПОЛУЧЕНИЕ ДАННЫХ ИЗ TTM ====================
@@ -757,6 +843,8 @@ function checkUrlChange() {
     setTimeout(tryAddButton, 500);
     setTimeout(tryAddButton, 1500);
     setTimeout(tryAddButton, 3000);
+    // Пробуем автопоиск при навигации
+    setTimeout(fillSearchAndExecute, 1000);
   }
 }
 
@@ -781,12 +869,15 @@ window.addEventListener('hashchange', checkUrlChange);
 // ==================== ИНИЦИАЛИЗАЦИЯ ====================
 function init() {
   chrome.storage.local.get(['settings'], (result) => {
-    settings = result.settings || { omnichatTemplates: true, ttmButton: true, accountingPanel: true, grafanaSSH: true, reminder: true, ttmOnyma: true, ttmSipal: true, darkMode: false };
+    settings = result.settings || { omnichatTemplates: true, ttmButton: true, accountingPanel: true, grafanaSSH: true, reminder: true, ttmOnyma: true, ttmSipal: true, omnichatTTMLinks: true, darkMode: false };
     settingsLoaded = true;
     
     tryAddButton();
     setTimeout(tryAddButton, 1000);
     setTimeout(tryAddButton, 3000);
+    
+    // Инициализируем автопоиск из Omnichat
+    initAutoSearch();
   });
 }
 

@@ -36,6 +36,7 @@ let settings = {
   reminder: true,
   ttmOnyma: true,
   ttmSipal: true,
+  omnichatTTMLinks: true,
   darkMode: false
 };
 let savedFormData = {
@@ -68,6 +69,7 @@ const addGroupBtn = document.getElementById('addGroupBtn');
 
 // Настройки
 const settingOmnichatTemplates = document.getElementById('settingOmnichatTemplates');
+const settingOmnichatTTMLinks = document.getElementById('settingOmnichatTTMLinks');
 const settingTTMButton = document.getElementById('settingTTMButton');
 const settingAccountingPanel = document.getElementById('settingAccountingPanel');
 const settingGrafanaSSH = document.getElementById('settingGrafanaSSH');
@@ -271,6 +273,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
 // ==================== НАСТРОЙКИ ====================
 function applySettings() {
   settingOmnichatTemplates.checked = settings.omnichatTemplates;
+  settingOmnichatTTMLinks.checked = settings.omnichatTTMLinks !== false; // true по умолчанию
   settingTTMButton.checked = settings.ttmButton;
   settingAccountingPanel.checked = settings.accountingPanel;
   settingGrafanaSSH.checked = settings.grafanaSSH;
@@ -297,6 +300,11 @@ function loadSavedFormData() {
 
 settingOmnichatTemplates.addEventListener('change', (e) => {
   settings.omnichatTemplates = e.target.checked;
+  saveSettings();
+});
+
+settingOmnichatTTMLinks.addEventListener('change', (e) => {
+  settings.omnichatTTMLinks = e.target.checked;
   saveSettings();
 });
 
