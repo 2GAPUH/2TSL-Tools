@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>Резервная копия — 2TSL toolbox</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    :root {
+      --bg-primary: #f5f9fc;
+      --bg-secondary: white;
+      --bg-tertiary: #f0f4f8;
+      --text-primary: #1a1a1a;
+      --text-secondary: #333;
+      --text-muted: #666;
+      --border-color: #c0d3e2;
+      --border-light: #e8eef4;
+      --hover-bg: #e6f0fa;
+      --input-bg: white;
+      --accent: #007bff;
+      --accent-hover: #0056b3;
+      --success: #28a745;
+      --danger: #dc3545;
+    }
+
+    html.dark-mode {
+      --bg-primary: #1a1a2e;
+      --bg-secondary: #16213e;
+      --bg-tertiary: #1e2a4a;
+      --text-primary: #eaeaea;
+      --text-secondary: #ccc;
+      --text-muted: #888;
+      --border-color: #2a3f5f;
+      --border-light: #1e3a5f;
+      --hover-bg: #1e3a5f;
+      --input-bg: #1a1a2e;
+    }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      font-family: Rostelecom Basis, Arial, sans-serif;
+      font-size: 14px;
+      color: var(--text-primary);
+      background: var(--bg-primary);
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    .ie-page-header {
+      flex-shrink: 0;
+      padding: 20px 24px 12px;
+      border-bottom: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+    }
+
+    .ie-page-header h1 {
+      margin: 0 0 6px;
+      font-size: 20px;
+    }
+
+    .ie-page-header p {
+      margin: 0;
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.45;
+    }
+
+    .ie-tabs {
+      display: flex;
+      flex-shrink: 0;
+      gap: 0;
+      padding: 0 24px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .ie-tab {
+      padding: 12px 20px;
+      border: none;
+      background: none;
+      font-family: inherit;
+      font-size: 14px;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: color 0.2s, border-color 0.2s;
+    }
+
+    .ie-tab:hover { color: var(--accent); }
+
+    .ie-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      font-weight: 600;
+    }
+
+    .ie-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      padding: 16px 24px 24px;
+      overflow: hidden;
+    }
+
+    .ie-panel {
+      display: none;
+      flex: 1;
+      flex-direction: column;
+      min-height: 0;
+      gap: 12px;
+    }
+
+    .ie-panel.active {
+      display: flex;
+    }
+
+    .ie-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px 10px;
+      flex-shrink: 0;
+    }
+
+    .ie-toolbar-btn {
+      padding: 7px 12px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--accent);
+      font-family: inherit;
+    }
+
+    .ie-toolbar-btn:hover { background: var(--hover-bg); }
+
+    .ie-toolbar-btn.primary {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    .ie-toolbar-btn.primary:hover { background: var(--accent-hover); }
+
+    .ie-toolbar-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .ie-toolbar-options {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex-shrink: 0;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .ie-toolbar-options label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+
+    .ie-toolbar-options input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      margin: 0;
+      cursor: pointer;
+    }
+
+    .ie-hint {
+      margin: 0;
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.45;
+      flex-shrink: 0;
+    }
+
+    .ie-list {
+      flex: 1;
+      min-height: 200px;
+      overflow-y: auto;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      background: var(--bg-secondary);
+      padding: 8px;
+    }
+
+    .ie-row {
+      display: flex;
+      gap: 10px;
+      padding: 10px 8px;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .ie-row:last-child { border-bottom: none; }
+
+    .ie-row-invalid { opacity: 0.55; }
+
+    .ie-row-check {
+      flex-shrink: 0;
+      padding-top: 8px;
+      cursor: pointer;
+    }
+
+    .ie-row-check input {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+
+    .ie-row-body {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .ie-row-line {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .ie-field {
+      font-family: inherit;
+      font-size: 13px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      background: var(--input-bg);
+      color: var(--text-primary);
+      padding: 8px 10px;
+    }
+
+    .ie-name { flex: 1; min-width: 140px; }
+    .ie-group { flex: 0 1 160px; min-width: 120px; }
+
+    .ie-body {
+      width: 100%;
+      resize: vertical;
+      min-height: 72px;
+      line-height: 1.4;
+    }
+
+    .ie-empty {
+      margin: 0;
+      padding: 40px 16px;
+      text-align: center;
+      color: var(--text-muted);
+    }
+
+    .ie-badge {
+      font-size: 11px;
+      color: var(--text-muted);
+      background: var(--bg-tertiary);
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+
+    .ie-badge-warn {
+      color: #856404;
+      background: #fff3cd;
+    }
+
+    html.dark-mode .ie-badge-warn {
+      color: #ffc107;
+      background: #3d3200;
+    }
+
+    .ie-bulk-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      flex-shrink: 0;
+      font-size: 13px;
+    }
+
+    .ie-bulk-row select {
+      flex: 1;
+      min-width: 140px;
+      padding: 8px 10px;
+      font-size: 13px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      background: var(--input-bg);
+      color: var(--text-primary);
+    }
+
+    .ie-file-meta {
+      margin: 0;
+      font-size: 13px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .ie-settings-block {
+      flex-shrink: 0;
+      padding: 12px 14px;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      background: var(--bg-tertiary);
+    }
+
+    .ie-settings-block .ie-block-title {
+      font-weight: 600;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+
+    .ie-diff-list {
+      max-height: 140px;
+      overflow-y: auto;
+      margin-bottom: 10px;
+    }
+
+    .ie-diff-item {
+      padding: 6px 0;
+      border-bottom: 1px solid var(--border-light);
+      font-size: 12px;
+    }
+
+    .ie-diff-item:last-child { border-bottom: none; }
+
+    .ie-diff-label { font-weight: 600; display: block; }
+    .ie-diff-values { color: var(--text-muted); }
+
+    .ie-settings-apply {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .ie-settings-apply input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      margin: 0;
+      cursor: pointer;
+    }
+
+    .ie-settings-apply label {
+      font-size: 13px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      line-height: 1.4;
+    }
+
+    .ie-footer {
+      flex-shrink: 0;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      padding-top: 4px;
+    }
+
+    .ie-btn-cancel {
+      padding: 10px 18px;
+      background: #6c757d;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .ie-btn-cancel:hover { background: #5a6268; }
+
+    .ie-btn-save {
+      padding: 10px 18px;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .ie-btn-save:hover { background: var(--accent-hover); }
+    .ie-btn-save:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .ie-pick-zone {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      border: 2px dashed var(--border-color);
+      border-radius: 12px;
+      background: var(--bg-secondary);
+      min-height: 280px;
+      padding: 32px;
+      text-align: center;
+    }
+
+    .ie-pick-zone p {
+      margin: 0;
+      color: var(--text-muted);
+      max-width: 360px;
+      line-height: 1.5;
+    }
+
+    .ie-status {
+      display: none;
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+
+    .ie-status.success {
+      display: block;
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+
+    html.dark-mode .ie-status.success {
+      background: #1e3a2f;
+      color: #8fd4a8;
+      border-color: #2d5a40;
+    }
+
+    #importPreviewBlock { display: none; flex: 1; flex-direction: column; min-height: 0; gap: 12px; }
+    #importPreviewBlock.visible { display: flex; }
+    #importPickBlock.hidden { display: none; }
+  </style>
+</head>
+<body>
+  <header class="ie-page-header">
+    <h1>Резервная копия</h1>
+    <p>Экспорт и импорт шаблонов и настроек. ФИО, регион и статистика не включаются.</p>
+  </header>
+
+  <nav class="ie-tabs">
+    <button type="button" class="ie-tab active" data-tab="export">Экспорт</button>
+    <button type="button" class="ie-tab" data-tab="import">Импорт</button>
+  </nav>
+
+  <main class="ie-main">
+    <div id="ieStatus" class="ie-status" role="status"></div>
+
+    <!-- Экспорт -->
+    <section id="exportPanel" class="ie-panel active">
+      <div class="ie-toolbar-options">
+        <label><input type="checkbox" id="exportIncludeGroups" checked> Экспортировать группы шаблонов</label>
+        <label><input type="checkbox" id="exportIncludeSettings"> Экспортировать настройки расширения</label>
+      </div>
+      <div class="ie-toolbar">
+        <button type="button" class="ie-toolbar-btn" id="exportSelectAll">Выбрать все</button>
+        <button type="button" class="ie-toolbar-btn" id="exportDeselectAll">Снять выделение</button>
+      </div>
+      <p class="ie-hint">Можно изменить шаблоны перед экспортом — в расширении они не изменятся.</p>
+      <div class="ie-list" id="exportTemplatesList"></div>
+      <div class="ie-footer">
+        <button type="button" class="ie-btn-save" id="exportSubmitBtn">Скачать файл</button>
+      </div>
+    </section>
+
+    <!-- Импорт -->
+    <section id="importPanel" class="ie-panel">
+      <div id="importPickBlock" class="ie-pick-zone">
+        <p>Выберите JSON-файл резервной копии 2TSL toolbox</p>
+        <button type="button" class="ie-toolbar-btn primary" id="importPickFileBtn">Выбрать файл</button>
+        <input type="file" id="importFileInput" accept=".json,application/json" hidden>
+      </div>
+
+      <div id="importPreviewBlock">
+        <p class="ie-file-meta">Файл: <strong id="importModalFileName">—</strong></p>
+        <p class="ie-file-meta" id="importFileMeta"></p>
+        <div class="ie-toolbar">
+          <button type="button" class="ie-toolbar-btn" id="importSelectAll">Выбрать все</button>
+          <button type="button" class="ie-toolbar-btn" id="importDeselectAll">Снять выделение</button>
+          <button type="button" class="ie-toolbar-btn" id="importPickAnotherBtn">Другой файл</button>
+        </div>
+        <div class="ie-bulk-row">
+          <span>Группа для выбранных:</span>
+          <select id="importBulkGroup"></select>
+          <button type="button" class="ie-toolbar-btn" id="importApplyBulkGroup">Применить</button>
+        </div>
+        <div class="ie-list" id="importTemplatesList"></div>
+        <div class="ie-settings-block" id="importSettingsBlock" style="display: none;">
+          <div class="ie-block-title">Настройки из файла</div>
+          <div class="ie-diff-list" id="importSettingsDiff"></div>
+          <div class="ie-settings-apply">
+            <input type="checkbox" id="importApplySettings">
+            <label for="importApplySettings">Применить настройки из файла</label>
+          </div>
+        </div>
+        <div class="ie-footer">
+          <button type="button" class="ie-btn-save" id="importSubmitBtn">Импортировать</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="popup-import-export.js"></script>
+  <script src="import-export-page.js"></script>
+</body>
+</html>

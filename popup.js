@@ -97,7 +97,8 @@ let settings = {
   analyticsEnabled: true,
   popupLayoutScale: null,
   popupTabSizes: null,
-  popupUnifiedTabSize: false
+  popupUnifiedTabSize: false,
+  templateReorderMode: 'buttons'
 };
 let savedFormData = {
   region: '',
@@ -142,6 +143,7 @@ const resetPopupLayoutBtn = document.getElementById('resetPopupLayout');
 const toggleLayoutAdvancedBtn = document.getElementById('toggleLayoutAdvanced');
 const layoutAdvancedEl = document.getElementById('layoutAdvanced');
 const settingPopupUnifiedTabSize = document.getElementById('settingPopupUnifiedTabSize');
+const settingTemplateReorderMode = document.getElementById('settingTemplateReorderMode');
 const layoutSizeHintEl = document.getElementById('layoutSizeHint');
 const popupResizeHandle = document.getElementById('popupResizeHandle');
 const popupResizeGhost = document.getElementById('popupResizeGhost');
@@ -847,10 +849,11 @@ chrome.storage.onChanged.addListener((changes, area) => {
     // Проверяем изменение настроек
     if (changes.settings) {
       settings = changes.settings.newValue;
-      applyDarkMode();
+      applySettings();
       applyPopupLayout();
       applyTabSize(lastActiveTab);
       syncLayoutControlsToUI();
+      renderTemplates();
     }
     if (changes.templates || changes.groups) {
       chrome.storage.local.get(['templates', 'groups'], (res) => {
@@ -877,6 +880,9 @@ function applySettings() {
   settingTTMSipal.checked = settings.ttmSipal;
   settingDarkMode.checked = settings.darkMode;
   settingAnalytics.checked = settings.analyticsEnabled !== false;
+  if (settingTemplateReorderMode) {
+    settingTemplateReorderMode.value = getTemplateReorderMode();
+  }
   applyDarkMode();
 }
 
@@ -912,6 +918,13 @@ bindSettingToggle(settingReminder, 'reminder');
 bindSettingToggle(settingTTMOnyma, 'ttmOnyma');
 bindSettingToggle(settingTTMSipal, 'ttmSipal');
 bindSettingToggle(settingDarkMode, 'darkMode');
+
+settingTemplateReorderMode?.addEventListener('change', (e) => {
+  settings.templateReorderMode = e.target.value === 'drag' ? 'drag' : 'buttons';
+  saveSettings();
+  renderTemplates();
+  trackEvent(`settings_change_templateReorderMode_${settings.templateReorderMode}`);
+});
 
 initPopupLayoutControls();
 initPopupResizeHandle();
@@ -1075,6 +1088,71 @@ ticketEls.workHours.oninput = saveTicketTime;
 ticketEls.workMinutes.oninput = saveTicketTime;
 
 // ==================== ШАБЛОНЫ ====================
+function getTemplateReorderMode() {
+  return settings.templateReorderMode === 'drag' ? 'drag' : 'buttons';
+}
+
+function isTemplateDragReorder() {
+  return getTemplateReorderMode() === 'drag';
+}
+
+function buildTemplateActionsHtml(template, index, total) {
+  const reorderButtons = isTemplateDragReorder() ? '' : `
+          <div class="template-reorder">
+            <button type="button" class="reorder-btn move-up-btn" data-id="${template.id}" title="Выше" ${index === 0 ? 'disabled' : ''}>▲</button>
+            <button type="button" class="reorder-btn move-down-btn" data-id="${template.id}" title="Ниже" ${index === total - 1 ? 'disabled' : ''}>▼</button>
+          </div>`;
+
+  return `
+        <div class="template-actions">
+          ${reorderButtons}
+          <button class="action-btn copy-btn" data-id="${template.id}" title="Копировать">
+            <img src="${getIconUrl('copy')}" alt="Копировать">
+          </button>
+          <button class="action-btn paste-btn" data-id="${template.id}" title="Вставить в сообщение">
+            <img src="${getIconUrl('paste')}" alt="Вставить">
+          </button>
+          <button class="action-btn edit-btn" data-id="${template.id}" title="Редактировать">
+            <img src="${getIconUrl('edit')}" alt="Редактировать">
+          </button>
+          <button class="action-btn delete-btn" data-id="${template.id}" title="Удалить">
+            <img src="${getIconUrl('delete')}" alt="Удалить">
+          </button>
+        </div>`;
+}
+
+function buildTemplateBodyHtml(template, index, total) {
+  return `
+      <div class="template-header">
+        <div style="flex: 1;">
+          <h3 class="template-title">${escapeHtml(template.name)}</h3>
+          ${template.group ? `<div class="template-group">${escapeHtml(template.group)}</div>` : ''}
+        </div>
+        ${buildTemplateActionsHtml(template, index, total)}
+      </div>
+      <p class="template-body">${escapeHtml(template.body)}</p>`;
+}
+
+function buildTemplateItemHtml(template, index, total) {
+  const dragClass = isTemplateDragReorder() ? ' template-item--drag' : '';
+  const body = buildTemplateBodyHtml(template, index, total);
+
+  if (isTemplateDragReorder()) {
+    return `
+    <div class="template-item${dragClass}" data-id="${template.id}">
+      <div class="template-drag-handle" draggable="true" title="Перетащите для изменения порядка" aria-label="Перетащите для изменения порядка">
+        <span class="template-drag-grip" aria-hidden="true"></span>
+      </div>
+      <div class="template-item-content">${body}</div>
+    </div>`;
+  }
+
+  return `
+    <div class="template-item${dragClass}" data-id="${template.id}">
+      ${body}
+    </div>`;
+}
+
 function renderTemplates() {
   const selectedGroup = groupFilter.value;
   const filteredTemplates = selectedGroup ? 
@@ -1091,33 +1169,102 @@ function renderTemplates() {
     return;
   }
 
-  templatesList.innerHTML = filteredTemplates.map(template => `
-    <div class="template-item" data-id="${template.id}">
-      <div class="template-header">
-        <div style="flex: 1;">
-          <h3 class="template-title">${escapeHtml(template.name)}</h3>
-          ${template.group ? `<div class="template-group">${escapeHtml(template.group)}</div>` : ''}
-        </div>
-        <div class="template-actions">
-          <button class="action-btn copy-btn" data-id="${template.id}" title="Копировать">
-            <img src="${getIconUrl('copy')}" alt="Копировать">
-          </button>
-          <button class="action-btn paste-btn" data-id="${template.id}" title="Вставить в сообщение">
-            <img src="${getIconUrl('paste')}" alt="Вставить">
-          </button>
-          <button class="action-btn edit-btn" data-id="${template.id}" title="Редактировать">
-            <img src="${getIconUrl('edit')}" alt="Редактировать">
-          </button>
-          <button class="action-btn delete-btn" data-id="${template.id}" title="Удалить">
-            <img src="${getIconUrl('delete')}" alt="Удалить">
-          </button>
-        </div>
-      </div>
-      <p class="template-body">${escapeHtml(template.body)}</p>
-    </div>
-  `).join('');
+  templatesList.innerHTML = filteredTemplates
+    .map((template, index) => buildTemplateItemHtml(template, index, filteredTemplates.length))
+    .join('');
 
   addEventListenersToButtons();
+  if (isTemplateDragReorder()) initTemplateDragDrop();
+}
+
+function getVisibleTemplates() {
+  const selectedGroup = groupFilter.value;
+  return selectedGroup
+    ? templates.filter((t) => t.group === selectedGroup)
+    : [...templates];
+}
+
+function applyTemplateReorder(visible) {
+  const selectedGroup = groupFilter.value;
+  if (!selectedGroup) {
+    templates = visible;
+  } else {
+    let groupIdx = 0;
+    templates = templates.map((t) => {
+      if (t.group === selectedGroup) return visible[groupIdx++];
+      return t;
+    });
+  }
+  saveTemplates();
+  renderTemplates();
+  trackEvent('popup_template_reorder');
+}
+
+function moveTemplate(id, direction) {
+  const visible = getVisibleTemplates();
+  const idx = visible.findIndex((t) => t.id === id);
+  const targetIdx = idx + direction;
+  if (idx === -1 || targetIdx < 0 || targetIdx >= visible.length) return;
+  [visible[idx], visible[targetIdx]] = [visible[targetIdx], visible[idx]];
+  applyTemplateReorder(visible);
+}
+
+let draggedTemplateId = null;
+
+function reorderTemplatesByDrag(sourceId, targetId) {
+  if (!sourceId || !targetId || sourceId === targetId) return;
+  const visible = getVisibleTemplates();
+  const sourceIdx = visible.findIndex((t) => t.id === sourceId);
+  const targetIdx = visible.findIndex((t) => t.id === targetId);
+  if (sourceIdx === -1 || targetIdx === -1) return;
+  const [moved] = visible.splice(sourceIdx, 1);
+  visible.splice(targetIdx, 0, moved);
+  applyTemplateReorder(visible);
+}
+
+function initTemplateDragDrop() {
+  const items = templatesList.querySelectorAll('.template-item--drag');
+  if (!items.length) return;
+
+  items.forEach((item) => {
+    const handle = item.querySelector('.template-drag-handle');
+    if (!handle) return;
+
+    handle.addEventListener('dragstart', (e) => {
+      draggedTemplateId = item.dataset.id;
+      item.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', draggedTemplateId);
+    });
+
+    handle.addEventListener('dragend', () => {
+      item.classList.remove('dragging');
+      templatesList.querySelectorAll('.template-item').forEach((el) => {
+        el.classList.remove('drag-over');
+      });
+      draggedTemplateId = null;
+    });
+
+    item.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      templatesList.querySelectorAll('.template-item').forEach((el) => {
+        el.classList.toggle('drag-over', el === item && el.dataset.id !== draggedTemplateId);
+      });
+    });
+
+    item.addEventListener('dragleave', (e) => {
+      if (!item.contains(e.relatedTarget)) {
+        item.classList.remove('drag-over');
+      }
+    });
+
+    item.addEventListener('drop', (e) => {
+      e.preventDefault();
+      item.classList.remove('drag-over');
+      reorderTemplatesByDrag(e.dataTransfer.getData('text/plain') || draggedTemplateId, item.dataset.id);
+    });
+  });
 }
 
 function renderGroupFilter() {
@@ -1167,12 +1314,16 @@ function addEventListenersToButtons() {
 }
 
 function handleTemplateActions(e) {
-  const button = e.target.closest('.action-btn');
-  if (!button) return;
-  
+  const button = e.target.closest('.action-btn, .reorder-btn');
+  if (!button || button.disabled) return;
+
   const id = button.dataset.id;
-  
-  if (button.classList.contains('copy-btn')) {
+
+  if (button.classList.contains('move-up-btn')) {
+    moveTemplate(id, -1);
+  } else if (button.classList.contains('move-down-btn')) {
+    moveTemplate(id, 1);
+  } else if (button.classList.contains('copy-btn')) {
     copyTemplateToClipboard(id);
   } else if (button.classList.contains('paste-btn')) {
     pasteTemplateToMessage(id);
@@ -1396,6 +1547,7 @@ templateForm.addEventListener('submit', (e) => {
 
 // ==================== ИНИЦИАЛИЗАЦИЯ ====================
 document.addEventListener('DOMContentLoaded', () => {
+  initImportExportPopup();
   trackEvent('popup_open');
   loadAllData();
 });
