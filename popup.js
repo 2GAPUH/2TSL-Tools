@@ -92,6 +92,7 @@ let settings = {
   reminder: true,
   ttmOnyma: true,
   ttmSipal: true,
+  ttmCommentBuilder: true,
   omnichatTTMLinks: true,
   darkMode: false,
   analyticsEnabled: true,
@@ -137,6 +138,7 @@ const settingGrafanaSSH = document.getElementById('settingGrafanaSSH');
 const settingReminder = document.getElementById('settingReminder');
 const settingTTMOnyma = document.getElementById('settingTTMOnyma');
 const settingTTMSipal = document.getElementById('settingTTMSipal');
+const settingTTMCommentBuilder = document.getElementById('settingTTMCommentBuilder');
 const settingDarkMode = document.getElementById('settingDarkMode');
 const settingPopupPreset = document.getElementById('settingPopupPreset');
 const resetPopupLayoutBtn = document.getElementById('resetPopupLayout');
@@ -751,7 +753,7 @@ function loadAllData() {
   chrome.storage.local.get(['templates', 'groups', 'settings', 'savedFormData', 'lastActiveTab', 'currentWorkingDate', 'requestsByDate', 'reminders'], (result) => {
     templates = result.templates || [];
     groups = result.groups || [];
-    settings = result.settings || { omnichatTemplates: true, ttmButton: true, accountingPanel: true, grafanaSSH: true, reminder: true, ttmOnyma: true, ttmSipal: true, omnichatTTMLinks: true, darkMode: false, analyticsEnabled: true };
+    settings = result.settings || { omnichatTemplates: true, ttmButton: true, accountingPanel: true, grafanaSSH: true, reminder: true, ttmOnyma: true, ttmSipal: true, ttmCommentBuilder: true, omnichatTTMLinks: true, darkMode: false, analyticsEnabled: true };
     const hadLegacyLayout = Boolean(
       result.settings?.popupSize ||
       result.settings?.popupLayout ||
@@ -878,6 +880,7 @@ function applySettings() {
   settingReminder.checked = settings.reminder;
   settingTTMOnyma.checked = settings.ttmOnyma;
   settingTTMSipal.checked = settings.ttmSipal;
+  settingTTMCommentBuilder.checked = settings.ttmCommentBuilder !== false;
   settingDarkMode.checked = settings.darkMode;
   settingAnalytics.checked = settings.analyticsEnabled !== false;
   if (settingTemplateReorderMode) {
@@ -917,6 +920,7 @@ bindSettingToggle(settingGrafanaSSH, 'grafanaSSH');
 bindSettingToggle(settingReminder, 'reminder');
 bindSettingToggle(settingTTMOnyma, 'ttmOnyma');
 bindSettingToggle(settingTTMSipal, 'ttmSipal');
+bindSettingToggle(settingTTMCommentBuilder, 'ttmCommentBuilder');
 bindSettingToggle(settingDarkMode, 'darkMode');
 
 settingTemplateReorderMode?.addEventListener('change', (e) => {

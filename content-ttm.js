@@ -1,13 +1,17 @@
 // content-ttm.js
 // Для сайта ttm.rt.ru
 // Добавляет кнопку для перехода на форму Ассистента, кнопку таймера, кнопку перехода в Onyma и кнопку перехода в SIPAL
-// Версия 1.8 - добавлен автопоиск из Omnichat
+// Версия 1.9 - конструктор комментариев Volga Help
 
 // ==================== ПЕРЕМЕННЫЕ ====================
-let settings = { omnichatTemplates: true, ttmButton: true, accountingPanel: true, grafanaSSH: true, reminder: true, ttmOnyma: true, ttmSipal: true, omnichatTTMLinks: true, darkMode: false };
+const VOLGA_HELP_URL = 'https://volgahelp.ru/tag_api/comments/';
+
+let settings = { omnichatTemplates: true, ttmButton: true, accountingPanel: true, grafanaSSH: true, reminder: true, ttmOnyma: true, ttmSipal: true, ttmCommentBuilder: true, omnichatTTMLinks: true, darkMode: false };
 let isButtonAdded = false;
 let settingsLoaded = false;
 let lastUrl = window.location.href;
+let lastVolgaHelpPasteTimestamp = 0;
+let commentBuilderStylesInjected = false;
 
 // ==================== АНАЛИТИКА ====================
 function trackEvent(event) {
@@ -825,6 +829,320 @@ function showSuccessToast(message) {
   }, 3000);
 }
 
+// ==================== КОНСТРУКТОР КОММЕНТАРИЕВ ====================
+function ensureCommentBuilderStyles() {
+  if (commentBuilderStylesInjected) return;
+  commentBuilderStylesInjected = true;
+
+  const style = document.createElement('style');
+  style.id = 'tsl-comment-builder-styles';
+  style.textContent = `
+    .tsl-comment-builder-formats {
+      margin-left: 12px !important;
+      padding-left: 12px !important;
+      border-left: 1px solid rgba(0, 0, 0, 0.12);
+    }
+
+    .ttm-dark-theme .tsl-comment-builder-formats {
+      border-left-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .tsl-comment-builder-btn {
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      padding: 0 5px;
+      color: inherit;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .tsl-comment-builder-btn:hover,
+    .tsl-comment-builder-btn:focus {
+      opacity: 0.75;
+      outline: none;
+    }
+
+    #tsl-comment-builder-modal .tsl-modal-content {
+      width: min(920px, 95vw);
+      max-height: 92vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #tsl-comment-builder-modal .tsl-modal-body {
+      flex: 1;
+      min-height: 0;
+      padding: 0;
+    }
+
+    #tsl-comment-builder-modal .tsl-comment-builder-frame {
+      width: 100%;
+      height: min(72vh, 760px);
+      border: 0;
+      display: block;
+      background: #1e1e2f;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+function createCommentBuilderButton(commentEditorQaId) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'tsl-comment-builder-btn';
+  button.setAttribute('data-qa-id', 'tsl-comment-builder-btn');
+  button.title = 'Конструктор комментария';
+  button.innerHTML = '<i class="quill-mat-icon material-icons mat-icon" title="Конструктор комментария">edit_note</i>';
+  button.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    openCommentBuilderModal(commentEditorQaId);
+  });
+  return button;
+}
+
+function addCommentBuilderButtons() {
+  if (settings.ttmCommentBuilder === false) {
+    removeCommentBuilderButtons();
+    return;
+  }
+
+  ensureCommentBuilderStyles();
+
+  const editors = document.querySelectorAll('quill-editor[data-qa-id*="comment-input"]');
+  editors.forEach((editor) => {
+    const commentEditorQaId = editor.getAttribute('data-qa-id');
+    if (!commentEditorQaId) return;
+
+    const toolbar = editor.querySelector('.ql-toolbar, [quill-editor-toolbar]');
+    if (!toolbar || toolbar.querySelector('[data-qa-id="tsl-comment-builder-btn"]')) return;
+
+    const formats = document.createElement('span');
+    formats.className = 'ql-formats tsl-comment-builder-formats';
+    formats.appendChild(createCommentBuilderButton(commentEditorQaId));
+    toolbar.appendChild(formats);
+  });
+}
+
+function removeCommentBuilderButtons() {
+  document.querySelectorAll('.tsl-comment-builder-formats').forEach((el) => el.remove());
+  closeCommentBuilderModal(false);
+}
+
+function closeCommentBuilderModal(trackClose = true) {
+  const modal = document.getElementById('tsl-comment-builder-modal');
+  if (!modal) return;
+  modal.remove();
+  if (trackClose) trackEvent('ttm_comment_builder_close');
+}
+
+function openCommentBuilderModal(commentEditorQaId) {
+  const incidentNumber = getIncidentNumber();
+  if (!incidentNumber) {
+    alert('Не удалось определить номер заявки');
+    return;
+  }
+
+  closeCommentBuilderModal(false);
+
+  const isDark = settings.darkMode;
+  const bgColor = isDark ? '#16213e' : 'white';
+  const textColor = isDark ? '#eaeaea' : '#333';
+  const mutedColor = isDark ? '#888' : '#666';
+  const borderColor = isDark ? '#2a3f5f' : '#e0e0e0';
+
+  chrome.storage.local.set({
+    volgaHelpSession: {
+      ticketNumber: incidentNumber,
+      commentEditorQaId,
+      openedAt: Date.now()
+    }
+  }, () => {
+    const modal = document.createElement('div');
+    modal.id = 'tsl-comment-builder-modal';
+    modal.innerHTML = `
+      <div class="tsl-modal-overlay">
+        <div class="tsl-modal-content">
+          <div class="tsl-modal-header">
+            <h3>Конструктор комментария — заявка #${incidentNumber}</h3>
+            <button class="tsl-modal-close" type="button">&times;</button>
+          </div>
+          <div class="tsl-modal-body">
+            <iframe
+              class="tsl-comment-builder-frame"
+              src="${VOLGA_HELP_URL}"
+              title="Конструктор комментария"
+            ></iframe>
+          </div>
+          <div class="tsl-modal-footer">
+            <button class="tsl-btn tsl-btn-secondary" id="tslCloseCommentBuilder" type="button">Закрыть</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    if (!document.getElementById('tsl-comment-builder-modal-styles')) {
+      const style = document.createElement('style');
+      style.id = 'tsl-comment-builder-modal-styles';
+      style.textContent = `
+        #tsl-comment-builder-modal .tsl-modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.5);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          z-index: 999999;
+        }
+
+        #tsl-comment-builder-modal .tsl-modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 16px;
+          border-bottom: 1px solid ${borderColor};
+          background: ${bgColor};
+        }
+
+        #tsl-comment-builder-modal .tsl-modal-header h3 {
+          margin: 0;
+          font-size: 16px;
+          color: ${textColor};
+        }
+
+        #tsl-comment-builder-modal .tsl-modal-close {
+          background: none;
+          border: none;
+          font-size: 24px;
+          cursor: pointer;
+          color: ${mutedColor};
+          padding: 0;
+          line-height: 1;
+        }
+
+        #tsl-comment-builder-modal .tsl-modal-footer {
+          display: flex;
+          justify-content: flex-end;
+          gap: 8px;
+          padding: 12px 16px;
+          border-top: 1px solid ${borderColor};
+          background: ${bgColor};
+        }
+
+        #tsl-comment-builder-modal .tsl-btn {
+          padding: 8px 16px;
+          border: none;
+          border-radius: 4px;
+          font-size: 14px;
+          cursor: pointer;
+        }
+
+        #tsl-comment-builder-modal .tsl-btn-secondary {
+          background: #6c757d;
+          color: white;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    document.body.appendChild(modal);
+
+    modal.querySelector('.tsl-modal-close')?.addEventListener('click', () => closeCommentBuilderModal(true));
+    modal.querySelector('#tslCloseCommentBuilder')?.addEventListener('click', () => closeCommentBuilderModal(true));
+    modal.querySelector('.tsl-modal-overlay')?.addEventListener('click', (e) => {
+      if (e.target.classList.contains('tsl-modal-overlay')) {
+        closeCommentBuilderModal(true);
+      }
+    });
+
+    trackEvent('ttm_comment_builder_open');
+  });
+}
+
+function replaceCommentEditorText(commentEditorQaId, text) {
+  return safelyExecute(() => {
+    const editor = document.querySelector(`[data-qa-id="${commentEditorQaId}"] .ql-editor`);
+    if (!editor) return false;
+
+    editor.focus();
+    editor.innerHTML = '';
+    const lines = String(text).split('\n');
+
+    if (!lines.length) {
+      const emptyParagraph = document.createElement('p');
+      emptyParagraph.appendChild(document.createElement('br'));
+      editor.appendChild(emptyParagraph);
+    } else {
+      lines.forEach((line) => {
+        const paragraph = document.createElement('p');
+        if (line) {
+          paragraph.textContent = line;
+        } else {
+          paragraph.appendChild(document.createElement('br'));
+        }
+        editor.appendChild(paragraph);
+      });
+    }
+
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+    editor.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  }, 'Ошибка вставки комментария');
+}
+
+async function copyTextToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (e) {
+    return safelyExecute(() => {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      document.body.appendChild(textarea);
+      textarea.select();
+      const copied = document.execCommand('copy');
+      textarea.remove();
+      return copied;
+    }, 'Ошибка копирования в буфер обмена') || false;
+  }
+}
+
+function clearCommentBuilderDraft(ticketNumber) {
+  if (!ticketNumber) return;
+  chrome.storage.local.get(['volgaHelpDrafts'], (result) => {
+    const drafts = result.volgaHelpDrafts || {};
+    if (!drafts[ticketNumber]) return;
+    delete drafts[ticketNumber];
+    chrome.storage.local.set({ volgaHelpDrafts: drafts });
+  });
+}
+
+function handleVolgaHelpPaste(pending) {
+  if (!pending?.text || !pending.commentEditorQaId) return;
+  if (pending.timestamp && pending.timestamp === lastVolgaHelpPasteTimestamp) return;
+  if (pending.timestamp) lastVolgaHelpPasteTimestamp = pending.timestamp;
+
+  const inserted = replaceCommentEditorText(pending.commentEditorQaId, pending.text);
+  if (!inserted) {
+    alert('Не удалось вставить комментарий в поле TTM');
+    return;
+  }
+
+  copyTextToClipboard(pending.text);
+  clearCommentBuilderDraft(pending.ticketNumber);
+  closeCommentBuilderModal(false);
+  chrome.storage.local.remove(['volgaHelpPastePending', 'volgaHelpSession']);
+  trackEvent('ttm_comment_builder_paste');
+  showSuccessToast('Комментарий вставлен в заявку');
+}
+
 // ==================== ДОБАВЛЕНИЕ КНОПКИ ====================
 function tryAddButton() {
   if (!settingsLoaded) return;
@@ -844,6 +1162,7 @@ function tryAddButton() {
   
   addOnymaButtonToQuickAccess();
   addSipalButtonToQuickAccess();
+  addCommentBuilderButtons();
 }
 
 // ==================== ОТСЛЕЖИВАНИЕ SPA НАВИГАЦИИ ====================
@@ -881,7 +1200,7 @@ window.addEventListener('hashchange', checkUrlChange);
 // ==================== ИНИЦИАЛИЗАЦИЯ ====================
 function init() {
   chrome.storage.local.get(['settings'], (result) => {
-    settings = result.settings || { omnichatTemplates: true, ttmButton: true, accountingPanel: true, grafanaSSH: true, reminder: true, ttmOnyma: true, ttmSipal: true, omnichatTTMLinks: true, darkMode: false };
+    settings = result.settings || { omnichatTemplates: true, ttmButton: true, accountingPanel: true, grafanaSSH: true, reminder: true, ttmOnyma: true, ttmSipal: true, ttmCommentBuilder: true, omnichatTTMLinks: true, darkMode: false };
     settingsLoaded = true;
     
     tryAddButton();
@@ -894,6 +1213,10 @@ function init() {
 }
 
 chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.volgaHelpPastePending?.newValue) {
+    handleVolgaHelpPaste(changes.volgaHelpPastePending.newValue);
+  }
+
   if (area === 'local' && changes.settings) {
     const oldSettings = settings;
     settings = changes.settings.newValue;
@@ -927,6 +1250,14 @@ chrome.storage.onChanged.addListener((changes, area) => {
     if (oldSettings.ttmSipal !== settings.ttmSipal) {
       addSipalButtonToQuickAccess();
     }
+
+    if (oldSettings.ttmCommentBuilder !== settings.ttmCommentBuilder) {
+      if (settings.ttmCommentBuilder === false) {
+        removeCommentBuilderButtons();
+      } else {
+        addCommentBuilderButtons();
+      }
+    }
   }
 });
 
@@ -939,6 +1270,7 @@ const observer = new MutationObserver(() => {
       addOnymaButtonToQuickAccess();
       addSipalButtonToQuickAccess();
     }
+    addCommentBuilderButtons();
   }
 });
 

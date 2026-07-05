@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "2TSL toolbox",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Набор инструментов для повышения эффективности работы: управление шаблонами, навигация между системами, напоминания и автоматизация рутинных задач.",
   "permissions": ["storage", "tabs", "notifications", "alarms", "identity", "identity.email"],
   "action": {
@@ -72,6 +72,12 @@
       "matches": ["http://sipal.sz.rt.ru/*"],
       "js": ["content-sipal.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://volgahelp.ru/tag_api/comments/*"],
+      "js": ["content-volgahelp.js"],
+      "run_at": "document_idle",
+      "all_frames": true
     }
   ],
   "host_permissions": [
@@ -84,6 +90,7 @@
     "http://10.160.191.178/*",
     "https://onymaweb.south.rt.ru/*",
     "http://sipal.sz.rt.ru/*",
-    "https://script.google.com/*"
+    "https://script.google.com/*",
+    "https://volgahelp.ru/*"
   ]
 }

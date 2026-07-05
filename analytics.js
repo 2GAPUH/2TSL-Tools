@@ -84,6 +84,7 @@ async function updateSettingsSnapshot() {
     reminder: settings.reminder !== false,
     ttmOnyma: settings.ttmOnyma !== false,
     ttmSipal: settings.ttmSipal !== false,
+    ttmCommentBuilder: settings.ttmCommentBuilder !== false,
     darkMode: !!settings.darkMode,
     templatesCount
   };

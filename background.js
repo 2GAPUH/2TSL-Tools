@@ -79,6 +79,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
+  if (request.action === 'volgaHelpCopied') {
+    chrome.storage.local.set({
+      volgaHelpPastePending: {
+        ticketNumber: request.ticketNumber || '',
+        commentEditorQaId: request.commentEditorQaId || '',
+        text: request.text || '',
+        timestamp: Date.now()
+      }
+    }, () => {
+      sendResponse({ success: true });
+    });
+    return true;
+  }
+
   if (request.action === 'cloudCheckEligibility') {
     checkCloudEligibility(request.force).then(sendResponse);
     return true;
