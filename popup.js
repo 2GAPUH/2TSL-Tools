@@ -12,6 +12,48 @@ const POPUP_TAB_EVENTS = {
   settings: 'popup_tab_settings'
 };
 
+const POPUP_TABS = ['templates', 'tickets', 'reminders', 'settings'];
+
+const BASE_LAYOUT = {
+  width: 450,
+  height: 450,
+  fontSize: 14,
+  padding: 16
+};
+
+const RESIZE_SNAP = 8;
+const MAX_HEIGHT_BUFFER = 45;
+const MAX_WIDTH_BUFFER = 45;
+
+const DEFAULT_TAB_SIZE = { width: BASE_LAYOUT.width, height: BASE_LAYOUT.height };
+const TAB_SIZE_MIN = { width: 240, height: 300 };
+const TAB_SIZE_MAX = { width: 800, height: 600 };
+
+let cachedMinPopupWidth = 0;
+let cachedMaxPopupWidth = 0;
+let cachedMaxPopupHeight = 0;
+let lastAppliedTabSize = { width: 0, height: 0 };
+
+const DEFAULT_POPUP_LAYOUT_SCALE = {
+  fontSize: 100,
+  padding: 100
+};
+
+const LAYOUT_SCALE_STEP = 10;
+const LAYOUT_SCALE_MIN = 50;
+const LAYOUT_SCALE_MAX = 200;
+
+const LAYOUT_SCALE_CONTROLS = [
+  { key: 'fontSize', valId: 'valScaleFontSize' },
+  { key: 'padding', valId: 'valScalePadding' }
+];
+
+const POPUP_PRESETS = {
+  compact: { fontSize: 93, padding: 75 },
+  normal:  { ...DEFAULT_POPUP_LAYOUT_SCALE },
+  large:   { fontSize: 107, padding: 113 }
+};
+
 // ==================== ИКОНКИ ====================
 function getIconUrl(iconName) {
   const isDark = settings.darkMode;
@@ -52,7 +94,9 @@ let settings = {
   ttmSipal: true,
   omnichatTTMLinks: true,
   darkMode: false,
-  analyticsEnabled: true
+  analyticsEnabled: true,
+  popupLayoutScale: null,
+  popupTabSizes: null
 };
 let savedFormData = {
   region: '',
@@ -92,6 +136,12 @@ const settingReminder = document.getElementById('settingReminder');
 const settingTTMOnyma = document.getElementById('settingTTMOnyma');
 const settingTTMSipal = document.getElementById('settingTTMSipal');
 const settingDarkMode = document.getElementById('settingDarkMode');
+const settingPopupPreset = document.getElementById('settingPopupPreset');
+const resetPopupLayoutBtn = document.getElementById('resetPopupLayout');
+const toggleLayoutAdvancedBtn = document.getElementById('toggleLayoutAdvanced');
+const layoutAdvancedEl = document.getElementById('layoutAdvanced');
+const popupResizeHandle = document.getElementById('popupResizeHandle');
+const popupResizeGhost = document.getElementById('popupResizeGhost');
 const settingAnalytics = document.getElementById('settingAnalytics');
 const savedRegion = document.getElementById('savedRegion');
 const savedFIO = document.getElementById('savedFIO');
@@ -120,30 +170,517 @@ const ticketEls = {
   closurePercent: document.getElementById("closurePercent")
 };
 
-// ==================== ТАБЫ ====================
-function resizePopup() {
-  // Получаем активную вкладку
-  const activeTab = document.querySelector('.tab-content.active');
-  if (!activeTab) return;
-  
-  // Сбрасываем высоту body для пересчёта
-  document.body.style.height = 'auto';
-  document.documentElement.style.height = 'auto';
-  
-  // Принудительный reflow
-  void document.body.offsetHeight;
-  
-  // Вычисляем новую высоту: header + tabs + tab content + padding
-  const headerHeight = document.querySelector('.tabs').offsetHeight || 41;
-  const tabContentHeight = activeTab.offsetHeight;
-  const padding = 32; // 16px top + 16px bottom
-  
-  const totalHeight = headerHeight + tabContentHeight + padding;
-  
-  // Устанавливаем высоту
-  document.documentElement.style.height = totalHeight + 'px';
-  document.body.style.height = totalHeight + 'px';
+// ==================== ОФОРМЛЕНИЕ POPUP ====================
+function clampScale(value) {
+  return Math.min(LAYOUT_SCALE_MAX, Math.max(LAYOUT_SCALE_MIN, value));
 }
+
+function migratePopupLayout() {
+  if (!settings.popupLayoutScale || typeof settings.popupLayoutScale !== 'object') {
+    if (settings.popupLayout && typeof settings.popupLayout === 'object') {
+      const legacy = settings.popupLayout;
+      settings.popupLayoutScale = {
+        fontSize: clampScale(Math.round((legacy.fontSize / BASE_LAYOUT.fontSize) * 100)),
+        padding: clampScale(Math.round((legacy.padding / BASE_LAYOUT.padding) * 100))
+      };
+      migrateLegacyTabSizes(legacy.width, legacy.minHeight);
+      delete settings.popupLayout;
+    } else if (settings.popupSize && POPUP_PRESETS[settings.popupSize]) {
+      settings.popupLayoutScale = { ...POPUP_PRESETS[settings.popupSize] };
+      delete settings.popupSize;
+    } else {
+      settings.popupLayoutScale = { ...DEFAULT_POPUP_LAYOUT_SCALE };
+    }
+  }
+
+  const scale = settings.popupLayoutScale;
+  if (scale.width !== undefined || scale.minHeight !== undefined || scale.autoHeight !== undefined) {
+    migrateLegacyTabSizes(
+      scale.width !== undefined ? scaleToPx(BASE_LAYOUT.width, scale.width) : undefined,
+      scale.minHeight !== undefined ? scaleToPx(BASE_LAYOUT.height, scale.minHeight) : undefined
+    );
+    delete scale.width;
+    delete scale.minHeight;
+    delete scale.autoHeight;
+  }
+
+  delete scale.templatesMaxHeight;
+  delete scale.templatesMinHeight;
+  delete scale.listMaxHeight;
+  delete scale.remindersMaxHeight;
+}
+
+function migrateLegacyTabSizes(widthPx, heightPx) {
+  ensurePopupTabSizes();
+  const size = {
+    width: widthPx || DEFAULT_TAB_SIZE.width,
+    height: heightPx || DEFAULT_TAB_SIZE.height
+  };
+  POPUP_TABS.forEach((tab) => {
+    if (!settings.popupTabSizes[tab]) {
+      settings.popupTabSizes[tab] = { ...size };
+    }
+  });
+}
+
+function ensurePopupTabSizes() {
+  if (!settings.popupTabSizes || typeof settings.popupTabSizes !== 'object') {
+    settings.popupTabSizes = {};
+  }
+  POPUP_TABS.forEach((tab) => {
+    if (!settings.popupTabSizes[tab]) {
+      settings.popupTabSizes[tab] = { ...DEFAULT_TAB_SIZE };
+    }
+  });
+}
+
+function migrateCrushedTabSizes() {
+  const crushedThreshold = TAB_SIZE_MIN.width + 16;
+  let changed = false;
+  ensurePopupTabSizes();
+  POPUP_TABS.forEach((tab) => {
+    const size = settings.popupTabSizes[tab];
+    if (size.width <= crushedThreshold) {
+      size.width = DEFAULT_TAB_SIZE.width;
+      if (size.height < DEFAULT_TAB_SIZE.height) {
+        size.height = DEFAULT_TAB_SIZE.height;
+      }
+      changed = true;
+    }
+  });
+  if (changed) saveSettings();
+}
+
+function clampTabDimension(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function measureMinPopupWidth() {
+  const bar = document.querySelector('.tabs');
+  if (!bar) return TAB_SIZE_MIN.width;
+
+  const tabs = [...bar.querySelectorAll('.tab')];
+  const layout = getPopupLayout();
+  const padding = layout.padding * 2;
+  const prevWidth = bar.style.width;
+
+  bar.classList.add('tabs--measure-nowrap');
+  const nowrapWidth = bar.scrollWidth + padding + 4;
+  bar.classList.remove('tabs--measure-nowrap');
+
+  let low = TAB_SIZE_MIN.width;
+  let high = Math.min(Math.max(nowrapWidth, TAB_SIZE_MIN.width), TAB_SIZE_MAX.width);
+  let best = high;
+
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+    bar.style.width = `${mid - padding}px`;
+    void bar.offsetHeight;
+    const tabsFit = tabs.every((tab) => tab.scrollWidth <= tab.clientWidth + 1);
+    if (tabsFit) {
+      best = mid;
+      high = mid - 1;
+    } else {
+      low = mid + 1;
+    }
+  }
+
+  bar.style.width = prevWidth;
+  return Math.max(TAB_SIZE_MIN.width, best);
+}
+
+function refreshMinPopupWidth() {
+  cachedMinPopupWidth = measureMinPopupWidth();
+  return cachedMinPopupWidth;
+}
+
+function getMinPopupWidth() {
+  if (!cachedMinPopupWidth) return refreshMinPopupWidth();
+  return cachedMinPopupWidth;
+}
+
+function setProbeWindowSize(width, height) {
+  const root = document.documentElement;
+  const w = `${width}px`;
+  const h = `${height}px`;
+  root.style.setProperty('--popup-width', w);
+  root.style.setProperty('--popup-height', h);
+  root.style.width = w;
+  root.style.height = h;
+  root.style.overflow = 'hidden';
+}
+
+function detectMaxPopupHeight() {
+  const root = document.documentElement;
+  const prevW = root.style.getPropertyValue('--popup-width');
+  const prevH = root.style.getPropertyValue('--popup-height');
+  const prevInlineW = root.style.width;
+  const prevInlineH = root.style.height;
+  const width = root.clientWidth || DEFAULT_TAB_SIZE.width;
+  let maxH = TAB_SIZE_MIN.height;
+
+  hideResizeGhost();
+
+  for (let h = TAB_SIZE_MIN.height; h <= TAB_SIZE_MAX.height + 50; h += 8) {
+    setProbeWindowSize(width, h);
+    void root.offsetHeight;
+    if (root.clientHeight >= h - 2) {
+      maxH = h;
+    } else {
+      break;
+    }
+  }
+
+  if (prevW) root.style.setProperty('--popup-width', prevW);
+  else root.style.removeProperty('--popup-width');
+  if (prevH) root.style.setProperty('--popup-height', prevH);
+  else root.style.removeProperty('--popup-height');
+  root.style.width = prevInlineW;
+  root.style.height = prevInlineH;
+  cachedMaxPopupHeight = Math.max(TAB_SIZE_MIN.height, maxH - MAX_HEIGHT_BUFFER);
+  return cachedMaxPopupHeight;
+}
+
+function detectMaxPopupWidth() {
+  const root = document.documentElement;
+  const prevW = root.style.getPropertyValue('--popup-width');
+  const prevH = root.style.getPropertyValue('--popup-height');
+  const prevInlineW = root.style.width;
+  const prevInlineH = root.style.height;
+  const height = cachedMaxPopupHeight || root.clientHeight || DEFAULT_TAB_SIZE.height;
+  let maxW = TAB_SIZE_MIN.width;
+
+  hideResizeGhost();
+
+  for (let w = TAB_SIZE_MIN.width; w <= TAB_SIZE_MAX.width + 50; w += 8) {
+    setProbeWindowSize(w, height);
+    void root.offsetHeight;
+    if (root.clientWidth >= w - 2) {
+      maxW = w;
+    } else {
+      break;
+    }
+  }
+
+  if (prevW) root.style.setProperty('--popup-width', prevW);
+  else root.style.removeProperty('--popup-width');
+  if (prevH) root.style.setProperty('--popup-height', prevH);
+  else root.style.removeProperty('--popup-height');
+  root.style.width = prevInlineW;
+  root.style.height = prevInlineH;
+
+  const buffered = maxW - MAX_WIDTH_BUFFER;
+  cachedMaxPopupWidth = clampTabDimension(
+    buffered,
+    getMinPopupWidth(),
+    TAB_SIZE_MAX.width - MAX_WIDTH_BUFFER
+  );
+  return cachedMaxPopupWidth;
+}
+
+function getMaxPopupWidth() {
+  if (!cachedMaxPopupWidth) return detectMaxPopupWidth();
+  return cachedMaxPopupWidth;
+}
+
+function getMaxPopupHeight() {
+  if (!cachedMaxPopupHeight) return detectMaxPopupHeight();
+  return cachedMaxPopupHeight;
+}
+
+function refreshPopupDimensionLimits() {
+  refreshMinPopupWidth();
+  detectMaxPopupHeight();
+  detectMaxPopupWidth();
+  enforceDimensionLimitsOnAllTabs();
+}
+
+function normalizeTabWidth(width) {
+  return clampTabDimension(Math.round(width), getMinPopupWidth(), getMaxPopupWidth());
+}
+
+function snapResizeDimension(value) {
+  return Math.round(value / RESIZE_SNAP) * RESIZE_SNAP;
+}
+
+function normalizeTabSize(size, { snap = false } = {}) {
+  let width = size.width;
+  let height = size.height;
+  if (snap) {
+    width = snapResizeDimension(width);
+    height = snapResizeDimension(height);
+  }
+  return {
+    width: normalizeTabWidth(width),
+    height: clampTabDimension(Math.round(height), TAB_SIZE_MIN.height, getMaxPopupHeight())
+  };
+}
+
+function getPopupTabSize(tabName) {
+  ensurePopupTabSizes();
+  const tab = POPUP_TABS.includes(tabName) ? tabName : 'templates';
+  return { ...DEFAULT_TAB_SIZE, ...settings.popupTabSizes[tab] };
+}
+
+function setPopupTabSize(tabName, size, persist = true) {
+  ensurePopupTabSizes();
+  const tab = POPUP_TABS.includes(tabName) ? tabName : 'templates';
+  settings.popupTabSizes[tab] = normalizeTabSize(size);
+  if (persist) saveSettings();
+}
+
+function getPopupLayoutScale() {
+  migratePopupLayout();
+  return { ...DEFAULT_POPUP_LAYOUT_SCALE, ...settings.popupLayoutScale };
+}
+
+function scaleToPx(base, percent) {
+  return Math.round(base * percent / 100);
+}
+
+function getPopupLayout() {
+  const scale = getPopupLayoutScale();
+  return {
+    fontSize: scaleToPx(BASE_LAYOUT.fontSize, scale.fontSize),
+    padding: scaleToPx(BASE_LAYOUT.padding, scale.padding),
+    fontScale: scale.fontSize / 100
+  };
+}
+
+function applyPopupLayout() {
+  const layout = getPopupLayout();
+  const root = document.documentElement;
+
+  root.style.setProperty('--font-scale', String(layout.fontScale));
+  root.style.setProperty('--popup-font-size', `${layout.fontSize}px`);
+  root.style.setProperty('--popup-padding', `${layout.padding}px`);
+
+  migrateCrushedTabSizes();
+  cachedMaxPopupWidth = 0;
+  cachedMaxPopupHeight = 0;
+  refreshPopupDimensionLimits();
+  lastAppliedTabSize = { width: 0, height: 0 };
+  applyTabSize(lastActiveTab);
+}
+
+function applyTabSize(tabName, sizeOverride = null) {
+  const raw = sizeOverride || getPopupTabSize(tabName);
+  const size = normalizeTabSize(raw);
+  if (size.width === lastAppliedTabSize.width && size.height === lastAppliedTabSize.height) return;
+
+  lastAppliedTabSize = { ...size };
+  const root = document.documentElement;
+  const w = `${size.width}px`;
+  const h = `${size.height}px`;
+
+  hideResizeGhost();
+  root.style.setProperty('--popup-width', w);
+  root.style.setProperty('--popup-height', h);
+  root.style.width = w;
+  root.style.height = h;
+  root.style.overflow = 'hidden';
+}
+
+function showResizeGhost(size) {
+  if (!popupResizeGhost) return;
+  popupResizeGhost.style.top = '0';
+  popupResizeGhost.style.right = '0';
+  popupResizeGhost.style.left = 'auto';
+  popupResizeGhost.style.bottom = 'auto';
+  popupResizeGhost.style.width = `${size.width}px`;
+  popupResizeGhost.style.height = `${size.height}px`;
+  popupResizeGhost.classList.add('visible');
+  popupResizeGhost.setAttribute('aria-hidden', 'false');
+}
+
+function hideResizeGhost() {
+  if (!popupResizeGhost) return;
+  popupResizeGhost.classList.remove('visible');
+  popupResizeGhost.style.top = '';
+  popupResizeGhost.style.right = '';
+  popupResizeGhost.style.left = '';
+  popupResizeGhost.style.bottom = '';
+  popupResizeGhost.style.width = '';
+  popupResizeGhost.style.height = '';
+  popupResizeGhost.setAttribute('aria-hidden', 'true');
+}
+
+function enforceDimensionLimitsOnAllTabs() {
+  const minW = getMinPopupWidth();
+  const maxW = getMaxPopupWidth();
+  const maxH = getMaxPopupHeight();
+  let changed = false;
+  ensurePopupTabSizes();
+  POPUP_TABS.forEach((tab) => {
+    const size = settings.popupTabSizes[tab];
+    const clampedW = clampTabDimension(size.width, minW, maxW);
+    const clampedH = clampTabDimension(size.height, TAB_SIZE_MIN.height, maxH);
+    if (size.width !== clampedW) {
+      size.width = clampedW;
+      changed = true;
+    }
+    if (size.height !== clampedH) {
+      size.height = clampedH;
+      changed = true;
+    }
+  });
+  if (changed) saveSettings();
+}
+
+function applyPreviewWindowSize(size, frozenWidth) {
+  const root = document.documentElement;
+  const w = `${frozenWidth}px`;
+  const h = `${size.height}px`;
+  root.style.setProperty('--popup-width', w);
+  root.style.setProperty('--popup-height', h);
+  root.style.width = w;
+  root.style.height = h;
+  root.style.overflow = 'hidden';
+}
+
+function syncLayoutControlsToUI() {
+  const scale = getPopupLayoutScale();
+  LAYOUT_SCALE_CONTROLS.forEach(({ key, valId }) => {
+    const label = document.getElementById(valId);
+    if (label) label.textContent = `${scale[key]}%`;
+  });
+
+  document.querySelectorAll('.layout-stepper').forEach((stepper) => {
+    const key = stepper.dataset.scaleKey;
+    const value = scale[key];
+    const minus = stepper.querySelector('[data-dir="-1"]');
+    const plus = stepper.querySelector('[data-dir="1"]');
+    if (minus) minus.disabled = value <= LAYOUT_SCALE_MIN;
+    if (plus) plus.disabled = value >= LAYOUT_SCALE_MAX;
+  });
+
+}
+
+function updatePopupLayoutScale(key, delta, fromPreset = false) {
+  migratePopupLayout();
+  const current = getPopupLayoutScale();
+  const next = clampScale(current[key] + delta);
+  if (next === current[key]) return;
+
+  settings.popupLayoutScale = { ...current, [key]: next };
+  if (!fromPreset && settingPopupPreset) settingPopupPreset.value = 'custom';
+  saveSettings();
+  applyPopupLayout();
+  syncLayoutControlsToUI();
+}
+
+function applyPopupPreset(presetKey) {
+  if (presetKey === 'custom' || !POPUP_PRESETS[presetKey]) return;
+  settings.popupLayoutScale = { ...POPUP_PRESETS[presetKey] };
+  saveSettings();
+  applyPopupLayout();
+  syncLayoutControlsToUI();
+  trackEvent(`settings_change_popupPreset_${presetKey}`);
+}
+
+function resetPopupLayout() {
+  settings.popupLayoutScale = { ...DEFAULT_POPUP_LAYOUT_SCALE };
+  if (settingPopupPreset) settingPopupPreset.value = 'normal';
+  saveSettings();
+  applyPopupLayout();
+  syncLayoutControlsToUI();
+  trackEvent('settings_change_popupLayout_reset');
+}
+
+function toggleLayoutAdvanced() {
+  if (!layoutAdvancedEl || !toggleLayoutAdvancedBtn) return;
+  const isOpen = layoutAdvancedEl.classList.toggle('open');
+  toggleLayoutAdvancedBtn.textContent = isOpen ? 'Скрыть настройки ▲' : 'Больше настроек ▼';
+}
+
+function initPopupLayoutControls() {
+  document.querySelectorAll('.layout-stepper').forEach((stepper) => {
+    const key = stepper.dataset.scaleKey;
+    stepper.querySelectorAll('.layout-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const dir = parseInt(btn.dataset.dir, 10);
+        updatePopupLayoutScale(key, dir * LAYOUT_SCALE_STEP);
+      });
+    });
+  });
+
+  settingPopupPreset?.addEventListener('change', (e) => applyPopupPreset(e.target.value));
+  resetPopupLayoutBtn?.addEventListener('click', resetPopupLayout);
+  toggleLayoutAdvancedBtn?.addEventListener('click', toggleLayoutAdvanced);
+}
+
+function calcResizeSize(startW, startH, startX, startY, clientX, clientY, snap = false) {
+  return normalizeTabSize({
+    width: startW - (clientX - startX),
+    height: startH + (clientY - startY)
+  }, { snap });
+}
+
+function initPopupResizeHandle() {
+  if (!popupResizeHandle) return;
+
+  let dragging = false;
+  let startX = 0;
+  let startY = 0;
+  let startW = 0;
+  let startH = 0;
+  let previewSize = null;
+
+  popupResizeHandle.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    dragging = true;
+    const size = getPopupTabSize(lastActiveTab);
+    startX = e.clientX;
+    startY = e.clientY;
+    startW = size.width;
+    startH = size.height;
+    previewSize = { ...size };
+    document.body.style.setProperty('--resize-frozen-w', `${startW}px`);
+    document.body.style.setProperty('--resize-frozen-h', `${startH}px`);
+    document.body.classList.add('popup-resizing');
+    document.body.style.userSelect = 'none';
+    popupResizeHandle.classList.add('dragging');
+    showResizeGhost(previewSize);
+    applyPreviewWindowSize(previewSize, startW);
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    previewSize = calcResizeSize(startW, startH, startX, startY, e.clientX, e.clientY, true);
+    showResizeGhost(previewSize);
+    applyPreviewWindowSize(previewSize, startW);
+  });
+
+  const stopDrag = (e) => {
+    if (!dragging) return;
+    dragging = false;
+
+    if (e && e.clientX !== undefined) {
+      previewSize = calcResizeSize(startW, startH, startX, startY, e.clientX, e.clientY);
+    }
+
+    hideResizeGhost();
+    document.body.classList.remove('popup-resizing');
+    document.body.style.removeProperty('--resize-frozen-w');
+    document.body.style.removeProperty('--resize-frozen-h');
+    document.body.style.userSelect = '';
+    popupResizeHandle.classList.remove('dragging');
+
+    if (previewSize) {
+      lastAppliedTabSize = { width: 0, height: 0 };
+      setPopupTabSize(lastActiveTab, previewSize, false);
+      applyTabSize(lastActiveTab, previewSize);
+      previewSize = null;
+      saveSettings();
+      trackEvent('popup_resize_handle');
+    }
+  };
+
+  document.addEventListener('mouseup', stopDrag);
+  window.addEventListener('blur', () => stopDrag());
+}
+
+// ==================== ТАБЫ ====================
 
 document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => {
@@ -163,13 +700,8 @@ document.querySelectorAll('.tab').forEach(tab => {
     if (tab.dataset.tab === 'settings') {
       loadSavedFormData();
     }
-    
-    // Изменяем размер popup под содержимое с задержкой для отрисовки
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        resizePopup();
-      });
-    });
+
+    applyTabSize(lastActiveTab);
   });
 });
 
@@ -179,6 +711,15 @@ function loadAllData() {
     templates = result.templates || [];
     groups = result.groups || [];
     settings = result.settings || { omnichatTemplates: true, ttmButton: true, accountingPanel: true, grafanaSSH: true, reminder: true, ttmOnyma: true, ttmSipal: true, omnichatTTMLinks: true, darkMode: false, analyticsEnabled: true };
+    const hadLegacyLayout = Boolean(
+      result.settings?.popupSize ||
+      result.settings?.popupLayout ||
+      result.settings?.popupLayoutScale?.width !== undefined ||
+      result.settings?.popupLayoutScale?.minHeight !== undefined
+    );
+    migratePopupLayout();
+    ensurePopupTabSizes();
+    if (hadLegacyLayout || !result.settings?.popupTabSizes) saveSettings();
     if (result.settings && result.settings.analyticsEnabled === undefined) {
       settings.analyticsEnabled = true;
     }
@@ -207,15 +748,10 @@ function loadAllData() {
     renderTemplateGroupSelect();
     renderGroupsList();
     applySettings();
+    applyPopupLayout();
+    syncLayoutControlsToUI();
     updateTicketsUI(activeWorkingDate, allData[activeWorkingDate]);
-    renderReminders(); // Загружаем напоминания сразу
-    
-    // Изменяем размер popup после загрузки данных
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        resizePopup();
-      });
-    });
+    renderReminders();
   });
 }
 
@@ -234,13 +770,8 @@ function switchToTab(tabName) {
     if (tabName === 'settings') {
       loadSavedFormData();
     }
-    
-    // Пересчитываем размер
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        resizePopup();
-      });
-    });
+
+    applyTabSize(tabName);
   }
 }
 
@@ -278,6 +809,9 @@ chrome.storage.onChanged.addListener((changes, area) => {
     if (changes.settings) {
       settings = changes.settings.newValue;
       applyDarkMode();
+      applyPopupLayout();
+      applyTabSize(lastActiveTab);
+      syncLayoutControlsToUI();
     }
     if (changes.templates || changes.groups) {
       chrome.storage.local.get(['templates', 'groups'], (res) => {
@@ -339,6 +873,9 @@ bindSettingToggle(settingReminder, 'reminder');
 bindSettingToggle(settingTTMOnyma, 'ttmOnyma');
 bindSettingToggle(settingTTMSipal, 'ttmSipal');
 bindSettingToggle(settingDarkMode, 'darkMode');
+
+initPopupLayoutControls();
+initPopupResizeHandle();
 
 settingAnalytics.addEventListener('change', (e) => {
   if (!e.target.checked) {
@@ -1058,22 +1595,9 @@ function editReminderTime(id) {
     remindersList.parentNode.insertBefore(modal, remindersList.nextSibling);
   }
   
-  // Изменяем размер popup под содержимое
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      resizePopup();
-    });
-  });
-  
   // Функция для закрытия
   const closeModal = () => {
     modal.remove();
-    // Восстанавливаем размер после закрытия
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        resizePopup();
-      });
-    });
   };
   
   // Обработчики

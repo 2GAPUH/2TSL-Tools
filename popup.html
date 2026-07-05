@@ -21,6 +21,10 @@
       --success: #28a745;
       --warning: #ffc107;
       --danger: #dc3545;
+      --popup-width: 450px;
+      --popup-height: 450px;
+      --font-scale: 1;
+      --popup-padding: 16px;
     }
     
     html.dark-mode {
@@ -36,15 +40,46 @@
       --input-bg: #1a1a2e;
     }
     
+    html {
+      width: var(--popup-width);
+      height: var(--popup-height);
+      overflow: hidden;
+      overflow-x: hidden;
+      background: transparent;
+    }
+
     body {
-      width: 450px;
-      min-height: 450px;
+      width: 100%;
+      height: 100%;
+      max-width: 100%;
       margin: 0;
-      padding: 16px;
+      padding: 0;
       font-family: Rostelecom Basis, Arial, sans-serif;
-      background: var(--bg-primary);
+      font-size: calc(14px * var(--font-scale));
+      background: transparent;
       color: var(--text-primary);
       transition: background-color 0.3s, color 0.3s;
+      overflow: hidden;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    .popup-root {
+      position: absolute;
+      inset: 0;
+      padding: var(--popup-padding) var(--popup-padding) 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-sizing: border-box;
+      background: var(--bg-primary);
+    }
+
+    .tab-stage {
+      flex: 1 1 0;
+      min-height: 0;
+      overflow: hidden;
+      position: relative;
     }
 
     /* Табы */
@@ -52,20 +87,28 @@
       display: flex;
       border-bottom: 1px solid var(--border-color);
       margin-bottom: 16px;
+      flex-shrink: 0;
+      width: 100%;
     }
     
     .tab {
       display: flex;
       align-items: center;
+      justify-content: center;
+      flex: 1 1 0;
+      min-width: 0;
       gap: 6px;
-      padding: 10px 14px;
+      padding: 10px 8px;
       cursor: pointer;
       border: none;
       background: none;
-      font-size: 14px;
+      font-size: calc(14px * var(--font-scale));
+      line-height: 1.3;
+      text-align: center;
+      white-space: normal;
       color: var(--text-muted);
       border-bottom: 2px solid transparent;
-      transition: all 0.2s;
+      transition: color 0.2s, border-color 0.2s, opacity 0.2s;
     }
     
     .tab:hover {
@@ -91,16 +134,71 @@
     
     .tab-content {
       display: none;
+      position: absolute;
+      inset: 0;
+      flex-direction: column;
+      overflow: hidden;
     }
     
     .tab-content.active {
+      display: flex;
+    }
+
+    .tab-scroll {
+      flex: 1 1 0;
+      min-height: 0;
+      overflow-x: hidden;
+      overflow-y: auto;
+      scrollbar-gutter: stable;
+    }
+
+    .tab-content > .header {
+      flex-shrink: 0;
+    }
+
+    body.popup-resizing,
+    body.popup-resizing * {
+      transition: none !important;
+    }
+
+    body.popup-resizing .popup-root {
+      width: var(--resize-frozen-w);
+      height: var(--resize-frozen-h);
+      top: 0;
+      left: 0;
+      right: auto;
+      bottom: auto;
+      overflow: hidden;
+    }
+
+    .popup-resize-ghost {
+      display: none;
+      position: fixed;
+      top: 0;
+      right: 0;
+      left: auto;
+      box-sizing: border-box;
+      border: 2px dashed var(--accent);
+      background: transparent;
+      pointer-events: none;
+      z-index: 998;
+    }
+
+    .popup-resize-ghost.visible {
       display: block;
+    }
+
+    .tabs.tabs--measure-nowrap .tab {
+      flex: 0 0 auto;
+      white-space: nowrap;
     }
 
     .header {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
       margin-bottom: 16px;
       padding-bottom: 8px;
     }
@@ -113,13 +211,14 @@
 
     h1 {
       margin: 0;
-      font-size: 18px;
+      font-size: calc(18px * var(--font-scale));
       color: var(--text-primary);
     }
 
     .header-right {
       display: flex;
       align-items: center;
+      flex-wrap: wrap;
       gap: 8px;
     }
 
@@ -127,17 +226,32 @@
       position: relative;
     }
 
-    .filter-select {
-      padding: 8px 30px 8px 12px;
+    .filter-select,
+    .setting-select,
+    .form-group select,
+    #feedbackType,
+    #templateGroup {
+      padding: calc(6px * var(--font-scale)) calc(28px * var(--font-scale)) calc(6px * var(--font-scale)) calc(10px * var(--font-scale));
       border: 1px solid var(--border-color);
       border-radius: 4px;
       background: var(--input-bg);
       color: var(--text-primary);
-      font-size: 14px;
+      font-size: calc(14px * var(--font-scale));
+      line-height: 1.35;
       cursor: pointer;
       appearance: none;
-      min-width: 120px;
-      height: 36px;
+      min-width: 0;
+      width: 100%;
+      max-width: 100%;
+      height: auto;
+      min-height: calc(34px * var(--font-scale));
+      box-sizing: border-box;
+    }
+
+    .filter-select {
+      min-width: calc(100px * var(--font-scale));
+      width: auto;
+      max-width: calc(180px * var(--font-scale));
     }
 
     .filter-arrow {
@@ -147,7 +261,7 @@
       transform: translateY(-50%);
       pointer-events: none;
       color: var(--text-muted);
-      font-size: 10px;
+      font-size: calc(10px * var(--font-scale));
     }
 
     .add-btn {
@@ -160,7 +274,7 @@
       border-radius: 4px;
       padding: 8px 14px;
       cursor: pointer;
-      font-size: 14px;
+      font-size: calc(14px * var(--font-scale));
       height: 36px;
       transition: background 0.2s;
     }
@@ -178,8 +292,6 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
-      max-height: 350px;
-      overflow-y: auto;
     }
 
     .template-item {
@@ -200,14 +312,14 @@
     .template-title {
       font-weight: 600;
       margin: 0;
-      font-size: 14px;
+      font-size: calc(14px * var(--font-scale));
       color: var(--text-primary);
       flex: 1;
       padding-right: 8px;
     }
 
     .template-group {
-      font-size: 11px;
+      font-size: calc(11px * var(--font-scale));
       color: var(--text-muted);
       background: var(--bg-tertiary);
       padding: 3px 8px;
@@ -247,7 +359,7 @@
     .paste-btn:hover { background: var(--hover-bg); }
 
     .template-body {
-      font-size: 12px;
+      font-size: calc(12px * var(--font-scale));
       color: var(--text-muted);
       margin: 0;
       white-space: pre-wrap;
@@ -289,14 +401,14 @@
 
     .modal-title {
       margin: 0;
-      font-size: 16px;
+      font-size: calc(16px * var(--font-scale));
       font-weight: 600;
     }
 
     .close-btn {
       background: none;
       border: none;
-      font-size: 22px;
+      font-size: calc(22px * var(--font-scale));
       cursor: pointer;
       color: var(--text-muted);
       line-height: 1;
@@ -313,7 +425,7 @@
     label {
       display: block;
       margin-bottom: 6px;
-      font-size: 13px;
+      font-size: calc(13px * var(--font-scale));
       font-weight: 600;
       color: var(--text-primary);
     }
@@ -324,7 +436,7 @@
       border: 1px solid var(--border-color);
       border-radius: 6px;
       font-family: inherit;
-      font-size: 14px;
+      font-size: calc(14px * var(--font-scale));
       background: var(--input-bg);
       color: var(--text-primary);
       transition: border-color 0.2s;
@@ -357,7 +469,7 @@
       padding: 10px 18px;
       border-radius: 6px;
       cursor: pointer;
-      font-size: 14px;
+      font-size: calc(14px * var(--font-scale));
       transition: background 0.2s;
     }
 
@@ -380,7 +492,7 @@
       padding: 10px 18px;
       border-radius: 6px;
       cursor: pointer;
-      font-size: 14px;
+      font-size: calc(14px * var(--font-scale));
       transition: background 0.2s;
     }
 
@@ -436,7 +548,7 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      font-size: 13px;
+      font-size: calc(13px * var(--font-scale));
       font-weight: 600;
       margin-bottom: 12px;
       color: var(--text-primary);
@@ -462,14 +574,183 @@
     }
     
     .setting-label {
-      font-size: 14px;
+      font-size: calc(14px * var(--font-scale));
       color: var(--text-primary);
     }
     
     .setting-description {
-      font-size: 12px;
+      font-size: calc(12px * var(--font-scale));
       color: var(--text-muted);
       margin-top: 4px;
+    }
+
+    .layout-section {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+    }
+
+    .layout-section .setting-item.compact {
+      padding: 8px 0;
+      margin-bottom: 0;
+      border: none;
+      background: transparent;
+    }
+
+    .layout-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin: 8px 0;
+    }
+
+    .layout-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: calc(12px * var(--font-scale));
+      color: var(--text-secondary);
+    }
+
+    .layout-stepper {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .layout-btn {
+      width: 26px;
+      height: 26px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      cursor: pointer;
+      font-size: calc(15px * var(--font-scale));
+      line-height: 1;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .layout-btn:hover {
+      background: var(--hover-bg);
+      border-color: var(--accent);
+    }
+
+    .layout-btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    .layout-pct {
+      min-width: 44px;
+      text-align: center;
+      font-weight: 600;
+      color: var(--accent);
+      font-size: calc(12px * var(--font-scale));
+    }
+
+    .layout-advanced {
+      display: none;
+    }
+
+    .layout-advanced.open {
+      display: block;
+    }
+
+    .layout-more-btn {
+      width: 100%;
+      margin-top: 6px;
+      padding: 7px 10px;
+      background: var(--bg-tertiary);
+      border: 1px dashed var(--border-color);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: calc(12px * var(--font-scale));
+      color: var(--accent);
+      font-family: inherit;
+    }
+
+    .layout-more-btn:hover {
+      background: var(--hover-bg);
+    }
+
+    .layout-preset-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-top: 8px;
+    }
+
+    .layout-preset-row .setting-label {
+      margin-right: 12px;
+    }
+
+    .layout-hint {
+      margin: 8px 0 0;
+      font-size: calc(11px * var(--font-scale));
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    .layout-actions {
+      margin-top: 6px;
+    }
+
+    .layout-actions button {
+      width: 100%;
+      padding: 7px 12px;
+      font-size: calc(12px * var(--font-scale));
+    }
+
+    .popup-resize-handle {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      width: 10px;
+      height: 10px;
+      cursor: nesw-resize;
+      z-index: 1000;
+      background: transparent;
+      touch-action: none;
+      flex-shrink: 0;
+    }
+
+    .popup-resize-handle::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      width: 9px;
+      height: 9px;
+      opacity: 0.45;
+      background: linear-gradient(to top right, var(--text-muted) 48%, transparent 48%);
+      border-radius: 0 0 0 2px;
+      pointer-events: none;
+    }
+
+    .popup-resize-handle:hover::after,
+    .popup-resize-handle.dragging::after {
+      opacity: 0.85;
+    }
+
+    .setting-select {
+      font-family: inherit;
+      width: auto;
+      min-width: calc(130px * var(--font-scale));
+      max-width: 100%;
+      background-image: linear-gradient(45deg, transparent 50%, var(--text-muted) 50%),
+                        linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
+      background-position: calc(100% - 14px) calc(50% + 1px), calc(100% - 9px) calc(50% + 1px);
+      background-size: 5px 5px, 5px 5px;
+      background-repeat: no-repeat;
     }
     
     /* Переключатель */
@@ -533,30 +814,33 @@
     }
     
     .saved-data-label {
-      font-size: 13px;
+      font-size: calc(13px * var(--font-scale));
       color: var(--text-muted);
     }
     
     .saved-data-value {
-      font-size: 13px;
+      font-size: calc(13px * var(--font-scale));
       color: var(--text-secondary);
       font-weight: 500;
     }
     
-    .clear-data-btn {
-      background: var(--danger);
-      color: white;
-      border: none;
-      padding: 10px 16px;
+    .settings-action-btn {
+      width: 100%;
+      margin-top: 8px;
+      padding: 7px 10px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
       border-radius: 6px;
       cursor: pointer;
-      font-size: 13px;
-      margin-top: 12px;
-      transition: background 0.2s;
+      font-size: calc(12px * var(--font-scale));
+      color: var(--text-secondary);
+      font-family: inherit;
+      transition: background 0.2s, border-color 0.2s, color 0.2s;
     }
-    
-    .clear-data-btn:hover {
-      background: #c82333;
+
+    .settings-action-btn:hover {
+      background: var(--hover-bg);
+      color: var(--text-primary);
     }
 
     /* ==========================================================================
@@ -569,12 +853,12 @@
       padding: 10px 14px;
       border-radius: 6px;
       margin-bottom: 14px;
-      font-size: 13px;
+      font-size: calc(13px * var(--font-scale));
     }
 
     .tickets-form label {
       display: block;
-      font-size: 12px;
+      font-size: calc(12px * var(--font-scale));
       margin-bottom: 6px;
       font-weight: 600;
     }
@@ -586,7 +870,7 @@
       margin-bottom: 12px;
       border: 1px solid var(--border-color);
       border-radius: 6px;
-      font-size: 14px;
+      font-size: calc(14px * var(--font-scale));
       font-family: inherit;
       background: var(--input-bg);
       color: var(--text-primary);
@@ -609,7 +893,7 @@
 
     .time-group label {
       display: block;
-      font-size: 11px;
+      font-size: calc(11px * var(--font-scale));
       color: var(--text-muted);
       margin-bottom: 6px;
       text-transform: uppercase;
@@ -621,7 +905,7 @@
       padding: 10px;
       border: 1px solid var(--border-color);
       border-radius: 6px;
-      font-size: 14px;
+      font-size: calc(14px * var(--font-scale));
       text-align: center;
       background: var(--input-bg);
       color: var(--text-primary);
@@ -638,7 +922,7 @@
       border: 0;
       border-radius: 6px;
       padding: 10px 14px;
-      font-size: 13px;
+      font-size: calc(13px * var(--font-scale));
       font-weight: 500;
       transition: background-color 0.2s;
     }
@@ -695,13 +979,13 @@
     
     .stats > div {
       text-align: center;
-      font-size: 12px;
+      font-size: calc(12px * var(--font-scale));
       color: var(--text-secondary);
     }
     
     .stats strong {
       display: block;
-      font-size: 18px;
+      font-size: calc(18px * var(--font-scale));
       margin-top: 4px;
       color: var(--text-primary);
     }
@@ -711,7 +995,7 @@
       padding: 10px 12px;
       background: var(--bg-tertiary);
       border-radius: 6px;
-      font-size: 13px;
+      font-size: calc(13px * var(--font-scale));
       color: var(--text-secondary);
     }
 
@@ -720,7 +1004,7 @@
     }
 
     .list h2 {
-      font-size: 12px;
+      font-size: calc(12px * var(--font-scale));
       margin-bottom: 8px;
       color: var(--text-muted);
       text-transform: uppercase;
@@ -731,8 +1015,6 @@
       list-style: none;
       padding: 0;
       margin: 0;
-      max-height: 150px;
-      overflow-y: auto;
       border: 1px solid var(--border-color);
       border-radius: 6px;
       background: var(--bg-secondary);
@@ -741,7 +1023,7 @@
     .list li {
       padding: 10px 12px;
       border-bottom: 1px solid var(--border-light);
-      font-size: 12px;
+      font-size: calc(12px * var(--font-scale));
       color: var(--text-secondary);
     }
 
@@ -785,7 +1067,7 @@
     
     .reminder-ticket {
       font-weight: 600;
-      font-size: 14px;
+      font-size: calc(14px * var(--font-scale));
       color: var(--accent);
       cursor: pointer;
       text-decoration: none;
@@ -799,7 +1081,7 @@
       display: flex;
       align-items: center;
       gap: 4px;
-      font-size: 12px;
+      font-size: calc(12px * var(--font-scale));
       color: var(--text-muted);
       background: var(--bg-tertiary);
       padding: 4px 10px;
@@ -822,7 +1104,7 @@
     }
     
     .reminder-description {
-      font-size: 12px;
+      font-size: calc(12px * var(--font-scale));
       color: var(--text-secondary);
       margin-bottom: 10px;
       line-height: 1.4;
@@ -837,7 +1119,7 @@
       padding: 6px 14px;
       border: none;
       border-radius: 4px;
-      font-size: 12px;
+      font-size: calc(12px * var(--font-scale));
       font-weight: 500;
       cursor: pointer;
       transition: background 0.2s;
@@ -892,17 +1174,16 @@
   </style>
 </head>
 <body>
+  <div class="popup-root">
   <!-- Табы -->
   <div class="tabs">
     <button class="tab active" data-tab="templates">Шаблоны</button>
     <button class="tab" data-tab="tickets">Учёт заявок</button>
     <button class="tab" data-tab="reminders">Напоминалка</button>
-    <button class="tab" data-tab="settings">
-      <img class="tab-icon" data-icon="settings" src="" alt="">
-      Настройки
-    </button>
+    <button class="tab" data-tab="settings">Настройки</button>
   </div>
-  
+
+  <div class="tab-stage">
   <!-- Контент: Шаблоны -->
   <div id="templates-tab" class="tab-content active">
     <div class="header">
@@ -921,8 +1202,10 @@
       </div>
     </div>
 
-    <div class="templates-list" id="templatesList">
-      <!-- Шаблоны будут загружаться здесь -->
+    <div class="tab-scroll">
+      <div class="templates-list" id="templatesList">
+        <!-- Шаблоны будут загружаться здесь -->
+      </div>
     </div>
   </div>
   
@@ -931,7 +1214,7 @@
     <div class="header">
       <h1>Учёт заявок</h1>
     </div>
-
+    <div class="tab-scroll">
     <div class="date-row">
       <span>Текущая дата:</span> <strong id="currentDate"></strong>
     </div>
@@ -984,6 +1267,7 @@
       <button id="startNewDay" class="success">Начать смену</button>
       <button id="finishDay" class="accent">Скачать отчёт</button>
     </div>
+    </div>
   </div>
   
   <!-- Контент: Напоминалка -->
@@ -992,13 +1276,16 @@
       <h1>Напоминалка</h1>
     </div>
     
-    <div class="reminders-list" id="remindersList">
-      <!-- Напоминания будут загружаться здесь -->
+    <div class="tab-scroll">
+      <div class="reminders-list" id="remindersList">
+        <!-- Напоминания будут загружаться здесь -->
+      </div>
     </div>
   </div>
 
   <!-- Контент: Настройки -->
   <div id="settings-tab" class="tab-content">
+    <div class="tab-scroll">
     <div class="settings-section">
       <div class="settings-title">
         <img class="section-icon" data-icon="zap" src="" alt="">
@@ -1117,16 +1404,56 @@
         <img class="section-icon" data-icon="palette" src="" alt="">
         Оформление
       </div>
-      
-      <div class="setting-item">
-        <div>
-          <div class="setting-label">Тёмная тема</div>
-          <div class="setting-description">Включить тёмный режим для расширения</div>
+
+      <div class="layout-section">
+        <div class="setting-item compact">
+          <div>
+            <div class="setting-label">Тёмная тема</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="settingDarkMode">
+            <span class="toggle-slider"></span>
+          </label>
         </div>
-        <label class="toggle-switch">
-          <input type="checkbox" id="settingDarkMode">
-          <span class="toggle-slider"></span>
-        </label>
+
+        <button type="button" id="toggleLayoutAdvanced" class="layout-more-btn">Больше настроек ▼</button>
+
+        <div id="layoutAdvanced" class="layout-advanced">
+          <div class="layout-preset-row">
+            <div class="setting-label">Пресет</div>
+            <select class="setting-select" id="settingPopupPreset">
+              <option value="custom">Свои</option>
+              <option value="compact">Компактный</option>
+              <option value="normal" selected>Стандарт</option>
+              <option value="large">Крупный</option>
+            </select>
+          </div>
+
+          <div class="layout-controls">
+            <div class="layout-row">
+              <span>Шрифт</span>
+              <div class="layout-stepper" data-scale-key="fontSize">
+                <button type="button" class="layout-btn" data-dir="-1" aria-label="Уменьшить">−</button>
+                <span class="layout-pct" id="valScaleFontSize">100%</span>
+                <button type="button" class="layout-btn" data-dir="1" aria-label="Увеличить">+</button>
+              </div>
+            </div>
+            <div class="layout-row">
+              <span>Отступы</span>
+              <div class="layout-stepper" data-scale-key="padding">
+                <button type="button" class="layout-btn" data-dir="-1">−</button>
+                <span class="layout-pct" id="valScalePadding">100%</span>
+                <button type="button" class="layout-btn" data-dir="1">+</button>
+              </div>
+            </div>
+          </div>
+
+          <p class="layout-hint">Размер окна — потяните за уголок внизу слева. Для каждой вкладки сохраняется отдельно.</p>
+
+          <div class="layout-actions">
+            <button type="button" id="resetPopupLayout" class="accent">Сбросить (100%)</button>
+          </div>
+        </div>
       </div>
     </div>
     
@@ -1146,19 +1473,18 @@
         <span class="saved-data-value" id="savedFIO">-</span>
       </div>
       
-      <button class="clear-data-btn" id="clearSavedData">Очистить сохраненные данные</button>
+      <button type="button" class="settings-action-btn" id="clearSavedData">Очистить сохранённые данные</button>
     </div>
     
     <div class="settings-section">
-      <div class="settings-title">
-        <span style="font-size: 16px;">💬</span>
-        Обратная связь
-      </div>
-      
-      <button class="feedback-btn" id="openFeedbackBtn" style="width: 100%; padding: 12px; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; transition: background 0.2s;">
-        📝 Оставить отзыв или предложение
-      </button>
+      <div class="settings-title">Обратная связь</div>
+      <button type="button" id="openFeedbackBtn" class="layout-more-btn">Оставить отзыв или предложение</button>
     </div>
+    </div>
+  </div>
+  </div>
+
+  <div id="popupResizeHandle" class="popup-resize-handle" title="Потяните для изменения размера"></div>
   </div>
 
   <!-- Модальное окно обратной связи -->
@@ -1252,6 +1578,8 @@
       </div>
     </div>
   </div>
+
+  <div id="popupResizeGhost" class="popup-resize-ghost" aria-hidden="true"></div>
 
   <script src="popup.js"></script>
 </body>
