@@ -1,7 +1,7 @@
 // content-form.js
 // Для сайта bzbti.rt.ru/vip/ispolzovanie-assistenta/
 // Автозаполнение формы
-// Версия 1.1 - исправлено сохранение региона и РФ клиента
+// Версия 1.2 - исправлен автовыбор radio (WPForms name + визуальное состояние)
 
 // ==================== ПЕРЕМЕННЫЕ ====================
 let settings = { omnichatTemplates: true, ttmButton: true };
@@ -45,12 +45,6 @@ const FORM_FIELDS = {
   note: 'wpforms-2176-field_7'             // Примечание (textarea)
 };
 
-// Регионы
-const REGIONS = ['Юг', 'СЗ', 'Урал', 'Волга', 'Сибирь', 'ДВ', 'МиМО', 'Центр (16 филиалов)'];
-
-// Технологии
-const TECHNOLOGIES = ['xDSL', 'FTTx', 'xPON', 'DOCSIS'];
-
 // ==================== ЗАПОЛНЕНИЕ ПОЛЕЙ ====================
 function fillTextField(fieldId, value) {
   return safelyExecute(() => {
@@ -66,45 +60,60 @@ function fillTextField(fieldId, value) {
   }, `Ошибка заполнения поля ${fieldId}`);
 }
 
+function getWpformsFieldNumber(fieldId) {
+  const match = fieldId.match(/field_(\d+)$/);
+  return match ? match[1] : null;
+}
+
+function getRadioInputs(fieldId) {
+  const fieldNum = getWpformsFieldNumber(fieldId);
+  if (fieldNum) {
+    const byName = document.querySelectorAll(
+      `input[type="radio"][name="wpforms[fields][${fieldNum}]"]`
+    );
+    if (byName.length) return Array.from(byName);
+  }
+
+  const container = document.getElementById(`${fieldId}-container`) || document.getElementById(fieldId);
+  if (container) {
+    return Array.from(container.querySelectorAll('input[type="radio"]'));
+  }
+
+  return [];
+}
+
+function selectRadioElement(radio) {
+  if (!radio) return false;
+
+  const label = radio.id ? document.querySelector(`label[for="${radio.id}"]`) : null;
+  if (label) {
+    label.click();
+    return radio.checked;
+  }
+
+  radio.click();
+  return radio.checked;
+}
+
 function fillRadioField(fieldId, value) {
   return safelyExecute(() => {
     if (!value) return false;
-    
-    // Ищем radio с нужным значением
-    const radios = document.querySelectorAll(`input[name*="${fieldId}"]`);
+
+    const targetValue = String(value).trim();
+    const radios = getRadioInputs(fieldId);
+
     for (const radio of radios) {
-      if (radio.value === value) {
-        radio.checked = true;
-        radio.dispatchEvent(new Event('change', { bubbles: true }));
-        console.log(`Выбран radio ${fieldId}: ${value}`);
-        return true;
+      if (radio.value === targetValue) {
+        if (selectRadioElement(radio)) {
+          console.log(`Выбран radio ${fieldId}: ${targetValue}`);
+          return true;
+        }
       }
     }
-    
-    // Альтернативный поиск по ID
-    const radio = document.getElementById(`${fieldId}_${getValueIndex(fieldId, value)}`);
-    if (radio) {
-      radio.checked = true;
-      radio.dispatchEvent(new Event('change', { bubbles: true }));
-      return true;
-    }
-    
-    console.log(`Radio ${fieldId} со значением "${value}" не найден`);
+
+    console.log(`Radio ${fieldId} со значением "${targetValue}" не найден`);
     return false;
   }, `Ошибка заполнения radio ${fieldId}`);
-}
-
-function getValueIndex(fieldId, value) {
-  // Определяем индекс для radio кнопок
-  if (fieldId === FORM_FIELDS.region) {
-    const idx = REGIONS.indexOf(value);
-    return idx >= 0 ? idx + 1 : 1;
-  }
-  if (fieldId === FORM_FIELDS.technology) {
-    const idx = TECHNOLOGIES.indexOf(value);
-    return idx >= 0 ? idx + 1 : 1;
-  }
-  return 1;
 }
 
 function fillSelectField(fieldId, value) {
@@ -147,7 +156,7 @@ function saveFormData() {
     const newFio = '';
     
     // Сохраняем регион
-    const regionRadios = document.querySelectorAll(`input[name*="${FORM_FIELDS.region}"]`);
+    const regionRadios = getRadioInputs(FORM_FIELDS.region);
     for (const radio of regionRadios) {
       if (radio.checked) {
         savedFormData.region = radio.value;
@@ -172,7 +181,7 @@ function saveFormData() {
 
 // Сохранение региона при изменении
 function setupRegionChangeListener() {
-  const regionRadios = document.querySelectorAll(`input[name*="${FORM_FIELDS.region}"]`);
+  const regionRadios = getRadioInputs(FORM_FIELDS.region);
   regionRadios.forEach(radio => {
     radio.addEventListener('change', () => {
       if (radio.checked) {
@@ -265,7 +274,7 @@ function fillForm() {
 
 // ==================== ИНИЦИАЛИЗАЦИЯ ====================
 function init() {
-  console.log('Form Autofill v1.1');
+  console.log('Form Autofill v1.2');
   
   // Загружаем настройки и сохраненные данные
   chrome.storage.local.get(['settings', 'savedFormData', 'ttmFormData'], (result) => {
@@ -280,12 +289,20 @@ function init() {
   });
 }
 
-function tryFillForm() {
+function isFormReady() {
   const form = document.getElementById('wpforms-form-2176');
-  if (form && !isFormFilled) {
+  const dateField = document.getElementById(FORM_FIELDS.date);
+  const techRadios = getRadioInputs(FORM_FIELDS.technology);
+  return !!(form && dateField && techRadios.length > 0);
+}
+
+function tryFillForm() {
+  if (isFormFilled) return;
+
+  if (isFormReady()) {
     fillForm();
-  } else if (!isFormFilled) {
-    setTimeout(tryFillForm, 2000);
+  } else {
+    setTimeout(tryFillForm, 500);
   }
 }
 
