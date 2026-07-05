@@ -7,6 +7,13 @@
 
   if (!location.hostname.includes('omnichat.rt.ru')) return;
 
+  // ==================== АНАЛИТИКА ====================
+  function trackEvent(event) {
+    try {
+      chrome.runtime.sendMessage({ action: 'trackEvent', event });
+    } catch (e) { /* service worker недоступен */ }
+  }
+
   // ==================== ХЕЛПЕРЫ ====================
   const $ = (id) => document.getElementById(id);
   const pad2 = (n) => String(n).padStart(2, "0");
@@ -683,6 +690,7 @@
       if (exists) return alert('Уже добавлено');
 
       allData[today].entries.push({ time: getTimeStr(), type, number: num, comment: com });
+      trackEvent(type === 'closed' ? 'accounting_entry_closed' : 'accounting_entry_field');
       await chrome.storage.local.set({ requestsByDate: allData });
       
       $('sidebar-ticketNumber').value = '';
@@ -748,6 +756,7 @@
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
       link.download = `Otchet_${today}.csv`;
+      trackEvent('accounting_csv_export');
       link.click();
     }
   };
@@ -843,9 +852,11 @@
 
     toggleBtn.addEventListener('click', () => {
       checkAndApplyTheme();
+      const isOpening = !sidebar.classList.contains('open');
       sidebar.classList.toggle('open');
       toggleBtn.classList.toggle('active');
       btnText.textContent = sidebar.classList.contains('open') ? 'Скрыть' : 'Учет';
+      if (isOpening) trackEvent('accounting_panel_open');
     });
 
     document.querySelector('.tickets-close-btn').addEventListener('click', () => {

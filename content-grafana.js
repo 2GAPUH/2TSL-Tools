@@ -4,6 +4,12 @@
 (function() {
   'use strict';
 
+  function trackEvent(event) {
+    try {
+      chrome.runtime.sendMessage({ action: 'trackEvent', event });
+    } catch (e) { /* service worker недоступен */ }
+  }
+
   // Глобальные настройки
   let settings = { grafanaSSH: true };
   let observer = null;
@@ -79,7 +85,8 @@
     ipElement.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      
+      trackEvent('grafana_ip_click');
+
       // Сохраняем IP в chrome.storage для передачи на SSH сайт
       const transferData = {
         ip: externalIP,

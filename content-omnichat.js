@@ -18,6 +18,13 @@ let settings = { omnichatTemplates: true, ttmButton: true, omnichatTTMLinks: tru
 let ttmLinksObserver = null;
 let processedElements = new WeakSet();
 
+// ==================== АНАЛИТИКА ====================
+function trackEvent(event) {
+  try {
+    chrome.runtime.sendMessage({ action: 'trackEvent', event });
+  } catch (e) { /* service worker недоступен */ }
+}
+
 // ==================== СЕЛЕКТОРЫ ====================
 const SELECTORS = {
   tabsGroup: '[data-testid="test-tabsgroup"]',
@@ -36,6 +43,13 @@ const SELECTORS = {
   draftEditorContent: '.public-DraftEditor-content[contenteditable="true"]',
   contentEditable: '[contenteditable="true"]'
 };
+
+// ==================== АНАЛИТИКА ====================
+function trackEvent(event) {
+  try {
+    chrome.runtime.sendMessage({ action: 'trackEvent', event });
+  } catch (e) { /* service worker недоступен */ }
+}
 
 // ==================== УТИЛИТЫ ====================
 function safelyExecute(callback, errorMsg = 'Ошибка') {
@@ -143,7 +157,7 @@ function openInTTM(searchValue) {
   });
 }
 
-function createClickableLink(text, value) {
+function createClickableLink(text, value, linkType = 'ticket') {
   const link = document.createElement('span');
   link.className = 'tsl-ttm-link';
   link.textContent = text;
@@ -151,6 +165,7 @@ function createClickableLink(text, value) {
   link.addEventListener('click', (e) => {
     e.stopPropagation();
     e.preventDefault();
+    trackEvent(linkType === 'nls' ? 'omnichat_link_click_nls' : 'omnichat_link_click_ticket');
     openInTTM(value);
   });
   return link;
@@ -195,7 +210,7 @@ function processTextNode(textNode) {
     if (match.index > lastIndex) {
       fragments.push(document.createTextNode(text.slice(lastIndex, match.index)));
     }
-    fragments.push(createClickableLink(matchedText, cleanValue));
+    fragments.push(createClickableLink(matchedText, cleanValue, 'nls'));
     lastIndex = match.index + matchedText.length;
   }
   
@@ -713,6 +728,7 @@ function addAdditionalButton() {
     createCustomSearch();
     
     btn.addEventListener('click', () => {
+      trackEvent('omnichat_templates_tab_open');
       updateTabButtons(btn);
       switchToAdditionalTab();
     });
@@ -839,6 +855,7 @@ function createTemplateElement(template, classes) {
     div.addEventListener('click', () => {
       const field = findEditableField();
       if (field) {
+        trackEvent('omnichat_template_insert');
         insertTextIntoDraftEditor(template.body, field);
         setTimeout(() => {
           findCorrectCloseButton()?.click();

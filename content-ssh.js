@@ -20,6 +20,9 @@
       ipInput.dispatchEvent(new Event('change', { bubbles: true }));
       
       console.log('[2TSL] IP автоматически заполнен:', ip);
+      try {
+        chrome.runtime.sendMessage({ action: 'trackEvent', event: 'ssh_autofill' });
+      } catch (e) { /* service worker недоступен */ }
       return true;
     }
     

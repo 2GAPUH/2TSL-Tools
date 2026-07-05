@@ -9,6 +9,13 @@ let isButtonAdded = false;
 let settingsLoaded = false;
 let lastUrl = window.location.href;
 
+// ==================== АНАЛИТИКА ====================
+function trackEvent(event) {
+  try {
+    chrome.runtime.sendMessage({ action: 'trackEvent', event });
+  } catch (e) { /* service worker недоступен */ }
+}
+
 // ==================== УТИЛИТЫ ====================
 function safelyExecute(callback, errorMsg = 'Ошибка') {
   try { return callback(); } 
@@ -31,6 +38,7 @@ function fillSearchAndExecute() {
     }
     
     console.log('[TTM] Автопоиск:', searchValue);
+    trackEvent('ttm_autosearch');
     chrome.storage.local.remove(['ttmSearchData']);
     
     // Ищем поле поиска
@@ -431,6 +439,7 @@ function addSipalButtonToQuickAccess() {
 
 // ==================== ОТКРЫТИЕ ФОРМЫ ====================
 function openAssistantForm() {
+  trackEvent('ttm_assistant_click');
   safelyExecute(() => {
     const incidentNumber = getIncidentNumber();
     const serviceName = getServiceName();
@@ -456,6 +465,7 @@ function openAssistantForm() {
 
 // ==================== ОТКРЫТИЕ ONYMA ====================
 function openOnyma() {
+  trackEvent('ttm_onyma_click');
   safelyExecute(() => {
     const ilsAccount = getIlsAccount();
     
@@ -478,6 +488,7 @@ function openOnyma() {
 
 // ==================== ОТКРЫТИЕ SIPAL ====================
 function openSipal() {
+  trackEvent('ttm_sipal_click');
   safelyExecute(() => {
     const ilsAccount = getIlsAccount();
     
@@ -492,7 +503,7 @@ function openSipal() {
     chrome.storage.local.set({ sipalSearchData: { ilsAccount, timestamp: Date.now() } }, () => {
       chrome.runtime.sendMessage({
         action: 'openForm',
-        url: 'http://sipal.sz.rt.ru/'
+        url: 'http://sipal.sz.rt.ru/index.html'
       });
     });
   }, 'Ошибка при открытии SIPAL');
@@ -516,6 +527,7 @@ function createTimerButton() {
   `;
   
   button.addEventListener('click', () => {
+    trackEvent('ttm_timer_click');
     openTimerModal();
   });
   

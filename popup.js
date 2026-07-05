@@ -1,3 +1,17 @@
+// ==================== АНАЛИТИКА ====================
+function trackEvent(event) {
+  try {
+    chrome.runtime.sendMessage({ action: 'trackEvent', event });
+  } catch (e) { /* service worker недоступен */ }
+}
+
+const POPUP_TAB_EVENTS = {
+  templates: 'popup_tab_templates',
+  tickets: 'popup_tab_tickets',
+  reminders: 'popup_tab_reminders',
+  settings: 'popup_tab_settings'
+};
+
 // ==================== ИКОНКИ ====================
 function getIconUrl(iconName) {
   const isDark = settings.darkMode;
@@ -37,7 +51,8 @@ let settings = {
   ttmOnyma: true,
   ttmSipal: true,
   omnichatTTMLinks: true,
-  darkMode: false
+  darkMode: false,
+  analyticsEnabled: true
 };
 let savedFormData = {
   region: '',
@@ -77,6 +92,7 @@ const settingReminder = document.getElementById('settingReminder');
 const settingTTMOnyma = document.getElementById('settingTTMOnyma');
 const settingTTMSipal = document.getElementById('settingTTMSipal');
 const settingDarkMode = document.getElementById('settingDarkMode');
+const settingAnalytics = document.getElementById('settingAnalytics');
 const savedRegion = document.getElementById('savedRegion');
 const savedFIO = document.getElementById('savedFIO');
 const clearSavedDataBtn = document.getElementById('clearSavedData');
@@ -140,6 +156,9 @@ document.querySelectorAll('.tab').forEach(tab => {
     // Сохраняем последнюю активную вкладку
     lastActiveTab = tab.dataset.tab;
     chrome.storage.local.set({ lastActiveTab });
+
+    const tabEvent = POPUP_TAB_EVENTS[tab.dataset.tab];
+    if (tabEvent) trackEvent(tabEvent);
     
     if (tab.dataset.tab === 'settings') {
       loadSavedFormData();
@@ -159,7 +178,10 @@ function loadAllData() {
   chrome.storage.local.get(['templates', 'groups', 'settings', 'savedFormData', 'lastActiveTab', 'currentWorkingDate', 'requestsByDate', 'reminders'], (result) => {
     templates = result.templates || [];
     groups = result.groups || [];
-    settings = result.settings || { omnichatTemplates: true, ttmButton: true, accountingPanel: true, grafanaSSH: true, reminder: true, ttmOnyma: true, ttmSipal: true, darkMode: false };
+    settings = result.settings || { omnichatTemplates: true, ttmButton: true, accountingPanel: true, grafanaSSH: true, reminder: true, ttmOnyma: true, ttmSipal: true, omnichatTTMLinks: true, darkMode: false, analyticsEnabled: true };
+    if (result.settings && result.settings.analyticsEnabled === undefined) {
+      settings.analyticsEnabled = true;
+    }
     savedFormData = result.savedFormData || { region: '', fio: '' };
     lastActiveTab = result.lastActiveTab || 'templates';
     activeWorkingDate = result.currentWorkingDate || getTodayStr();
@@ -281,6 +303,7 @@ function applySettings() {
   settingTTMOnyma.checked = settings.ttmOnyma;
   settingTTMSipal.checked = settings.ttmSipal;
   settingDarkMode.checked = settings.darkMode;
+  settingAnalytics.checked = settings.analyticsEnabled !== false;
   applyDarkMode();
 }
 
@@ -298,50 +321,40 @@ function loadSavedFormData() {
   savedFIO.textContent = savedFormData.fio || '-';
 }
 
-settingOmnichatTemplates.addEventListener('change', (e) => {
-  settings.omnichatTemplates = e.target.checked;
-  saveSettings();
-});
+function bindSettingToggle(element, key) {
+  element.addEventListener('change', (e) => {
+    settings[key] = e.target.checked;
+    saveSettings();
+    trackEvent(`settings_change_${key}`);
+    if (key === 'darkMode') applyDarkMode();
+  });
+}
 
-settingOmnichatTTMLinks.addEventListener('change', (e) => {
-  settings.omnichatTTMLinks = e.target.checked;
-  saveSettings();
-});
+bindSettingToggle(settingOmnichatTemplates, 'omnichatTemplates');
+bindSettingToggle(settingOmnichatTTMLinks, 'omnichatTTMLinks');
+bindSettingToggle(settingTTMButton, 'ttmButton');
+bindSettingToggle(settingAccountingPanel, 'accountingPanel');
+bindSettingToggle(settingGrafanaSSH, 'grafanaSSH');
+bindSettingToggle(settingReminder, 'reminder');
+bindSettingToggle(settingTTMOnyma, 'ttmOnyma');
+bindSettingToggle(settingTTMSipal, 'ttmSipal');
+bindSettingToggle(settingDarkMode, 'darkMode');
 
-settingTTMButton.addEventListener('change', (e) => {
-  settings.ttmButton = e.target.checked;
+settingAnalytics.addEventListener('change', (e) => {
+  if (!e.target.checked) {
+    const confirmed = confirm(
+      'Данная информация помогает расширению развиваться. Вы уверены, что хотите отключить сбор метрик?'
+    );
+    if (!confirmed) {
+      e.target.checked = true;
+      return;
+    }
+  }
+  settings.analyticsEnabled = e.target.checked;
   saveSettings();
-});
-
-settingAccountingPanel.addEventListener('change', (e) => {
-  settings.accountingPanel = e.target.checked;
-  saveSettings();
-});
-
-settingGrafanaSSH.addEventListener('change', (e) => {
-  settings.grafanaSSH = e.target.checked;
-  saveSettings();
-});
-
-settingReminder.addEventListener('change', (e) => {
-  settings.reminder = e.target.checked;
-  saveSettings();
-});
-
-settingTTMOnyma.addEventListener('change', (e) => {
-  settings.ttmOnyma = e.target.checked;
-  saveSettings();
-});
-
-settingTTMSipal.addEventListener('change', (e) => {
-  settings.ttmSipal = e.target.checked;
-  saveSettings();
-});
-
-settingDarkMode.addEventListener('change', (e) => {
-  settings.darkMode = e.target.checked;
-  saveSettings();
-  applyDarkMode();
+  if (e.target.checked) {
+    trackEvent('settings_change_analyticsEnabled');
+  }
 });
 
 clearSavedDataBtn.addEventListener('click', () => {
@@ -405,6 +418,7 @@ async function addTicketEntry(type) {
   if (exists) return alert('Уже добавлено');
   
   allData[today].entries.push({ time: getTimeStr(), type, number: num, comment: com });
+  trackEvent(type === 'closed' ? 'accounting_entry_closed' : 'accounting_entry_field');
   await chrome.storage.local.set({ requestsByDate: allData });
   ticketEls.ticketNumber.value = '';
   ticketEls.ticketComment.value = '';
@@ -457,6 +471,8 @@ async function finishDay() {
   const res = await chrome.storage.local.get(['requestsByDate']);
   const dayData = res.requestsByDate?.[today];
   if (!dayData || !dayData.entries.length) return alert('Нет данных для выгрузки');
+
+  trackEvent('accounting_csv_export');
 
   let csv = '\uFEFFДата;Время;Тип;Номер;Комментарий\n';
   dayData.entries.forEach(e => {
@@ -608,6 +624,7 @@ function copyTemplateToClipboard(id) {
   const template = templates.find(t => t.id === id);
   if (!template) return;
 
+  trackEvent('popup_template_copy');
   navigator.clipboard.writeText(template.body).catch(err => {
     const textArea = document.createElement('textarea');
     textArea.value = template.body;
@@ -622,6 +639,7 @@ function pasteTemplateToMessage(id) {
   const template = templates.find(t => t.id === id);
   if (!template) return;
 
+  trackEvent('popup_template_paste');
   chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
     if (tabs[0]?.id) {
       chrome.tabs.sendMessage(tabs[0].id, {
@@ -801,7 +819,10 @@ templateForm.addEventListener('submit', (e) => {
 });
 
 // ==================== ИНИЦИАЛИЗАЦИЯ ====================
-document.addEventListener('DOMContentLoaded', loadAllData);
+document.addEventListener('DOMContentLoaded', () => {
+  trackEvent('popup_open');
+  loadAllData();
+});
 
 // ==================== НАПОМИНАЛКА ====================
 let reminders = [];
@@ -1137,8 +1158,6 @@ chrome.storage.onChanged.addListener((changes, area) => {
 });
 
 // ==================== ОБРАТНАЯ СВЯЗЬ ====================
-const API_URL = 'http://158.160.132.18:3001';
-
 const feedbackModalOverlay = document.getElementById('feedbackModalOverlay');
 const feedbackForm = document.getElementById('feedbackForm');
 const openFeedbackBtn = document.getElementById('openFeedbackBtn');
@@ -1183,25 +1202,15 @@ feedbackForm.addEventListener('submit', async (e) => {
   submitBtn.textContent = 'Отправка...';
   
   try {
-    // Получаем версию из манифеста
-    const manifestData = chrome.runtime.getManifest();
-    
-    const response = await fetch(`${API_URL}/api/feedback`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        type,
-        message,
-        email: email || null,
-        version: manifestData.version
-      })
+    const data = await new Promise((resolve) => {
+      chrome.runtime.sendMessage({
+        action: 'sendFeedback',
+        data: { type, message, email: email || null }
+      }, resolve);
     });
-    
-    const data = await response.json();
-    
-    if (data.success) {
+
+    if (data?.success) {
+      trackEvent('feedback_sent');
       alert('Спасибо за ваш отзыв!');
       closeFeedbackModal();
     } else {

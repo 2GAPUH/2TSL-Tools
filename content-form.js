@@ -9,6 +9,13 @@ let savedFormData = { region: '', fio: '' };
 let ttmFormData = null;
 let isFormFilled = false;
 
+// ==================== АНАЛИТИКА ====================
+function trackEvent(event) {
+  try {
+    chrome.runtime.sendMessage({ action: 'trackEvent', event });
+  } catch (e) { /* service worker недоступен */ }
+}
+
 // ==================== УТИЛИТЫ ====================
 function safelyExecute(callback, errorMsg = 'Ошибка') {
   try { return callback(); } 
@@ -236,6 +243,7 @@ function fillForm() {
     }
     
     isFormFilled = true;
+    trackEvent('form_autofill');
     console.log('Форма заполнена');
     
     // Устанавливаем слушатели изменений для сохранения региона и ФИО
