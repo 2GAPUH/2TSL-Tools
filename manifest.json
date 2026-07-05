@@ -76,8 +76,7 @@
     {
       "matches": ["https://volgahelp.ru/tag_api/comments/*"],
       "js": ["content-volgahelp.js"],
-      "run_at": "document_idle",
-      "all_frames": true
+      "run_at": "document_idle"
     }
   ],
   "host_permissions": [

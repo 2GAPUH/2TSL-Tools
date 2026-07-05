@@ -2,12 +2,19 @@
 // Интеграция https://volgahelp.ru/tag_api/comments/ с 2TSL toolbox
 
 const DRAFT_FIELD_IDS = ['issue', 'actions', 'conclusion', 'diagnostics', 'other'];
+const RESIZABLE_FIELD_IDS = [...DRAFT_FIELD_IDS, 'output'];
 const SAVE_DEBOUNCE_MS = 500;
+const FIELD_HEIGHT_SAVE_DEBOUNCE_MS = 400;
+const WINDOW_LAYOUT_SAVE_DEBOUNCE_MS = 400;
 const TAG_SELECT_MAX_WAIT_MS = 15000;
 const MAX_DRAFTS = 100;
+const MIN_FIELD_HEIGHT = 48;
+const DEFAULT_WINDOW_LAYOUT = { width: 960, height: 900 };
 
 let activeTicket = '';
 let saveTimer = null;
+let fieldHeightSaveTimer = null;
+let windowLayoutSaveTimer = null;
 
 function trackEvent(event) {
   try {
@@ -167,8 +174,10 @@ function hookCopyButton() {
               text,
               ticketNumber: activeTicket,
               commentEditorQaId: session.commentEditorQaId || ''
+            }, () => {
+              trackEvent('ttm_comment_builder_copy');
+              window.close();
             });
-            trackEvent('ttm_comment_builder_copy');
           });
         }, 'Ошибка отправки скопированного комментария');
       }, 0);
@@ -186,6 +195,97 @@ function hookClearButton() {
   });
 }
 
+function clampWindowSize(width, height) {
+  const maxWidth = Math.max(640, screen.availWidth - 40);
+  const maxHeight = Math.max(500, screen.availHeight - 40);
+  return {
+    width: Math.min(Math.max(width, 640), maxWidth),
+    height: Math.min(Math.max(height, 500), maxHeight)
+  };
+}
+
+function saveWindowLayoutNow() {
+  const size = clampWindowSize(window.outerWidth, window.outerHeight);
+  chrome.storage.local.set({ volgaHelpWindowLayout: size });
+}
+
+function scheduleWindowLayoutSave() {
+  clearTimeout(windowLayoutSaveTimer);
+  windowLayoutSaveTimer = setTimeout(saveWindowLayoutNow, WINDOW_LAYOUT_SAVE_DEBOUNCE_MS);
+}
+
+function applyWindowLayout(layout) {
+  const source = layout || DEFAULT_WINDOW_LAYOUT;
+  const { width, height } = clampWindowSize(source.width, source.height);
+  const left = Math.max(0, Math.round((screen.availLeft + screen.availWidth - width) / 2));
+  const top = Math.max(0, Math.round((screen.availTop + screen.availHeight - height) / 2));
+
+  try {
+    window.resizeTo(width, height);
+    window.moveTo(left, top);
+  } catch (e) {
+    console.warn('[2TSL] Не удалось применить размер окна:', e);
+  }
+}
+
+function setupWindowLayoutPersistence() {
+  chrome.storage.local.get(['volgaHelpWindowLayout'], (result) => {
+    applyWindowLayout(result.volgaHelpWindowLayout);
+  });
+
+  window.addEventListener('resize', scheduleWindowLayoutSave);
+  window.addEventListener('pagehide', saveWindowLayoutNow);
+}
+
+function applyFieldHeights(heights) {
+  if (!heights) return;
+
+  RESIZABLE_FIELD_IDS.forEach((id) => {
+    const el = document.getElementById(id);
+    const height = heights[id];
+    if (el && height >= MIN_FIELD_HEIGHT) {
+      el.style.boxSizing = 'border-box';
+      el.style.resize = 'vertical';
+      el.style.minHeight = `${MIN_FIELD_HEIGHT}px`;
+      el.style.height = `${height}px`;
+    }
+  });
+}
+
+function collectFieldHeights() {
+  const heights = {};
+  RESIZABLE_FIELD_IDS.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) heights[id] = el.offsetHeight;
+  });
+  return heights;
+}
+
+function scheduleFieldHeightSave() {
+  clearTimeout(fieldHeightSaveTimer);
+  fieldHeightSaveTimer = setTimeout(() => {
+    chrome.storage.local.set({ volgaHelpFieldHeights: collectFieldHeights() });
+  }, FIELD_HEIGHT_SAVE_DEBOUNCE_MS);
+}
+
+function setupFieldHeightPersistence() {
+  RESIZABLE_FIELD_IDS.forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    el.style.resize = 'vertical';
+    const observer = new ResizeObserver(() => scheduleFieldHeightSave());
+    observer.observe(el);
+  });
+}
+
+function initFieldHeights() {
+  chrome.storage.local.get(['volgaHelpFieldHeights'], (result) => {
+    applyFieldHeights(result.volgaHelpFieldHeights);
+    setupFieldHeightPersistence();
+  });
+}
+
 function setupAutoSave() {
   const checkbox = document.getElementById('checkbox_changes');
   if (checkbox) checkbox.addEventListener('change', scheduleSave);
@@ -199,9 +299,7 @@ function setupAutoSave() {
   });
 }
 
-async function init() {
-  if (window.self === window.top) return;
-
+async function initSession() {
   chrome.storage.local.get(['volgaHelpSession', 'volgaHelpDrafts'], async (result) => {
     const session = result.volgaHelpSession;
     if (!session?.ticketNumber) return;
@@ -216,6 +314,12 @@ async function init() {
     hookCopyButton();
     hookClearButton();
   });
+}
+
+function init() {
+  setupWindowLayoutPersistence();
+  initFieldHeights();
+  initSession();
 }
 
 if (document.readyState === 'loading') {

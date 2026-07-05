@@ -1,10 +1,12 @@
 // content-ttm.js
 // Для сайта ttm.rt.ru
 // Добавляет кнопку для перехода на форму Ассистента, кнопку таймера, кнопку перехода в Onyma и кнопку перехода в SIPAL
-// Версия 1.9 - конструктор комментариев Volga Help
+// Версия 2.0 - конструктор комментариев Volga Help (отдельное окно, iframe заблокирован X-Frame-Options)
 
 // ==================== ПЕРЕМЕННЫЕ ====================
 const VOLGA_HELP_URL = 'https://volgahelp.ru/tag_api/comments/';
+const COMMENT_BUILDER_POPUP_NAME = 'tsl-comment-builder';
+const DEFAULT_COMMENT_BUILDER_POPUP = { width: 960, height: 900 };
 
 let settings = { omnichatTemplates: true, ttmButton: true, accountingPanel: true, grafanaSSH: true, reminder: true, ttmOnyma: true, ttmSipal: true, ttmCommentBuilder: true, omnichatTTMLinks: true, darkMode: false };
 let isButtonAdded = false;
@@ -12,6 +14,7 @@ let settingsLoaded = false;
 let lastUrl = window.location.href;
 let lastVolgaHelpPasteTimestamp = 0;
 let commentBuilderStylesInjected = false;
+let commentBuilderPopup = null;
 
 // ==================== АНАЛИТИКА ====================
 function trackEvent(event) {
@@ -837,14 +840,11 @@ function ensureCommentBuilderStyles() {
   const style = document.createElement('style');
   style.id = 'tsl-comment-builder-styles';
   style.textContent = `
-    .tsl-comment-builder-formats {
-      margin-left: 12px !important;
-      padding-left: 12px !important;
-      border-left: 1px solid rgba(0, 0, 0, 0.12);
-    }
-
-    .ttm-dark-theme .tsl-comment-builder-formats {
-      border-left-color: rgba(255, 255, 255, 0.2);
+    quill-editor .ql-toolbar .ql-formats {
+      display: inline-flex !important;
+      align-items: center;
+      flex-wrap: nowrap;
+      vertical-align: middle;
     }
 
     .tsl-comment-builder-btn {
@@ -852,37 +852,25 @@ function ensureCommentBuilderStyles() {
       background: transparent;
       cursor: pointer;
       padding: 0 5px;
+      margin-left: 12px;
+      padding-left: 12px;
+      border-left: 1px solid rgba(0, 0, 0, 0.12);
       color: inherit;
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      float: none;
+      vertical-align: middle;
+    }
+
+    .ttm-dark-theme .tsl-comment-builder-btn {
+      border-left-color: rgba(255, 255, 255, 0.2);
     }
 
     .tsl-comment-builder-btn:hover,
     .tsl-comment-builder-btn:focus {
       opacity: 0.75;
       outline: none;
-    }
-
-    #tsl-comment-builder-modal .tsl-modal-content {
-      width: min(920px, 95vw);
-      max-height: 92vh;
-      display: flex;
-      flex-direction: column;
-    }
-
-    #tsl-comment-builder-modal .tsl-modal-body {
-      flex: 1;
-      min-height: 0;
-      padding: 0;
-    }
-
-    #tsl-comment-builder-modal .tsl-comment-builder-frame {
-      width: 100%;
-      height: min(72vh, 760px);
-      border: 0;
-      display: block;
-      background: #1e1e2f;
     }
   `;
   document.head.appendChild(style);
@@ -898,7 +886,7 @@ function createCommentBuilderButton(commentEditorQaId) {
   button.addEventListener('click', (event) => {
     event.preventDefault();
     event.stopPropagation();
-    openCommentBuilderModal(commentEditorQaId);
+    openCommentBuilderWindow(commentEditorQaId);
   });
   return button;
 }
@@ -919,148 +907,113 @@ function addCommentBuilderButtons() {
     const toolbar = editor.querySelector('.ql-toolbar, [quill-editor-toolbar]');
     if (!toolbar || toolbar.querySelector('[data-qa-id="tsl-comment-builder-btn"]')) return;
 
-    const formats = document.createElement('span');
-    formats.className = 'ql-formats tsl-comment-builder-formats';
-    formats.appendChild(createCommentBuilderButton(commentEditorQaId));
-    toolbar.appendChild(formats);
+    const formatGroups = toolbar.querySelectorAll('span.ql-formats');
+    const targetFormats = formatGroups[formatGroups.length - 1];
+    if (!targetFormats) return;
+
+    targetFormats.appendChild(createCommentBuilderButton(commentEditorQaId));
   });
 }
 
 function removeCommentBuilderButtons() {
-  document.querySelectorAll('.tsl-comment-builder-formats').forEach((el) => el.remove());
-  closeCommentBuilderModal(false);
+  document.querySelectorAll('[data-qa-id="tsl-comment-builder-btn"]').forEach((el) => el.remove());
+  closeCommentBuilderWindow(false);
 }
 
-function closeCommentBuilderModal(trackClose = true) {
-  const modal = document.getElementById('tsl-comment-builder-modal');
-  if (!modal) return;
-  modal.remove();
+function clampPopupSize(width, height) {
+  const maxWidth = Math.max(640, window.screen.availWidth - 40);
+  const maxHeight = Math.max(500, window.screen.availHeight - 40);
+  return {
+    width: Math.min(Math.max(width, 640), maxWidth),
+    height: Math.min(Math.max(height, 500), maxHeight)
+  };
+}
+
+function getCenteredPopupFeatures(width, height) {
+  const left = Math.max(0, Math.round((window.screen.availLeft + window.screen.availWidth - width) / 2));
+  const top = Math.max(0, Math.round((window.screen.availTop + window.screen.availHeight - height) / 2));
+  return `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`;
+}
+
+function showCommentBuilderNotice(message) {
+  const isDark = settings.darkMode;
+  const toast = document.createElement('div');
+  toast.textContent = message;
+  toast.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: ${isDark ? 'rgba(36, 36, 52, 0.94)' : 'rgba(255, 255, 255, 0.96)'};
+    color: ${isDark ? '#d8d8e0' : '#4a4a4a'};
+    border: 1px solid ${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)'};
+    padding: 9px 14px;
+    border-radius: 6px;
+    z-index: 999999;
+    font-size: 13px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  `;
+
+  document.body.appendChild(toast);
+  requestAnimationFrame(() => {
+    toast.style.opacity = '1';
+  });
+
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    setTimeout(() => toast.remove(), 220);
+  }, 2200);
+}
+
+function closeCommentBuilderWindow(trackClose = true) {
+  if (commentBuilderPopup && !commentBuilderPopup.closed) {
+    commentBuilderPopup.close();
+  }
+  commentBuilderPopup = null;
   if (trackClose) trackEvent('ttm_comment_builder_close');
 }
 
-function openCommentBuilderModal(commentEditorQaId) {
+function openCommentBuilderWindow(commentEditorQaId) {
   const incidentNumber = getIncidentNumber();
   if (!incidentNumber) {
     alert('Не удалось определить номер заявки');
     return;
   }
 
-  closeCommentBuilderModal(false);
+  chrome.storage.local.get(['volgaHelpWindowLayout'], (layoutResult) => {
+    const saved = layoutResult.volgaHelpWindowLayout || DEFAULT_COMMENT_BUILDER_POPUP;
+    const { width, height } = clampPopupSize(saved.width, saved.height);
+    const popupFeatures = getCenteredPopupFeatures(width, height);
 
-  const isDark = settings.darkMode;
-  const bgColor = isDark ? '#16213e' : 'white';
-  const textColor = isDark ? '#eaeaea' : '#333';
-  const mutedColor = isDark ? '#888' : '#666';
-  const borderColor = isDark ? '#2a3f5f' : '#e0e0e0';
-
-  chrome.storage.local.set({
-    volgaHelpSession: {
-      ticketNumber: incidentNumber,
-      commentEditorQaId,
-      openedAt: Date.now()
-    }
-  }, () => {
-    const modal = document.createElement('div');
-    modal.id = 'tsl-comment-builder-modal';
-    modal.innerHTML = `
-      <div class="tsl-modal-overlay">
-        <div class="tsl-modal-content">
-          <div class="tsl-modal-header">
-            <h3>Конструктор комментария — заявка #${incidentNumber}</h3>
-            <button class="tsl-modal-close" type="button">&times;</button>
-          </div>
-          <div class="tsl-modal-body">
-            <iframe
-              class="tsl-comment-builder-frame"
-              src="${VOLGA_HELP_URL}"
-              title="Конструктор комментария"
-            ></iframe>
-          </div>
-          <div class="tsl-modal-footer">
-            <button class="tsl-btn tsl-btn-secondary" id="tslCloseCommentBuilder" type="button">Закрыть</button>
-          </div>
-        </div>
-      </div>
-    `;
-
-    if (!document.getElementById('tsl-comment-builder-modal-styles')) {
-      const style = document.createElement('style');
-      style.id = 'tsl-comment-builder-modal-styles';
-      style.textContent = `
-        #tsl-comment-builder-modal .tsl-modal-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0, 0, 0, 0.5);
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          z-index: 999999;
-        }
-
-        #tsl-comment-builder-modal .tsl-modal-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 16px;
-          border-bottom: 1px solid ${borderColor};
-          background: ${bgColor};
-        }
-
-        #tsl-comment-builder-modal .tsl-modal-header h3 {
-          margin: 0;
-          font-size: 16px;
-          color: ${textColor};
-        }
-
-        #tsl-comment-builder-modal .tsl-modal-close {
-          background: none;
-          border: none;
-          font-size: 24px;
-          cursor: pointer;
-          color: ${mutedColor};
-          padding: 0;
-          line-height: 1;
-        }
-
-        #tsl-comment-builder-modal .tsl-modal-footer {
-          display: flex;
-          justify-content: flex-end;
-          gap: 8px;
-          padding: 12px 16px;
-          border-top: 1px solid ${borderColor};
-          background: ${bgColor};
-        }
-
-        #tsl-comment-builder-modal .tsl-btn {
-          padding: 8px 16px;
-          border: none;
-          border-radius: 4px;
-          font-size: 14px;
-          cursor: pointer;
-        }
-
-        #tsl-comment-builder-modal .tsl-btn-secondary {
-          background: #6c757d;
-          color: white;
-        }
-      `;
-      document.head.appendChild(style);
-    }
-
-    document.body.appendChild(modal);
-
-    modal.querySelector('.tsl-modal-close')?.addEventListener('click', () => closeCommentBuilderModal(true));
-    modal.querySelector('#tslCloseCommentBuilder')?.addEventListener('click', () => closeCommentBuilderModal(true));
-    modal.querySelector('.tsl-modal-overlay')?.addEventListener('click', (e) => {
-      if (e.target.classList.contains('tsl-modal-overlay')) {
-        closeCommentBuilderModal(true);
+    chrome.storage.local.set({
+      volgaHelpSession: {
+        ticketNumber: incidentNumber,
+        commentEditorQaId,
+        openedAt: Date.now()
       }
-    });
+    }, () => {
+      if (commentBuilderPopup && !commentBuilderPopup.closed) {
+        commentBuilderPopup.focus();
+        commentBuilderPopup.location.href = VOLGA_HELP_URL;
+        trackEvent('ttm_comment_builder_open');
+        return;
+      }
 
-    trackEvent('ttm_comment_builder_open');
+      commentBuilderPopup = window.open(
+        VOLGA_HELP_URL,
+        COMMENT_BUILDER_POPUP_NAME,
+        popupFeatures
+      );
+
+      if (!commentBuilderPopup) {
+        alert('Браузер заблокировал всплывающее окно. Разрешите popup-окна для ttm.rt.ru');
+        return;
+      }
+
+      commentBuilderPopup.focus();
+      trackEvent('ttm_comment_builder_open');
+    });
   });
 }
 
@@ -1137,10 +1090,10 @@ function handleVolgaHelpPaste(pending) {
 
   copyTextToClipboard(pending.text);
   clearCommentBuilderDraft(pending.ticketNumber);
-  closeCommentBuilderModal(false);
+  closeCommentBuilderWindow(false);
   chrome.storage.local.remove(['volgaHelpPastePending', 'volgaHelpSession']);
   trackEvent('ttm_comment_builder_paste');
-  showSuccessToast('Комментарий вставлен в заявку');
+  showCommentBuilderNotice('Комментарий скопирован в буфер обмена');
 }
 
 // ==================== ДОБАВЛЕНИЕ КНОПКИ ====================
