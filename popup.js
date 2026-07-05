@@ -96,7 +96,8 @@ let settings = {
   darkMode: false,
   analyticsEnabled: true,
   popupLayoutScale: null,
-  popupTabSizes: null
+  popupTabSizes: null,
+  popupUnifiedTabSize: false
 };
 let savedFormData = {
   region: '',
@@ -140,6 +141,8 @@ const settingPopupPreset = document.getElementById('settingPopupPreset');
 const resetPopupLayoutBtn = document.getElementById('resetPopupLayout');
 const toggleLayoutAdvancedBtn = document.getElementById('toggleLayoutAdvanced');
 const layoutAdvancedEl = document.getElementById('layoutAdvanced');
+const settingPopupUnifiedTabSize = document.getElementById('settingPopupUnifiedTabSize');
+const layoutSizeHintEl = document.getElementById('layoutSizeHint');
 const popupResizeHandle = document.getElementById('popupResizeHandle');
 const popupResizeGhost = document.getElementById('popupResizeGhost');
 const settingAnalytics = document.getElementById('settingAnalytics');
@@ -422,7 +425,24 @@ function getPopupTabSize(tabName) {
   return { ...DEFAULT_TAB_SIZE, ...settings.popupTabSizes[tab] };
 }
 
+function isPopupUnifiedTabSize() {
+  return settings.popupUnifiedTabSize === true;
+}
+
+function setAllPopupTabSizes(size, persist = true) {
+  ensurePopupTabSizes();
+  const normalized = normalizeTabSize(size);
+  POPUP_TABS.forEach((tab) => {
+    settings.popupTabSizes[tab] = { ...normalized };
+  });
+  if (persist) saveSettings();
+}
+
 function setPopupTabSize(tabName, size, persist = true) {
+  if (isPopupUnifiedTabSize()) {
+    setAllPopupTabSizes(size, persist);
+    return;
+  }
   ensurePopupTabSizes();
   const tab = POPUP_TABS.includes(tabName) ? tabName : 'templates';
   settings.popupTabSizes[tab] = normalizeTabSize(size);
@@ -554,6 +574,24 @@ function syncLayoutControlsToUI() {
     if (plus) plus.disabled = value >= LAYOUT_SCALE_MAX;
   });
 
+  if (settingPopupUnifiedTabSize) {
+    settingPopupUnifiedTabSize.checked = isPopupUnifiedTabSize();
+  }
+  if (layoutSizeHintEl) {
+    layoutSizeHintEl.textContent = isPopupUnifiedTabSize()
+      ? 'Размер окна — потяните за уголок внизу слева. Один размер для всех вкладок.'
+      : 'Размер окна — потяните за уголок внизу слева. Для каждой вкладки сохраняется отдельно.';
+  }
+}
+
+function applyPopupUnifiedTabSize(enabled) {
+  settings.popupUnifiedTabSize = enabled;
+  if (enabled) {
+    setAllPopupTabSizes(getPopupTabSize(lastActiveTab), false);
+  }
+  saveSettings();
+  syncLayoutControlsToUI();
+  trackEvent(enabled ? 'settings_change_popupUnifiedTabSize_on' : 'settings_change_popupUnifiedTabSize_off');
 }
 
 function updatePopupLayoutScale(key, delta, fromPreset = false) {
@@ -607,6 +645,7 @@ function initPopupLayoutControls() {
   settingPopupPreset?.addEventListener('change', (e) => applyPopupPreset(e.target.value));
   resetPopupLayoutBtn?.addEventListener('click', resetPopupLayout);
   toggleLayoutAdvancedBtn?.addEventListener('click', toggleLayoutAdvanced);
+  settingPopupUnifiedTabSize?.addEventListener('change', (e) => applyPopupUnifiedTabSize(e.target.checked));
 }
 
 function calcResizeSize(startW, startH, startX, startY, clientX, clientY, snap = false) {
