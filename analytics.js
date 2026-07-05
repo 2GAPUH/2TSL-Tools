@@ -194,8 +194,11 @@ async function flushAnalytics(force = false) {
         lastFlush: Date.now(),
         settingsSnapshot: payload.settings
       });
+      if (typeof recordSuccessfulFlush === 'function') {
+        await recordSuccessfulFlush();
+      }
       console.log('[2TSL Analytics] Данные отправлены');
-      return { success: true };
+      return { success: true, successfulFlushCount: data.successfulFlushCount };
     }
 
     console.error('[2TSL Analytics] Ошибка сервера:', data.error);

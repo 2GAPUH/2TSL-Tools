@@ -119,6 +119,7 @@
 
     .ie-panel.active {
       display: flex;
+      overflow-y: auto;
     }
 
     .ie-toolbar {
@@ -440,6 +441,85 @@
     #importPreviewBlock { display: none; flex: 1; flex-direction: column; min-height: 0; gap: 12px; }
     #importPreviewBlock.visible { display: flex; }
     #importPickBlock.hidden { display: none; }
+
+    .ie-subsection {
+      flex-shrink: 0;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      background: var(--bg-secondary);
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .ie-subsection-grow {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .ie-subsection-title {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .ie-cloud-gate {
+      padding: 10px 12px;
+      border-radius: 6px;
+      background: #fff3cd;
+      color: #856404;
+      font-size: 12px;
+      line-height: 1.45;
+      border: 1px solid #ffeeba;
+    }
+
+    html.dark-mode .ie-cloud-gate {
+      background: #3d3200;
+      color: #ffc107;
+      border-color: #5a4a00;
+    }
+
+    .ie-token-box {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .ie-token-value {
+      flex: 1;
+      min-width: 180px;
+      font-family: Consolas, monospace;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      padding: 8px 10px;
+      border: 1px dashed var(--border-color);
+      border-radius: 6px;
+      background: var(--bg-tertiary);
+      color: var(--accent);
+    }
+
+    .ie-token-input {
+      flex: 1;
+      min-width: 180px;
+      font-family: Consolas, monospace;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .ie-export-shared {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
   </style>
 </head>
 <body>
@@ -458,30 +538,67 @@
 
     <!-- Экспорт -->
     <section id="exportPanel" class="ie-panel active">
-      <div class="ie-toolbar-options">
-        <label><input type="checkbox" id="exportIncludeGroups" checked> Экспортировать группы шаблонов</label>
-        <label><input type="checkbox" id="exportIncludeSettings"> Экспортировать настройки расширения</label>
+      <div class="ie-export-shared">
+        <div class="ie-toolbar-options">
+          <label><input type="checkbox" id="exportIncludeGroups" checked> Экспортировать группы шаблонов</label>
+          <label><input type="checkbox" id="exportIncludeSettings"> Экспортировать настройки (только файл)</label>
+        </div>
+        <div class="ie-toolbar">
+          <button type="button" class="ie-toolbar-btn" id="exportSelectAll">Выбрать все</button>
+          <button type="button" class="ie-toolbar-btn" id="exportDeselectAll">Снять выделение</button>
+        </div>
+        <p class="ie-hint">Можно изменить шаблоны перед экспортом — в расширении они не изменятся.</p>
+        <div class="ie-list" id="exportTemplatesList"></div>
       </div>
-      <div class="ie-toolbar">
-        <button type="button" class="ie-toolbar-btn" id="exportSelectAll">Выбрать все</button>
-        <button type="button" class="ie-toolbar-btn" id="exportDeselectAll">Снять выделение</button>
+
+      <div class="ie-subsection">
+        <h3 class="ie-subsection-title">В файл</h3>
+        <div class="ie-footer" style="padding-top: 0;">
+          <button type="button" class="ie-btn-save" id="exportSubmitBtn">Скачать JSON</button>
+        </div>
       </div>
-      <p class="ie-hint">Можно изменить шаблоны перед экспортом — в расширении они не изменятся.</p>
-      <div class="ie-list" id="exportTemplatesList"></div>
-      <div class="ie-footer">
-        <button type="button" class="ie-btn-save" id="exportSubmitBtn">Скачать файл</button>
+
+      <div class="ie-subsection">
+        <h3 class="ie-subsection-title">По токену</h3>
+        <div id="cloudExportGate" class="ie-cloud-gate" hidden></div>
+        <div id="cloudExportBody">
+          <p class="ie-hint">Токен действует 30 дней с последнего использования. Передайте его коллеге в личном чате.</p>
+          <div class="ie-footer" style="padding-top: 0; justify-content: flex-start;">
+            <button type="button" class="ie-btn-save" id="cloudExportBtn">Сгенерировать токен</button>
+          </div>
+          <div id="cloudTokenDisplay" class="ie-token-box" style="display: none;">
+            <div class="ie-token-value" id="cloudTokenValue"></div>
+            <button type="button" class="ie-toolbar-btn" id="cloudTokenCopyBtn">Копировать</button>
+          </div>
+          <p class="ie-hint" id="cloudTokenExpiry" style="display: none;"></p>
+        </div>
       </div>
     </section>
 
     <!-- Импорт -->
     <section id="importPanel" class="ie-panel">
-      <div id="importPickBlock" class="ie-pick-zone">
-        <p>Выберите JSON-файл резервной копии 2TSL toolbox</p>
-        <button type="button" class="ie-toolbar-btn primary" id="importPickFileBtn">Выбрать файл</button>
-        <input type="file" id="importFileInput" accept=".json,application/json" hidden>
+      <div class="ie-subsection">
+        <h3 class="ie-subsection-title">Из файла</h3>
+        <div id="importPickBlock" class="ie-pick-zone" style="min-height: 140px; padding: 20px;">
+          <p>JSON-файл резервной копии 2TSL toolbox</p>
+          <button type="button" class="ie-toolbar-btn primary" id="importPickFileBtn">Выбрать файл</button>
+          <input type="file" id="importFileInput" accept=".json,application/json" hidden>
+        </div>
       </div>
 
-      <div id="importPreviewBlock">
+      <div class="ie-subsection">
+        <h3 class="ie-subsection-title">По токену</h3>
+        <div id="cloudImportGate" class="ie-cloud-gate" hidden></div>
+        <div id="cloudImportBody">
+          <p class="ie-hint">Токен действует 30 дней с последнего использования.</p>
+          <div class="ie-token-box">
+            <input type="text" class="ie-field ie-token-input" id="cloudImportTokenInput" placeholder="2TSL-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false">
+            <button type="button" class="ie-btn-save" id="cloudImportBtn" style="padding: 8px 14px;">Загрузить</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="importPreviewBlock" class="ie-subsection-grow">
         <p class="ie-file-meta">Файл: <strong id="importModalFileName">—</strong></p>
         <p class="ie-file-meta" id="importFileMeta"></p>
         <div class="ie-toolbar">

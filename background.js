@@ -1,7 +1,7 @@
 // background.js
 // Service worker для Manifest V3
 
-importScripts('analytics.js');
+importScripts('analytics.js', 'cloud-sync.js');
 
 // ==================== ИНИЦИАЛИЗАЦИЯ ====================
 
@@ -76,6 +76,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }).catch((error) => {
       sendResponse({ success: false, error: error.message });
     });
+    return true;
+  }
+
+  if (request.action === 'cloudCheckEligibility') {
+    checkCloudEligibility(request.force).then(sendResponse);
+    return true;
+  }
+
+  if (request.action === 'cloudExport') {
+    cloudExportTemplates(request.templates, request.includeGroups).then(sendResponse);
+    return true;
+  }
+
+  if (request.action === 'cloudImport') {
+    cloudImportByToken(request.token).then(sendResponse);
     return true;
   }
 

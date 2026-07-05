@@ -121,6 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.ie-tab').forEach((btn) => {
       btn.addEventListener('click', () => {
         switchPageTab(btn.dataset.tab);
+        if (typeof ieRefreshCloudGates === 'function') ieRefreshCloudGates();
       });
     });
   });

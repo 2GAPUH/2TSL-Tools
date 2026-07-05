@@ -664,6 +664,157 @@ function bindImportExportControls() {
       ieHandleImportFile(file);
     });
   }
+
+  document.getElementById('cloudExportBtn')?.addEventListener('click', ieHandleCloudExport);
+  document.getElementById('cloudImportBtn')?.addEventListener('click', ieHandleCloudImport);
+
+  document.getElementById('cloudTokenCopyBtn')?.addEventListener('click', () => {
+    const token = document.getElementById('cloudTokenValue')?.textContent;
+    if (!token) return;
+    navigator.clipboard.writeText(token).catch(() => {
+      prompt('Скопируйте токен:', token);
+    });
+  });
+
+  document.getElementById('cloudImportTokenInput')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') ieHandleCloudImport();
+  });
+}
+
+function ieCloudMessage(action, data = {}) {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage({ action, ...data }, (response) => {
+      if (chrome.runtime.lastError) {
+        resolve({ success: false, message: 'Не удалось связаться с расширением' });
+        return;
+      }
+      resolve(response || { success: false });
+    });
+  });
+}
+
+function ieUpdateCloudTokenDisplay(token, expiresAt) {
+  const display = document.getElementById('cloudTokenDisplay');
+  const valueEl = document.getElementById('cloudTokenValue');
+  const expiryEl = document.getElementById('cloudTokenExpiry');
+  if (!display || !valueEl) return;
+
+  if (!token) {
+    display.style.display = 'none';
+    if (expiryEl) expiryEl.style.display = 'none';
+    return;
+  }
+
+  valueEl.textContent = token;
+  display.style.display = 'flex';
+  if (expiryEl && expiresAt) {
+    const d = new Date(expiresAt);
+    expiryEl.textContent = `Использовать до: ${d.toLocaleDateString('ru-RU')} (продлевается при использовании)`;
+    expiryEl.style.display = 'block';
+  }
+}
+
+async function ieRefreshCloudGates() {
+  const result = await ieCloudMessage('cloudCheckEligibility');
+  const eligible = !!result.eligible;
+
+  ['cloudExportGate', 'cloudImportGate'].forEach((id) => {
+    const gate = document.getElementById(id);
+    if (!gate) return;
+    gate.hidden = eligible;
+    if (!eligible) gate.textContent = result.message || 'Облачный обмен шаблонов сейчас недоступен. Попробуйте позже или используйте импорт из файла.';
+  });
+
+  const exportBtn = document.getElementById('cloudExportBtn');
+  const importBtn = document.getElementById('cloudImportBtn');
+  const tokenInput = document.getElementById('cloudImportTokenInput');
+  if (exportBtn) exportBtn.disabled = !eligible;
+  if (importBtn) importBtn.disabled = !eligible;
+  if (tokenInput) tokenInput.disabled = !eligible;
+
+  if (eligible) {
+    if (result.token) ieUpdateCloudTokenDisplay(result.token, result.expiresAt);
+    else {
+      chrome.storage.local.get(['contributorState'], (r) => {
+        const cs = r.contributorState || {};
+        ieUpdateCloudTokenDisplay(cs.lastCloudToken, cs.lastCloudTokenExpiresAt);
+      });
+    }
+  }
+}
+
+function ieParseCloudImportResponse(result) {
+  const templates = (result.templates || []).map((t, index) => {
+    const name = String(t?.name || '').trim();
+    const body = String(t?.body ?? '').trim();
+    const group = String(t?.group || '').trim();
+    return {
+      index,
+      selected: Boolean(name && body),
+      name,
+      body,
+      group,
+      invalid: !name || !body
+    };
+  });
+
+  return {
+    templates,
+    settings: null,
+    fileGroups: Array.isArray(result.groups) ? result.groups.filter(Boolean) : []
+  };
+}
+
+async function ieHandleCloudExport() {
+  const includeGroups = document.getElementById('exportIncludeGroups')?.checked ?? true;
+  const selected = ieExportDraft.filter((item) => item.selected);
+  if (!selected.length) {
+    alert('Выберите хотя бы один шаблон');
+    return;
+  }
+
+  const btn = document.getElementById('cloudExportBtn');
+  if (btn) btn.disabled = true;
+
+  const result = await ieCloudMessage('cloudExport', { templates: selected, includeGroups });
+
+  if (btn) btn.disabled = false;
+
+  if (!result.success || !result.token) {
+    await ieRefreshCloudGates();
+    alert(result.message || 'Не удалось создать токен');
+    return;
+  }
+
+  ieUpdateCloudTokenDisplay(result.token, result.expiresAt);
+  if (typeof ieApi.showStatus === 'function') {
+    ieApi.showStatus('Токен создан. Передайте его коллеге в личном чате.');
+  }
+}
+
+async function ieHandleCloudImport() {
+  const input = document.getElementById('cloudImportTokenInput');
+  const token = input?.value?.trim();
+  if (!token) {
+    alert('Введите токен');
+    return;
+  }
+
+  const btn = document.getElementById('cloudImportBtn');
+  if (btn) btn.disabled = true;
+
+  const result = await ieCloudMessage('cloudImport', { token });
+
+  if (btn) btn.disabled = false;
+
+  if (!result.success || !result.templates) {
+    await ieRefreshCloudGates();
+    alert(result.message || 'Не удалось загрузить шаблоны');
+    return;
+  }
+
+  const parsed = ieParseCloudImportResponse(result);
+  ieShowImportPreview(parsed, `Токен ${token.toUpperCase()}`);
 }
 
 function initImportExportPage(api) {
@@ -671,6 +822,7 @@ function initImportExportPage(api) {
   bindImportExportControls();
   ieInitExportPanel();
   ieResetImportPanel();
+  ieRefreshCloudGates();
 }
 
 function openImportExportWindow(tab) {
@@ -678,7 +830,7 @@ function openImportExportWindow(tab) {
     url: chrome.runtime.getURL(`import-export.html?tab=${tab}`),
     type: 'popup',
     width: 620,
-    height: 760,
+    height: 820,
     focused: true
   });
 }
