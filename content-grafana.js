@@ -94,8 +94,7 @@
       };
       
       chrome.storage.local.set({ sshTransferData: transferData }, () => {
-        // Открываем SSH в новой вкладке
-        window.open(sshUrl, '_blank');
+        chrome.runtime.sendMessage({ action: 'openForm', url: sshUrl });
       });
     });
     

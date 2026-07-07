@@ -20,12 +20,37 @@ chrome.runtime.onStartup.addListener(async () => {
 
 // ==================== ОБРАБОТКА СООБЩЕНИЙ ====================
 
+async function createExtensionTab(url, senderTabId) {
+  const { settings } = await chrome.storage.local.get(['settings']);
+  const openAdjacent = settings?.openTabAdjacent === true;
+
+  const createOptions = { url };
+  if (openAdjacent) {
+    let tabId = senderTabId;
+    if (!tabId) {
+      const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      tabId = activeTab?.id;
+    }
+    if (tabId) {
+      try {
+        const sourceTab = await chrome.tabs.get(tabId);
+        createOptions.index = sourceTab.index + 1;
+      } catch (e) {
+        console.warn('[2TSL] Не удалось определить позицию вкладки:', e);
+      }
+    }
+  }
+
+  const tab = await chrome.tabs.create(createOptions);
+  console.log('[2TSL] Открыта вкладка:', tab.id, url);
+  return tab;
+}
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'openForm') {
-    chrome.tabs.create({ url: request.url }, (tab) => {
-      console.log('Открыта форма в новой вкладке:', tab.id);
-    });
-    sendResponse({ success: true });
+    createExtensionTab(request.url, sender.tab?.id)
+      .then(() => sendResponse({ success: true }))
+      .catch((error) => sendResponse({ success: false, error: error.message }));
     return true;
   }
 
@@ -245,7 +270,7 @@ chrome.notifications.onClicked.addListener(async (notificationId) => {
   const reminder = reminders.find(r => r.id === notificationId);
 
   if (reminder && reminder.ticketUrl) {
-    chrome.tabs.create({ url: reminder.ticketUrl });
+    await createExtensionTab(reminder.ticketUrl);
     chrome.notifications.clear(notificationId);
   }
 });

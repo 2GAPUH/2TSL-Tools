@@ -94,6 +94,7 @@ let settings = {
   ttmSipal: true,
   ttmCommentBuilder: true,
   omnichatTTMLinks: true,
+  openTabAdjacent: false,
   darkMode: false,
   analyticsEnabled: true,
   popupLayoutScale: null,
@@ -132,6 +133,7 @@ const addGroupBtn = document.getElementById('addGroupBtn');
 // Настройки
 const settingOmnichatTemplates = document.getElementById('settingOmnichatTemplates');
 const settingOmnichatTTMLinks = document.getElementById('settingOmnichatTTMLinks');
+const settingOpenTabAdjacent = document.getElementById('settingOpenTabAdjacent');
 const settingTTMButton = document.getElementById('settingTTMButton');
 const settingAccountingPanel = document.getElementById('settingAccountingPanel');
 const settingGrafanaSSH = document.getElementById('settingGrafanaSSH');
@@ -874,6 +876,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
 function applySettings() {
   settingOmnichatTemplates.checked = settings.omnichatTemplates;
   settingOmnichatTTMLinks.checked = settings.omnichatTTMLinks !== false; // true по умолчанию
+  if (settingOpenTabAdjacent) settingOpenTabAdjacent.checked = settings.openTabAdjacent === true;
   settingTTMButton.checked = settings.ttmButton;
   settingAccountingPanel.checked = settings.accountingPanel;
   settingGrafanaSSH.checked = settings.grafanaSSH;
@@ -914,6 +917,7 @@ function bindSettingToggle(element, key) {
 
 bindSettingToggle(settingOmnichatTemplates, 'omnichatTemplates');
 bindSettingToggle(settingOmnichatTTMLinks, 'omnichatTTMLinks');
+bindSettingToggle(settingOpenTabAdjacent, 'openTabAdjacent');
 bindSettingToggle(settingTTMButton, 'ttmButton');
 bindSettingToggle(settingAccountingPanel, 'accountingPanel');
 bindSettingToggle(settingGrafanaSSH, 'grafanaSSH');
