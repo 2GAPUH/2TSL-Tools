@@ -29,7 +29,13 @@
   };
 
   // ==================== ПЕРЕМЕННЫЕ ====================
-  let settings = { omnichatTemplates: true, ttmButton: true, accountingPanel: true };
+  let settings = {
+    omnichatTemplates: true,
+    ttmButton: true,
+    accountingPanel: true,
+    autoResetShift: false,
+    autoResetShiftTime: '03:00'
+  };
   let isDarkTheme = false;
   let isInitialized = false;
   let activeWorkingDate = getTodayStr();
@@ -449,7 +455,7 @@
       .tickets-sidebar .list li:last-child { border-bottom: none; }
 
       /* ==========================================================================
-         5. ТЕМНАЯ ТЕМА (кнопки как в старой версии)
+         5. ТЕМНАЯ ТЕМА
          ========================================================================== */
       .tickets-sidebar.dark-theme {
         background: #1a1a1a !important;
@@ -599,11 +605,81 @@
       .tickets-sidebar.dark-theme .list ul::-webkit-scrollbar-thumb {
         background: #4b5563;
       }
+
+      /* Автосброс в сайдбаре */
+      .tickets-sidebar .auto-reset-status {
+        display: none; align-items: center; gap: 8px;
+        padding: 7px 10px; margin-bottom: 10px;
+        background: #f9fafb; border: 1px solid #e5e7eb;
+        border-radius: 5px; font-size: 11px !important;
+        color: #6b7280; font-weight: 400;
+      }
+      .tickets-sidebar .auto-reset-status.visible { display: flex; }
+      .tickets-sidebar .auto-reset-status .ar-dot {
+        width: 7px; height: 7px; border-radius: 50%;
+        background: #2563eb; flex-shrink: 0;
+      }
+      .tickets-sidebar .auto-reset-status .ar-time-input {
+        margin-left: auto;
+        width: 80px;
+        padding: 3px 4px;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        background: #fff;
+        color: #1f2937;
+        font-size: 11px !important;
+        font-family: ui-monospace, Menlo, monospace;
+        font-variant-numeric: tabular-nums;
+        text-align: center;
+        margin-bottom: 0 !important;
+      }
+      .tickets-sidebar .auto-reset-status .ar-time-input:focus {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+      }
+      .tickets-sidebar.dark-theme .auto-reset-status {
+        background: #2a2a2a; border-color: #444; color: #9ca3af;
+      }
+      .tickets-sidebar.dark-theme .auto-reset-status .ar-dot { background: #3b82f6; }
+      .tickets-sidebar.dark-theme .auto-reset-status .ar-time-input {
+        background: #1a1a1a; border-color: #444; color: #f3f4f6;
+      }
     `;
     document.head.appendChild(style);
   };
 
   // ==================== UI ПАНЕЛИ ====================
+  const updateAutoResetStatus = () => {
+    const el = $('sidebar-autoResetStatus');
+    const tm = $('sidebar-autoResetTime');
+    if (!el) return;
+    const enabled = settings.autoResetShift === true;
+    el.classList.toggle('visible', enabled);
+    if (tm && tm.tagName === 'INPUT' && settings.autoResetShiftTime) {
+      tm.value = settings.autoResetShiftTime;
+    }
+  };
+
+  // Сохранение времени автосброса прямо из сайдбара
+  const bindAutoResetTime = () => {
+    const tm = $('sidebar-autoResetTime');
+    if (!tm || tm._bound) return;
+    tm._bound = true;
+    tm.addEventListener('change', () => {
+      let v = tm.value || '03:00';
+      if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(v)) {
+        v = '03:00';
+        tm.value = v;
+      }
+      settings.autoResetShiftTime = v;
+      chrome.storage.local.set({ settings });
+      try {
+        chrome.runtime.sendMessage({ action: 'setAutoResetShiftAlarm', enabled: settings.autoResetShift === true, time: v });
+      } catch (e) {}
+    });
+  };
+
   const updateSidebarUI = (dayData) => {
     const els = {
       list: $('sidebar-entries'),
@@ -737,6 +813,11 @@
       $('sidebar-ticketNumber').value = ''; $('sidebar-ticketComment').value = '';
       $('sidebar-workHours').value = 0;
       $('sidebar-workMinutes').value = 0;
+
+      // Просим фон перепланировать автосброс (если включён)
+      try {
+        chrome.runtime.sendMessage({ action: 'refreshAutoResetAlarm' });
+      } catch (e) { /* service worker недоступен */ }
     },
 
     exportCSV: async () => {
@@ -766,7 +847,8 @@
     if (area === 'local') {
       if (changes.settings) {
         const newSettings = changes.settings.newValue;
-        settings = newSettings;
+        settings = { ...settings, ...newSettings };
+        updateAutoResetStatus();
         if (!newSettings.accountingPanel && isInitialized) {
           removeSidebar();
         }
@@ -812,6 +894,11 @@
           <button class="tickets-close-btn">&times;</button>
         </div>
         <div class="date-row"><span>Дата:</span> <strong id="sidebar-currentDate">...</strong></div>
+        <div class="auto-reset-status" id="sidebar-autoResetStatus">
+          <span class="ar-dot"></span>
+          <span class="ar-text">Автосброс в</span>
+          <input type="time" class="ar-time-input" id="sidebar-autoResetTime" value="03:00">
+        </div>
         <input type="text" id="sidebar-ticketNumber" placeholder="Номер заявки">
         <textarea id="sidebar-ticketComment" placeholder="Комментарий (необязательно)"></textarea>
         <div class="time-inputs">
@@ -866,6 +953,14 @@
     });
 
     Logic.init();
+    bindAutoResetTime();
+    // Подтянем актуальные настройки (включая автосброс) после инициализации
+    chrome.storage.local.get(['settings'], (res) => {
+      if (res.settings) {
+        settings = { ...settings, ...res.settings };
+        updateAutoResetStatus();
+      }
+    });
     isInitialized = true;
     
     setInterval(checkAndApplyTheme, 800);
