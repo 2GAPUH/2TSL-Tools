@@ -510,7 +510,7 @@ function openSipal() {
     chrome.storage.local.set({ sipalSearchData: { ilsAccount, timestamp: Date.now() } }, () => {
       chrome.runtime.sendMessage({
         action: 'openForm',
-        url: 'http://sipal.sz.rt.ru/index.html'
+        url: 'http://sipal.sz.rt.ru/index.php'
       });
     });
   }, 'Ошибка при открытии SIPAL');
