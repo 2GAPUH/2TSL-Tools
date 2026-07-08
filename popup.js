@@ -100,7 +100,9 @@ let settings = {
   popupLayoutScale: null,
   popupTabSizes: null,
   popupUnifiedTabSize: false,
-  templateReorderMode: 'buttons'
+  templateReorderMode: 'buttons',
+  autoResetShift: false,
+  autoResetShiftTime: '03:00'
 };
 let savedFormData = {
   region: '',
@@ -155,6 +157,11 @@ const settingAnalytics = document.getElementById('settingAnalytics');
 const savedRegion = document.getElementById('savedRegion');
 const savedFIO = document.getElementById('savedFIO');
 const clearSavedDataBtn = document.getElementById('clearSavedData');
+
+// Автосброс статистики
+const settingAutoResetShift = document.getElementById('settingAutoResetShift');
+const autoResetStatus = document.getElementById('autoResetStatus');
+const autoResetTimeInput = document.getElementById('autoResetTimeInput');
 
 // Напоминалка
 const remindersList = document.getElementById('remindersList');
@@ -889,7 +896,39 @@ function applySettings() {
   if (settingTemplateReorderMode) {
     settingTemplateReorderMode.value = getTemplateReorderMode();
   }
+  // Автосброс статистики
+  if (settingAutoResetShift) {
+    settingAutoResetShift.checked = settings.autoResetShift === true;
+  }
+  if (autoResetTimeInput && settings.autoResetShiftTime) {
+    autoResetTimeInput.value = settings.autoResetShiftTime;
+  }
+  updateAutoResetStatusUI();
   applyDarkMode();
+  syncAutoResetAlarm();
+}
+
+// Обновление индикатора автосброса на вкладке "Учёт заявок"
+function updateAutoResetStatusUI() {
+  if (!autoResetStatus) return;
+  const enabled = settings.autoResetShift === true;
+  autoResetStatus.classList.toggle('visible', enabled);
+  if (autoResetTimeInput && settings.autoResetShiftTime) {
+    autoResetTimeInput.value = settings.autoResetShiftTime;
+  }
+}
+
+// Синхронизация будильника автосброса в фоновом сервис-воркере
+function syncAutoResetAlarm() {
+  const enabled = settings.autoResetShift === true;
+  const time = settings.autoResetShiftTime || '03:00';
+  try {
+    chrome.runtime.sendMessage({
+      action: 'setAutoResetShiftAlarm',
+      enabled,
+      time
+    }, () => void chrome.runtime.lastError);
+  } catch (e) { /* service worker недоступен */ }
 }
 
 function applyDarkMode() {
@@ -926,6 +965,30 @@ bindSettingToggle(settingTTMOnyma, 'ttmOnyma');
 bindSettingToggle(settingTTMSipal, 'ttmSipal');
 bindSettingToggle(settingTTMCommentBuilder, 'ttmCommentBuilder');
 bindSettingToggle(settingDarkMode, 'darkMode');
+
+// Автосброс статистики
+if (settingAutoResetShift) {
+  settingAutoResetShift.addEventListener('change', (e) => {
+    settings.autoResetShift = e.target.checked;
+    updateAutoResetStatusUI();
+    saveSettings();
+    syncAutoResetAlarm();
+    trackEvent(settings.autoResetShift ? 'settings_autoreset_on' : 'settings_autoreset_off');
+  });
+}
+if (autoResetTimeInput) {
+  autoResetTimeInput.addEventListener('change', (e) => {
+    let v = e.target.value || '03:00';
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(v)) {
+      v = '03:00';
+      e.target.value = v;
+    }
+    settings.autoResetShiftTime = v;
+    saveSettings();
+    syncAutoResetAlarm();
+    trackEvent('settings_autoreset_time');
+  });
+}
 
 settingTemplateReorderMode?.addEventListener('change', (e) => {
   settings.templateReorderMode = e.target.value === 'drag' ? 'drag' : 'buttons';
@@ -966,35 +1029,75 @@ clearSavedDataBtn.addEventListener('click', () => {
 function updateTicketsUI(date, data) {
   if (!data) data = { entries: [], hours: 0, minutes: 0 };
   ticketEls.currentDate.textContent = date;
-  
+
   const entries = data.entries || [];
-  ticketEls.entries.innerHTML = entries.length ? entries.map(e => `
-    <li>[${e.time}] ${e.type==='closed'?'Закрыто':'Выезд'} ${e.number||''} ${e.comment||''}</li>
-  `).join('') : '<li>Записей нет</li>';
-  
+
+  // Счётчики
   const closed = entries.filter(e => e.type === 'closed').length;
+  const field  = entries.filter(e => e.type === 'field').length;
   ticketEls.countClosed.textContent = closed;
-  ticketEls.countField.textContent = entries.filter(e => e.type === 'field').length;
-  ticketEls.countTotal.textContent = entries.length;
-  
-  if (document.activeElement !== ticketEls.workHours) ticketEls.workHours.value = data.hours || 0;
+  ticketEls.countField.textContent  = field;
+  ticketEls.countTotal.textContent  = entries.length;
+
+  // Поля времени (не перетираем если пользователь сейчас вводит)
+  if (document.activeElement !== ticketEls.workHours)   ticketEls.workHours.value   = data.hours   || 0;
   if (document.activeElement !== ticketEls.workMinutes) ticketEls.workMinutes.value = data.minutes || 0;
-  
-  const h = parseInt(data.hours || 0);
-  const m = parseInt(data.minutes || 0);
+
+  // Производительность
+  const h = parseInt(data.hours   || 0, 10);
+  const m = parseInt(data.minutes || 0, 10);
   const totalH = h + (m / 60);
-  
+  const perfEl = ticketEls.performance;
+  const perfValEl = perfEl.querySelector('.metric-value');
   if (totalH > 0) {
     const lunch = totalH >= 12 ? 1.75 : 0.75;
     const work = totalH - lunch;
     const perf = work > 0 ? (entries.length / work).toFixed(2) : 0;
-    ticketEls.performance.textContent = `Производительность: ${perf}`;
+    if (perfValEl) perfValEl.textContent = perf; else perfEl.textContent = 'Производительность: ' + perf;
   } else {
-    ticketEls.performance.textContent = 'Производительность: —';
+    if (perfValEl) perfValEl.textContent = '—'; else perfEl.textContent = 'Производительность: —';
   }
-  
-  const perc = entries.length > 0 ? ((closed / entries.length) * 100).toFixed(2) : 0;
-  ticketEls.closurePercent.textContent = `Процент закрытия: ${perc}%`;
+
+  // Процент закрытия
+  const closureEl = ticketEls.closurePercent;
+  const closureValEl = closureEl.querySelector('.metric-value');
+  const perc = entries.length > 0 ? ((closed / entries.length) * 100).toFixed(1) : 0;
+  if (closureValEl) closureValEl.textContent = perc + '%'; else closureEl.textContent = 'Процент закрытия: ' + perc + '%';
+
+  // Счётчик записей в заголовке списка
+  const entriesCountEl = document.getElementById('entriesCount');
+  if (entriesCountEl) entriesCountEl.textContent = entries.length;
+
+  // Список записей
+  const ul = ticketEls.entries;
+  if (!entries.length) {
+    ul.innerHTML = '<li class="entry-empty">Записей за текущую смену пока нет</li>';
+    return;
+  }
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+  }
+
+  ul.innerHTML = entries.map(e => {
+    const isClosed = e.type === 'closed';
+    const badgeClass = isClosed ? 'closed' : 'field';
+    const badgeText  = isClosed ? 'Закрыто' : 'Выезд';
+    const num  = e.number ? '#' + esc(e.number) : '';
+    const com  = e.comment ? '<span class="entry-comment">' + esc(e.comment) + '</span>' : '';
+    return (
+      '<li class="entry" data-type="' + e.type + '">' +
+        '<span class="entry-time">' + esc(e.time) + '</span>' +
+        '<span class="entry-badge ' + badgeClass + '">' + badgeText + '</span>' +
+        '<span class="entry-body">' +
+          (num ? '<span class="entry-number">' + num + '</span>' : '') +
+          com +
+        '</span>' +
+      '</li>'
+    );
+  }).join('');
 }
 
 async function addTicketEntry(type) {
@@ -1061,6 +1164,9 @@ async function startNewDay() {
   ticketEls.ticketComment.value = '';
   ticketEls.workHours.value = 0;
   ticketEls.workMinutes.value = 0;
+
+  // Перепланируем автосброс, чтобы следующий выстрел был через 24ч
+  syncAutoResetAlarm();
 }
 
 async function finishDay() {
@@ -1076,8 +1182,19 @@ async function finishDay() {
     csv += `${today};${e.time};${e.type==='closed'?'Закрыто':'Выезд'};${e.number || ''};${e.comment || ''}\n`;
   });
   
-  const perfText = ticketEls.performance.textContent;
-  csv += `\n;;ИТОГО;;\n;;Всего;${dayData.entries.length};\n;;Отработано;${ticketEls.workHours.value}ч ${ticketEls.workMinutes.value}м;\n;;${perfText};;`;
+  // Извлекаем чистое значение производительности (новая карточка .metric-value
+  // или старый плоский текст) для аккуратного отчёта
+  const perfValEl = ticketEls.performance.querySelector('.metric-value');
+  const perfValue = perfValEl ? perfValEl.textContent.trim() : ticketEls.performance.textContent.replace(/^Производительность\s*:\s*/, '').trim();
+  const closureValEl = ticketEls.closurePercent.querySelector('.metric-value');
+  const closureValue = closureValEl ? closureValEl.textContent.trim() : '';
+
+  csv += `\n;;ИТОГО;;\n;;Всего;${dayData.entries.length};`;
+  csv += `\n;;Закрыто;${dayData.entries.filter(e => e.type === 'closed').length};`;
+  csv += `\n;;На выезд;${dayData.entries.filter(e => e.type === 'field').length};`;
+  csv += `\n;;Отработано;${ticketEls.workHours.value}ч ${ticketEls.workMinutes.value}м;`;
+  csv += `\n;;Производительность;${perfValue};`;
+  if (closureValue) csv += `\n;;Процент закрытия;${closureValue};`;
 
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement("a");
