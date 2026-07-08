@@ -7,15 +7,19 @@ importScripts('analytics.js', 'cloud-sync.js');
 
 initAnalyticsAlarms();
 
+const AUTO_RESET_ALARM = 'autoResetShift';
+
 chrome.runtime.onInstalled.addListener(async (details) => {
   console.log('[2TSL] Расширение установлено:', details.reason);
   await handleInstallAnalytics(details);
   await flushAnalytics(true);
+  await refreshAutoResetAlarmFromStorage();
 });
 
 chrome.runtime.onStartup.addListener(async () => {
   await restoreReminders();
   await flushAnalytics();
+  await refreshAutoResetAlarmFromStorage();
 });
 
 // ==================== ОБРАБОТКА СООБЩЕНИЙ ====================
@@ -133,6 +137,28 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
+  if (request.action === 'setAutoResetShiftAlarm') {
+    setAutoResetShiftAlarm(request.enabled, request.time)
+      .then(() => sendResponse({ success: true }))
+      .catch((err) => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
+  if (request.action === 'triggerAutoResetNow') {
+    // Ручной тестовый/внутренний вызов сброса
+    performAutoShiftReset()
+      .then(() => sendResponse({ success: true }))
+      .catch((err) => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
+  if (request.action === 'refreshAutoResetAlarm') {
+    refreshAutoResetAlarmFromStorage()
+      .then(() => sendResponse({ success: true }))
+      .catch((err) => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
   return true;
 });
 
@@ -238,6 +264,14 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     return;
   }
 
+  if (alarm.name === AUTO_RESET_ALARM) {
+    console.log('[2TSL] Автосброс статистики (сработал alarm)');
+    await performAutoShiftReset();
+    // После сброса переустанавливаем будильник на следующий день
+    await refreshAutoResetAlarmFromStorage();
+    return;
+  }
+
   console.log('[2TSL] Alarm сработал:', alarm.name);
 
   const result = await chrome.storage.local.get(['reminders']);
@@ -321,5 +355,118 @@ async function restoreReminders() {
 
   await chrome.storage.local.set({ reminders });
 }
+
+// ==================== АВТОСБРОС СТАТИСТИКИ ====================
+
+function pad2(n) { return String(n).padStart(2, '0'); }
+function todayStr(d = new Date()) {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+// Вычисляем ближайший timestamp срабатывания для HH:MM
+// (если время уже прошло сегодня — берём на следующий день)
+function computeNextResetTimestamp(timeStr) {
+  const [h, m] = String(timeStr || '03:00').split(':').map(n => parseInt(n, 10));
+  const now = new Date();
+  const target = new Date(now);
+  target.setHours(isNaN(h) ? 3 : h, isNaN(m) ? 0 : m, 0, 0);
+  if (target.getTime() <= now.getTime()) {
+    target.setDate(target.getDate() + 1);
+  }
+  return target.getTime();
+}
+
+async function setAutoResetShiftAlarm(enabled, time) {
+  await chrome.alarms.clear(AUTO_RESET_ALARM);
+  if (!enabled) {
+    console.log('[2TSL] Автосброс статистики отключён');
+    return;
+  }
+  const when = computeNextResetTimestamp(time);
+  // periodInMinutes = 1440 = сутки; но из-за спячки браузера/сервера используем
+  // just when: и повторно переустанавливаем в обработчике после срабатывания.
+  await chrome.alarms.create(AUTO_RESET_ALARM, { when });
+  const d = new Date(when);
+  console.log(`[2TSL] Автосброс статистики запланирован на ${d.toLocaleString('ru-RU')}`);
+}
+
+async function refreshAutoResetAlarmFromStorage() {
+  try {
+    const { settings } = await chrome.storage.local.get(['settings']);
+    const enabled = settings?.autoResetShift === true;
+    const time = settings?.autoResetShiftTime || '03:00';
+    if (!enabled) {
+      await chrome.alarms.clear(AUTO_RESET_ALARM);
+      console.log('[2TSL] Автосброс статистики отключён');
+      return;
+    }
+
+    const [h, m] = String(time).split(':').map(n => parseInt(n, 10));
+    const setH = isNaN(h) ? 3 : h;
+    const setM = isNaN(m) ? 0 : m;
+    const now = new Date();
+    const todayNowStr = todayStr(now);
+
+    // ✅ Надёжная проверка пропущенного сброса:
+    // Сбрасываем ТОЛЬКО если:
+    // 1. Текущая рабочая дата в хранилище — это вчера или раньше (смена не сброшена после прошлого автосброса)
+    // 2. Текущее время уже перешло за настроенное время сброса (т.е. мы находимся в периоде "после сброса" новых суток)
+    // При перезапуске браузера днём того же дня — currentWorkingDate уже сегодняшняя, сброс не произойдёт.
+    const { currentWorkingDate } = await chrome.storage.local.get(['currentWorkingDate']);
+    const workingDateIsToday = currentWorkingDate === todayNowStr;
+
+    const todayTarget = new Date(now);
+    todayTarget.setHours(setH, setM, 0, 0);
+    const timeHasComeToday = now.getTime() >= todayTarget.getTime();
+
+    if (!workingDateIsToday && timeHasComeToday) {
+      console.log('[2TSL] Пропущено время автосброса (браузер был выключен/перезагружен) — выполняем сейчас');
+      await performAutoShiftReset();
+    }
+
+    // Устанавливаем alarm на ближайшее будущее время
+    await setAutoResetShiftAlarm(true, time);
+  } catch (e) {
+    console.warn('[2TSL] Не удалось обновить автосброс из storage:', e);
+  }
+}
+
+// Собственно сброс — аналог функции startNewDay() из popup и newDay() из сайдбара
+async function performAutoShiftReset() {
+  const today = todayStr();
+  const res = await chrome.storage.local.get(['requestsByDate', 'currentWorkingDate']);
+  const allData = res.requestsByDate || {};
+  allData[today] = { entries: [], hours: 0, minutes: 0 };
+
+  await chrome.storage.local.set({
+    requestsByDate: allData,
+    currentWorkingDate: today,
+    autoResetLastFiredAt: Date.now()
+  });
+
+  console.log('[2TSL] Автосброс статистики выполнен на', today);
+  try {
+    chrome.notifications.create('autoreset_' + Date.now(), {
+      type: 'basic',
+      iconUrl: 'icons/icon.png',
+      title: 'Учет заявок автоматически сброшен',
+      message: `Начата новая смена (${today})`,
+      priority: 1
+    });
+  } catch (e) {
+    // notifications могут быть отключены — не критично
+  }
+}
+
+// При изменении настроек в storage — перепланируем alarm без участия popup
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.settings) {
+    const ns = changes.settings.newValue;
+    if (ns && ('autoResetShift' in ns || 'autoResetShiftTime' in ns)) {
+      setAutoResetShiftAlarm(ns.autoResetShift === true, ns.autoResetShiftTime || '03:00')
+        .catch(err => console.warn('[2TSL] setAutoResetShiftAlarm error:', err));
+    }
+  }
+});
 
 console.log('2TSL Toolbox - Background Service Worker загружен');
