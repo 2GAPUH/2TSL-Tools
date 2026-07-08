@@ -138,8 +138,10 @@
       inset: 0;
       flex-direction: column;
       overflow: hidden;
+      container-type: size;
+      container-name: tab;
     }
-    
+
     .tab-content.active {
       display: flex;
     }
@@ -150,6 +152,8 @@
       overflow-x: hidden;
       overflow-y: auto;
       scrollbar-gutter: stable;
+      box-sizing: border-box;
+      padding-bottom: 4px;
     }
 
     .tab-content > .header {
@@ -944,202 +948,422 @@
     }
 
     /* ==========================================================================
-       ВКЛАДКА УЧЁТ ЗАЯВОК
+       ВКЛАДКА УЧЁТ ЗАЯВОК (минималистичный стиль)
        ========================================================================== */
+
+    #tickets-tab button {
+      cursor: pointer;
+      border: none;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: calc(13px * var(--font-scale));
+      font-weight: 500;
+      font-family: inherit;
+      letter-spacing: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: background-color 0.12s ease, opacity 0.12s ease;
+      white-space: nowrap;
+      user-select: none;
+      line-height: 1.2;
+    }
+    #tickets-tab button:active { opacity: 0.85; }
+    #tickets-tab button:disabled { opacity: 0.5; cursor: not-allowed; }
+    #tickets-tab button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
     .date-row {
       display: flex;
       justify-content: space-between;
+      align-items: center;
       background: var(--bg-tertiary);
+      color: var(--text-primary);
       padding: 10px 14px;
-      border-radius: 6px;
+      border-radius: 8px;
       margin-bottom: 14px;
       font-size: calc(13px * var(--font-scale));
+      border: 1px solid var(--border-color);
     }
+    .date-row .date-label {
+      font-weight: 400;
+      color: var(--text-muted);
+    }
+    .date-row strong {
+      font-size: calc(13px * var(--font-scale));
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      color: var(--text-primary);
+    }
+
+    .tickets-form {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 14px;
+      box-shadow: none;
+    }
+
+    .tickets-form .field { margin-bottom: 12px; }
 
     .tickets-form label {
       display: block;
       font-size: calc(12px * var(--font-scale));
       margin-bottom: 6px;
-      font-weight: 600;
+      font-weight: 500;
+      color: var(--text-secondary);
+      letter-spacing: 0;
+    }
+    .tickets-form label .field-hint {
+      font-weight: 400;
+      color: var(--text-muted);
+      font-size: calc(11px * var(--font-scale));
+      margin-left: 4px;
     }
 
     .tickets-form input[type="text"],
     .tickets-form textarea {
       width: 100%;
-      padding: 10px 12px;
-      margin-bottom: 12px;
+      padding: 8px 10px;
       border: 1px solid var(--border-color);
       border-radius: 6px;
-      font-size: calc(14px * var(--font-scale));
+      font-size: calc(13px * var(--font-scale));
       font-family: inherit;
       background: var(--input-bg);
       color: var(--text-primary);
+      transition: border-color 0.15s;
+      box-sizing: border-box;
     }
+    .tickets-form input[type="text"]::placeholder,
+    .tickets-form textarea::placeholder { color: var(--text-muted); opacity: 0.6; }
+    .tickets-form input[type="text"]:focus,
+    .tickets-form textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.12);
+    }
+    .tickets-form textarea { resize: vertical; min-height: 54px; line-height: 1.4; }
 
-    .tickets-form textarea {
-      resize: vertical;
-      min-height: 50px;
-    }
-
-    .time-inputs {
-      display: flex;
-      gap: 12px;
-      margin-bottom: 12px;
-    }
+    .time-inputs { display: flex; gap: 10px; margin-bottom: 6px; }
 
     .time-group {
       flex: 1;
+      background: transparent;
+      border-radius: 6px;
+      padding: 0;
+      border: none;
     }
 
     .time-group label {
       display: block;
       font-size: calc(11px * var(--font-scale));
       color: var(--text-muted);
-      margin-bottom: 6px;
+      margin-bottom: 4px;
       text-transform: uppercase;
-      letter-spacing: 0.3px;
+      letter-spacing: 0.4px;
+      font-weight: 500;
     }
 
     .time-group input[type="number"] {
       width: 100%;
-      padding: 10px;
+      padding: 8px 6px;
       border: 1px solid var(--border-color);
       border-radius: 6px;
       font-size: calc(14px * var(--font-scale));
+      font-weight: 500;
       text-align: center;
       background: var(--input-bg);
       color: var(--text-primary);
+      -moz-appearance: textfield;
+      font-variant-numeric: tabular-nums;
+      transition: border-color 0.15s;
+      box-sizing: border-box;
     }
+    .time-group input[type="number"]::-webkit-outer-spin-button,
+    .time-group input[type="number"]::-webkit-inner-spin-button {
+      -webkit-appearance: none; margin: 0;
+    }
+    .time-group input[type="number"]:focus { outline: none; border-color: var(--accent); }
+
+    .section-divider {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 10px 0 10px;
+      font-size: calc(11px * var(--font-scale));
+      color: var(--text-muted);
+      letter-spacing: 0.3px;
+      font-weight: 500;
+    }
+    .section-divider::before,
+    .section-divider::after { content: ""; flex: 1; height: 1px; background: var(--border-light); }
 
     .buttons {
-      display: flex;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
       gap: 8px;
-      margin-bottom: 14px;
+      margin-top: 8px;
     }
-
-    button {
-      cursor: pointer;
-      border: 0;
-      border-radius: 6px;
-      padding: 10px 14px;
-      font-size: calc(13px * var(--font-scale));
-      font-weight: 500;
-      transition: background-color 0.2s;
-    }
+    .buttons .btn-wide { grid-column: 1 / -1; }
 
     .primary {
-      background: var(--success);
-      color: white;
+      background: #16a34a !important;
+      color: #fff !important;
+      border: none !important;
     }
     .primary:hover {
-      background: #218838;
+      background: #15803d !important;
     }
 
+    /* На выезд — сплошная синяя (как раньше у Закрыто) */
     .warning {
-      background: var(--warning);
-      color: #333;
+      background: #2563eb !important;
+      color: #fff !important;
+      border: none !important;
     }
     .warning:hover {
-      background: #e0a800;
+      background: #1d4ed8 !important;
     }
 
+    /* Удалить — сплошная красная */
     .danger {
-      background: var(--danger);
-      color: white;
+      background: #ef4444 !important;
+      color: #fff !important;
+      border: none !important;
     }
     .danger:hover {
-      background: #c82333;
+      background: #dc2626 !important;
     }
 
+    /* Новая смена — сплошная зелёная */
     .success {
-      background: #17a2b8;
-      color: white;
+      background: #10b981 !important;
+      color: #fff !important;
+      border: none !important;
     }
     .success:hover {
-      background: #138496;
+      background: #059669 !important;
     }
 
+    /* Скачать отчёт — сплошная синевато-серая (инфо) */
     .accent {
-      background: #6c757d;
-      color: white;
+      background: #0ea5e9 !important;
+      color: #fff !important;
+      border: none !important;
     }
     .accent:hover {
-      background: #5a6268;
+      background: #0284c7 !important;
     }
 
-    .stats {
-      display: flex;
-      justify-content: space-around;
-      padding: 12px;
+    /* Тёмная тема */
+    html.dark-mode .primary { background: #22c55e !important; }
+    html.dark-mode .primary:hover { background: #16a34a !important; }
+
+    html.dark-mode .warning { background: #3b82f6 !important; }
+    html.dark-mode .warning:hover { background: #2563eb !important; }
+
+    html.dark-mode .danger { background: #dc2626 !important; }
+    html.dark-mode .danger:hover { background: #b91c1c !important; }
+
+    html.dark-mode .success { background: #10b981 !important; }
+    html.dark-mode .success:hover { background: #059669 !important; }
+
+    html.dark-mode .accent { background: #0ea5e9 !important; }
+    html.dark-mode .accent:hover { background: #0284c7 !important; }
+
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+    .stats .stat-card {
       background: var(--bg-secondary);
       border: 1px solid var(--border-color);
-      border-radius: 6px;
-      margin-bottom: 10px;
-    }
-    
-    .stats > div {
+      border-radius: 8px;
+      padding: 10px 8px;
       text-align: center;
-      font-size: calc(12px * var(--font-scale));
-      color: var(--text-secondary);
+      border-left: 3px solid var(--border-color);
     }
-    
+    .stats .stat-card.closed { border-left-color: #16a34a; }
+    .stats .stat-card.field  { border-left-color: var(--warning); }
+    .stats .stat-card.total  { border-left-color: var(--accent); }
+    .stats .stat-label {
+      display: block; font-size: calc(11px * var(--font-scale));
+      color: var(--text-muted); letter-spacing: 0.2px; font-weight: 400; margin-bottom: 4px;
+    }
     .stats strong {
-      display: block;
-      font-size: calc(18px * var(--font-scale));
-      margin-top: 4px;
-      color: var(--text-primary);
+      display: block; font-size: calc(20px * var(--font-scale)); font-weight: 600;
+      color: var(--text-primary); line-height: 1.1; font-variant-numeric: tabular-nums;
     }
 
-    .performance, .closure-percent {
-      margin-bottom: 10px;
-      padding: 10px 12px;
-      background: var(--bg-tertiary);
-      border-radius: 6px;
-      font-size: calc(13px * var(--font-scale));
-      color: var(--text-secondary);
+    .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+    .metric-card {
+      padding: 10px 12px; border-radius: 8px; font-size: calc(12px * var(--font-scale));
+      color: var(--text-muted); font-weight: 400; display: flex; flex-direction: column; gap: 2px;
+      background: var(--bg-tertiary); border: 1px solid var(--border-color); letter-spacing: 0;
+    }
+    .metric-card.performance { border-left: 3px solid #6366f1; }
+    .metric-card.closure-percent { border-left: 3px solid var(--success); }
+    .metric-card .metric-value {
+      font-size: calc(16px * var(--font-scale)); font-weight: 600;
+      font-variant-numeric: tabular-nums; line-height: 1.1; color: var(--text-primary);
     }
 
-    .list {
-      margin-top: 14px;
-    }
-
+    .list { margin-top: 4px; }
     .list h2 {
-      font-size: calc(12px * var(--font-scale));
-      margin-bottom: 8px;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.3px;
+      font-size: calc(12px * var(--font-scale)); margin: 0 0 8px; color: var(--text-secondary);
+      text-transform: none; letter-spacing: 0; font-weight: 600;
+      display: flex; align-items: center; gap: 8px;
     }
-
+    .list h2 .list-count {
+      font-size: calc(11px * var(--font-scale)); font-weight: 500;
+      background: var(--bg-tertiary); color: var(--text-muted); padding: 2px 8px;
+      border-radius: 10px; font-variant-numeric: tabular-nums; border: 1px solid var(--border-light);
+    }
     .list ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
-      background: var(--bg-secondary);
+      list-style: none; padding: 4px; margin: 0;
+      border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-secondary);
     }
-
-    .list li {
-      padding: 10px 12px;
-      border-bottom: 1px solid var(--border-light);
-      font-size: calc(12px * var(--font-scale));
-      color: var(--text-secondary);
+    .list li.entry {
+      padding: 8px 10px; border-radius: 4px; margin-bottom: 2px;
+      font-size: calc(12.5px * var(--font-scale)); color: var(--text-primary);
+      display: flex; align-items: flex-start; gap: 10px; background: transparent;
+      transition: background 0.1s; border-bottom: none;
     }
+    .list li.entry:last-child { margin-bottom: 0; }
+    .list li.entry:hover { background: var(--bg-tertiary); }
 
-    .list li:last-child {
-      border-bottom: none;
+    .entry-time {
+      font-size: calc(11.5px * var(--font-scale)); color: var(--text-muted);
+      font-variant-numeric: tabular-nums; font-weight: 400; flex-shrink: 0;
+      padding-top: 2px; min-width: 52px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     }
-
+    .entry-badge {
+      font-size: calc(10.5px * var(--font-scale)); font-weight: 500; letter-spacing: 0.2px;
+      padding: 3px 8px; border-radius: 4px; flex-shrink: 0; line-height: 1.2; text-transform: none;
+    }
+    .entry-badge.closed { background: rgba(22, 163, 74, 0.12); color: #15803d; }
+    .entry-badge.field  { background: rgba(255, 193, 7, 0.15); color: #b45309; }
+    html.dark-mode .entry-badge.closed { background: rgba(34, 197, 94, 0.18); color: #4ade80; }
+    html.dark-mode .entry-badge.field  { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
+    .entry-body { flex: 1; min-width: 0; line-height: 1.4; }
+    .entry-number {
+      font-weight: 600; color: var(--text-primary); font-size: calc(12.5px * var(--font-scale));
+      font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .entry-comment {
+      display: block; color: var(--text-muted); font-size: calc(11.5px * var(--font-scale));
+      margin-top: 2px; word-break: break-word;
+    }
+    .list li.entry-empty {
+      text-align: center; color: var(--text-muted); font-style: normal;
+      padding: 22px 12px; font-size: calc(12.5px * var(--font-scale));
+    }
     .footer-buttons {
-      display: flex;
-      gap: 8px;
-      margin-top: 14px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+      margin-top: 14px; margin-bottom: 10px;
     }
-    
-    .footer-buttons button {
-      flex: 1;
+    .footer-buttons button { width: 100%; }
+
+    /* Автосброс — минималистичный индикатор без пульсации */
+    .auto-reset-status {
+      display: none; align-items: center; gap: 8px;
+      padding: 8px 12px; margin-bottom: 10px;
+      background: var(--bg-tertiary); border: 1px solid var(--border-color);
+      border-radius: 6px; font-size: calc(12px * var(--font-scale));
+      color: var(--text-muted); font-weight: 400;
     }
+    .auto-reset-status.visible { display: flex; }
+    .auto-reset-status .ar-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--accent); flex-shrink: 0;
+    }
+    .auto-reset-status .ar-time-input {
+      margin-left: auto;
+      width: 95px;
+      padding: 4px 6px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--input-bg);
+      color: var(--text-primary);
+      font-size: calc(12px * var(--font-scale));
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-variant-numeric: tabular-nums;
+      text-align: center;
+    }
+    .auto-reset-status .ar-time-input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+    }
+    html.dark-mode .auto-reset-status .ar-dot { background: #60a5fa; }
+
+    /* ==========================================================================
+       АВТОСБРОС В БОКОВОЙ ПАНЕЛИ (контент-скрипт стилизуется там же)
+       ========================================================================== */
+
+    /* ==========================================================================
+       АДАПТИВНОСТЬ (облегчённая, без масштабных трансформаций)
+       ========================================================================== */
+    @container tab (max-width: 380px) {
+      .date-row { padding: 9px 12px; }
+      .tickets-form { padding: 12px; border-radius: 8px; }
+      .time-inputs { gap: 8px; }
+      .time-group { padding: 0; }
+      .time-group input[type="number"] { font-size: calc(14px * var(--font-scale)); padding: 7px 6px; }
+      .stats .stat-card { padding: 9px 4px; }
+      .stats strong { font-size: calc(18px * var(--font-scale)); }
+      .metric-card { padding: 9px 10px; }
+      .metric-card .metric-value { font-size: calc(15px * var(--font-scale)); }
+      .buttons, .footer-buttons { gap: 6px; }
+      #tickets-tab button { padding: 9px 8px; font-size: calc(12px * var(--font-scale)); }
+    }
+    @container tab (max-width: 300px) {
+      .buttons { grid-template-columns: 1fr; }
+      .buttons .btn-wide { grid-column: auto; }
+      .time-inputs { flex-direction: column; gap: 6px; }
+      .stats { gap: 6px; }
+      .list li.entry { flex-wrap: wrap; gap: 6px; }
+      .entry-badge { order: 2; }
+    }
+    @container tab (max-height: 480px) {
+      .date-row { padding: 8px 12px; margin-bottom: 10px; }
+      .tickets-form { padding: 12px; margin-bottom: 10px; }
+      .tickets-form .field { margin-bottom: 8px; }
+      .tickets-form input[type="text"], .tickets-form textarea {
+        padding: 7px 10px; font-size: calc(13px * var(--font-scale));
+      }
+      .tickets-form textarea { min-height: 40px; }
+      .time-group { padding: 0; }
+      .time-group input[type="number"] { font-size: calc(14px * var(--font-scale)); padding: 7px; }
+      .stats .stat-card { padding: 8px 4px; }
+      .stats strong { font-size: calc(18px * var(--font-scale)); }
+      .metrics { gap: 6px; margin-bottom: 10px; }
+      .metric-card { padding: 8px 10px; }
+      .list h2 { margin-bottom: 6px; font-size: calc(11px * var(--font-scale)); }
+      .list ul { padding: 4px; border-radius: 6px; }
+      .list li.entry { padding: 7px 8px; font-size: calc(12px * var(--font-scale)); }
+      .footer-buttons { margin-top: 10px; margin-bottom: 6px; }
+      #tickets-tab button { padding: 8px 10px; font-size: calc(12px * var(--font-scale)); }
+    }
+    @container tab (max-height: 400px) {
+      .tickets-form textarea { min-height: 32px; }
+      .time-inputs { margin-bottom: 4px; }
+      .section-divider { margin: 8px 0 6px; font-size: calc(10px * var(--font-scale)); }
+      .buttons { gap: 6px; margin-top: 6px; }
+      .footer-buttons { margin-top: 8px; margin-bottom: 4px; gap: 6px; }
+      #tickets-tab button { padding: 7px 8px; font-size: calc(12px * var(--font-scale)); border-radius: 6px; }
+    }
+
+    #tickets-tab .tickets-form, #tickets-tab .stats, #tickets-tab .metrics,
+    #tickets-tab .date-row, #tickets-tab .footer-buttons {
+      width: 100%; box-sizing: border-box; flex-shrink: 0;
+    }
+    #tickets-tab .list { flex-shrink: 0; width: 100%; box-sizing: border-box; }
+    #tickets-tab .header { flex-shrink: 0; }
+    #tickets-tab .tickets-form input, #tickets-tab .tickets-form textarea { max-width: 100%; }
+    #tickets-tab .time-inputs { width: 100%; }
+    #tickets-tab .time-group { min-width: 0; }
+    #tickets-tab ul { max-width: 100%; }
+    #tickets-tab li.entry { min-width: 0; }
 
     /* ==========================================================================
        ВКЛАДКА НАПОМИНАЛКА
@@ -1311,61 +1535,81 @@
   
   <!-- Контент: Учёт заявок -->
   <div id="tickets-tab" class="tab-content">
+    <div class="tab-scroll">
     <div class="header">
       <h1>Учёт заявок</h1>
     </div>
-    <div class="tab-scroll">
+    <div class="auto-reset-status" id="autoResetStatus">
+      <span class="ar-dot"></span>
+      <span class="ar-text">Автосброс в</span>
+      <input type="time" class="ar-time-input" id="autoResetTimeInput" value="03:00">
+    </div>
     <div class="date-row">
-      <span>Текущая дата:</span> <strong id="currentDate"></strong>
+      <span class="date-label">Текущая смена:</span>
+      <strong id="currentDate"></strong>
     </div>
 
     <div class="tickets-form">
-      <label>
-        Номер заявки
-        <input id="ticketNumber" type="text" placeholder="Например, 12345">
-      </label>
-      <label>
-        Комментарий (необязательно)
-        <textarea id="ticketComment" rows="2" placeholder="Кратко опишите..."></textarea>
-      </label>
+      <div class="field">
+        <label for="ticketNumber">Номер заявки <span class="field-hint">например, 12345</span></label>
+        <input id="ticketNumber" type="text" placeholder="Введите номер заявки…" inputmode="numeric" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="ticketComment">Комментарий <span class="field-hint">необязательно</span></label>
+        <textarea id="ticketComment" rows="2" placeholder="Краткое описание или заметка…"></textarea>
+      </div>
       <div class="time-inputs">
         <div class="time-group">
-          <label>
-            Отработано часов
-            <input id="workHours" type="number" min="0" max="24" step="1" placeholder="0" value="0">
-          </label>
+          <label for="workHours">Часы</label>
+          <input id="workHours" type="number" min="0" max="24" step="1" placeholder="0" value="0">
         </div>
         <div class="time-group">
-          <label>
-            Отработано минут
-            <input id="workMinutes" type="number" min="0" max="59" step="1" placeholder="0" value="0">
-          </label>
+          <label for="workMinutes">Минуты</label>
+          <input id="workMinutes" type="number" min="0" max="59" step="1" placeholder="0" value="0">
         </div>
       </div>
+      <div class="section-divider">Добавить запись</div>
       <div class="buttons">
-        <button id="addClosed" class="primary">Добавить: Закрыто</button>
-        <button id="addField" class="warning">Добавить: На выезд</button>
-        <button id="removeLast" class="danger">Убрать прошлую запись</button>
+        <button id="addClosed" class="primary" type="button">Закрыто</button>
+        <button id="addField" class="warning" type="button">На выезд</button>
+        <button id="removeLast" class="danger btn-wide" type="button">Удалить последнюю</button>
       </div>
     </div>
 
     <div class="stats">
-      <div>Закрыто<br><strong id="countClosed">0</strong></div>
-      <div>На выезд<br><strong id="countField">0</strong></div>
-      <div>Всего<br><strong id="countTotal">0</strong></div>
+      <div class="stat-card closed">
+        <span class="stat-label">Закрыто</span>
+        <strong id="countClosed">0</strong>
+      </div>
+      <div class="stat-card field">
+        <span class="stat-label">На выезд</span>
+        <strong id="countField">0</strong>
+      </div>
+      <div class="stat-card total">
+        <span class="stat-label">Всего</span>
+        <strong id="countTotal">0</strong>
+      </div>
     </div>
 
-    <div class="performance" id="performance">Производительность: —</div>
-    <div class="closure-percent" id="closurePercent">Процент закрытия: 0%</div>
+    <div class="metrics">
+      <div class="metric-card performance" id="performance">
+        <span>Производительность</span>
+        <span class="metric-value">—</span>
+      </div>
+      <div class="metric-card closure-percent" id="closurePercent">
+        <span>% закрытия</span>
+        <span class="metric-value">0%</span>
+      </div>
+    </div>
 
     <div class="list">
-      <h2>Заявки за день</h2>
+      <h2>Заявки за день <span class="list-count" id="entriesCount">0</span></h2>
       <ul id="entries"></ul>
     </div>
 
     <div class="footer-buttons">
-      <button id="startNewDay" class="success">Начать смену</button>
-      <button id="finishDay" class="accent">Скачать отчёт</button>
+      <button id="startNewDay" class="success" type="button">Новая смена</button>
+      <button id="finishDay" class="accent" type="button">Скачать отчёт</button>
     </div>
     </div>
   </div>
@@ -1446,6 +1690,18 @@
           <span class="toggle-slider"></span>
         </label>
       </div>
+
+      <div class="setting-item">
+        <div>
+          <div class="setting-label">Автосброс статистики</div>
+          <div class="setting-description">Автоматически обнулять учёт заявок в указанное время (например, в конце смены)</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="settingAutoResetShift">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
       
       <div class="setting-item">
         <div>
