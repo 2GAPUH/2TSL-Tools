@@ -7,10 +7,10 @@
 </p>
 
 <p align="center">
-  <b>Версия:</b> 0.7.6 &nbsp;·&nbsp;
+  <b>Версия:</b> 0.7.7 &nbsp;·&nbsp;
   <b>Манифест:</b> V3 &nbsp;·&nbsp;
   <b>Зависимости:</b> 0 (расширение) &nbsp;·&nbsp;
-  <b>Объём кода:</b> ~7 500+ строк
+  <b>Объём кода:</b> ~10 000+ строк
 </p>
 
 ---
@@ -62,15 +62,18 @@ Grafana (IP-адреса)
 ├── import-export.html          # Страница резервного копирования
 ├── popup-import-export.js      # Логика импорта/экспорта (файл + облако)
 ├── import-export-page.js       # Инициализация страницы backup
-├── content-omnichat.js         # Omnichat: шаблоны + кликабельные ссылки
+├── omnichat/                   # Omnichat: шаблоны «Дополнительно» + ссылки TTM
+│   ├── namespace.js / state.js / constants.js / utils.js
+│   ├── draft-insert.js / ttm-links.js / templates-modal.js / init.js
 ├── content-accounting.js       # Omnichat: боковая панель учёта заявок
-├── content-ttm.js              # TTM: кнопки Ассистент, Таймер, Onyma, SIPAL
+├── content-ttm.js              # TTM: кнопки, автопоиск, конструктор комментариев
 ├── content-form.js             # Автозаполнение формы ассистента
+├── content-volgahelp.js        # volgahelp.ru: черновики и копирование
 ├── content-grafana.js          # Grafana: IP → SSH переход
 ├── content-ssh.js              # SSH: автозаполнение IP
 ├── content-onyma.js            # Onyma: автозаполнение поиска
 ├── content-sipal.js            # SIPAL: автозаполнение поиска
-├── content-userinfo.js         # Userinfo: MAC (не в манифесте)
+├── build.bat                   # Сборка ZIP (7-Zip, только runtime)
 ├── google-sheets-api.gs        # Apps Script для Google Таблицы (локально)
 ├── scripts/
 │   └── build_analytics_dashboard.py  # Оформление xlsx-отчёта и графики
@@ -95,10 +98,11 @@ Grafana (IP-адреса)
 
 | Файл | Система | Функционал |
 |------|---------|-----------|
-| `content-omnichat.js` | `omnichat.rt.ru` | Вкладка «Дополнительно»; автолинковка НЛС и заявок |
+| `omnichat/*` | `omnichat.rt.ru` | Вкладка «Дополнительно»; автолинковка НЛС и заявок |
 | `content-accounting.js` | `omnichat.rt.ru` | Плавающая панель учёта заявок |
-| `content-ttm.js` | `www.ttm.rt.ru` | Кнопки Ассистент / Таймер / Onyma / SIPAL; автопоиск |
-| `content-form.js` | `bzbti.rt.ru` | Автозаполнение формы ассистента |
+| `content-ttm.js` | `www.ttm.rt.ru` | Кнопки Ассистент / Таймер / Onyma / SIPAL; мягкий автопоиск |
+| `content-form.js` | `bzbti.rt.ru` | Автозаполнение формы ассистента (только целевая вкладка) |
+| `content-volgahelp.js` | `volgahelp.ru` | Конструктор комментария: черновики, «Скопировать всё» |
 | `content-grafana.js` | `epd.rt.ru` | IP → SSH (Волга, Юг, СЗ) |
 | `content-ssh.js` | `10.x.x.x` | Автозаполнение IP |
 | `content-onyma.js` | `onymaweb.south.rt.ru` | Автопоиск ИЛС |
@@ -109,6 +113,7 @@ Grafana (IP-адреса)
 - Анонимная аналитика (батч каждые 30 мин → Google Sheets)
 - Система напоминаний (`chrome.alarms` + `chrome.notifications`)
 - Маршрутизация сообщений между popup и content scripts
+- `openTtmSearch` / `openAssistantForm` — открытие вкладки + запись bridge-данных с `targetTabId`
 - Автовосстановление alarms при перезапуске браузера
 
 ---
@@ -183,12 +188,15 @@ python scripts/build_analytics_dashboard.py
 | `reminders` | local | Напоминания |
 | `profileId`, `installId` | local | Анонимная идентификация |
 | `analyticsQueue` | local | Очередь событий до flush |
-| `ttmFormData`, `ttmSearchData` | local | Мост между системами (TTL 30 сек) |
+| `ttmFormData`, `ttmSearchData` | local | Мост между системами (`targetTabId`, TTL ~20–30 с) |
 | `onymaSearchData`, `sipalSearchData`, `sshTransferData` | local | Автопоиск / передача IP |
+| `volgaHelpSession`, `volgaHelpDrafts`, `volgaHelpPastePending` | local | Конструктор комментариев |
 | `contributorState` | local | Состояние доступа к облаку (без PII) |
 | `popupTabSizes`, `popupLayoutScale` | local (settings) | Размеры и масштаб popup |
 
 Персональные данные (ФИО, регион) хранятся локально для автозаполнения формы ассистента.
+
+Мосты `ttmSearchData` / `ttmFormData` привязаны к **конкретной вкладке** (`targetTabId`), чтобы при нескольких открытых TTM/формах не срабатывали чужие автозаполнения и антиспам TTM.
 
 ---
 
@@ -202,6 +210,14 @@ python scripts/build_analytics_dashboard.py
 3. Включите **Режим разработчика**
 4. **Загрузить распакованное расширение** → папка `2TSL-Tools`
 
+### Сборка ZIP (для передачи коллегам)
+
+```bat
+build.bat
+```
+
+Нужен установленный [7-Zip](https://www.7-zip.org/). Архив: `dist/2TSL-toolbox-v0.7.7.zip` (только runtime-файлы).
+
 ### Обновление
 
 `git pull` + перезагрузка расширения на `chrome://extensions/`.
@@ -212,10 +228,12 @@ python scripts/build_analytics_dashboard.py
 
 - **Чистый JavaScript** — без фреймворков и сборщиков в runtime расширения
 - **Manifest V3** — service worker, content scripts, popup
+- **Omnichat** — модульный пакет `omnichat/*`; селекторы по `data-testid`, не `sc-*`
 - **CSS Variables** — светлая и тёмная тема
 - **MutationObserver** — динамический контент в SPA
 - **Draft.js** — вставка текста в Omnichat через ClipboardEvent
 - **Батч-аналитика** — `chrome.alarms` + Google Apps Script
+- **Targeted bridges** — `targetTabId` для Omnichat→TTM и TTM→Форма
 
 ---
 
