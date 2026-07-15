@@ -1,13 +1,16 @@
 // content-form.js
 // Для сайта bzbti.rt.ru/vip/ispolzovanie-assistenta/
 // Автозаполнение формы
-// Версия 1.2 - исправлен автовыбор radio (WPForms name + визуальное состояние)
+// Версия 1.3 - заполнение только во вкладке, открытой кнопкой TTM → Форма
 
 // ==================== ПЕРЕМЕННЫЕ ====================
 let settings = { omnichatTemplates: true, ttmButton: true };
 let savedFormData = { region: '', fio: '' };
 let ttmFormData = null;
 let isFormFilled = false;
+let myTabId = null;
+const FORM_DATA_TTL_MS = 30000;
+const FORM_DATA_WAIT_MS = 8000;
 
 // ==================== АНАЛИТИКА ====================
 function trackEvent(event) {
@@ -20,6 +23,67 @@ function trackEvent(event) {
 function safelyExecute(callback, errorMsg = 'Ошибка') {
   try { return callback(); } 
   catch (e) { console.error(errorMsg + ':', e); return null; }
+}
+
+function getMyTabId() {
+  return new Promise((resolve) => {
+    try {
+      chrome.runtime.sendMessage({ action: 'getTabId' }, (response) => {
+        if (chrome.runtime.lastError) {
+          resolve(null);
+          return;
+        }
+        resolve(response?.tabId ?? null);
+      });
+    } catch (e) {
+      resolve(null);
+    }
+  });
+}
+
+function storageGet(keys) {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(keys, (result) => resolve(result || {}));
+  });
+}
+
+function isFormDataFresh(data) {
+  if (!data) return false;
+  if (!data.timestamp) return true;
+  return Date.now() - data.timestamp <= FORM_DATA_TTL_MS;
+}
+
+/** Данные предназначены именно этой вкладке формы (не чужой уже открытой). */
+function isFormDataForThisTab(data, tabId) {
+  if (!data || !isFormDataFresh(data)) return false;
+  if (data.targetTabId == null) {
+    // Старый формат без targetTabId — принимаем один раз (legacy)
+    return true;
+  }
+  if (tabId == null) return false;
+  return Number(data.targetTabId) === Number(tabId);
+}
+
+async function waitForTargetFormData(tabId) {
+  const started = Date.now();
+  while (Date.now() - started < FORM_DATA_WAIT_MS) {
+    const result = await storageGet(['ttmFormData']);
+    const data = result.ttmFormData || null;
+
+    if (isFormDataForThisTab(data, tabId)) {
+      return data;
+    }
+
+    // Явно чужая вкладка — не ждём и не забираем
+    if (data && data.targetTabId != null && tabId != null
+        && Number(data.targetTabId) !== Number(tabId)) {
+      return null;
+    }
+
+    // Данных ещё нет: background пишет сразу после tabs.create — подождём кратко
+    await new Promise((r) => setTimeout(r, 150));
+  }
+  return null;
 }
 
 // ==================== ФОРМАТИРОВАНИЕ ДАТЫ ====================
@@ -217,6 +281,7 @@ function fillForm() {
     console.log('Заполнение формы...');
     console.log('savedFormData:', savedFormData);
     console.log('ttmFormData:', ttmFormData);
+    console.log('myTabId:', myTabId);
     
     // 1. Дата - текущая дата
     fillTextField(FORM_FIELDS.date, formatDate());
@@ -231,62 +296,60 @@ function fillForm() {
       fillTextField(FORM_FIELDS.fio, savedFormData.fio);
     }
     
-    // 4. Данные из TTM (если есть)
-    if (ttmFormData) {
-      // Номер заявки
+    // 4. Данные из TTM — только если предназначены этой вкладке
+    if (ttmFormData && isFormDataForThisTab(ttmFormData, myTabId)) {
       if (ttmFormData.incidentNumber) {
         fillTextField(FORM_FIELDS.incidentNumber, ttmFormData.incidentNumber);
       }
       
-      // Технология подключения (парсится из наименования услуги)
       if (ttmFormData.serviceName) {
         console.log('Технология из TTM:', ttmFormData.serviceName);
         fillRadioField(FORM_FIELDS.technology, ttmFormData.serviceName);
       }
       
-      // РФ Клиента (из поля "РФ подключения" в ТТМ)
       if (ttmFormData.clientRF) {
         console.log('РФ клиента из TTM:', ttmFormData.clientRF);
         fillTextField(FORM_FIELDS.clientRF, ttmFormData.clientRF);
       }
+
+      // Снимаем данные только целевая вкладка, чтобы не мешать другим
+      chrome.storage.local.remove('ttmFormData');
+      trackEvent('form_autofill');
+    } else if (ttmFormData) {
+      console.log('[Form] ttmFormData для другой вкладки — поля заявки не заполняем');
+      ttmFormData = null;
     }
     
     isFormFilled = true;
-    trackEvent('form_autofill');
     console.log('Форма заполнена');
     
-    // Устанавливаем слушатели изменений для сохранения региона и ФИО
     setupRegionChangeListener();
     setupFioChangeListener();
     
-    // Добавляем обработчик на отправку формы для сохранения данных
     const form = document.getElementById('wpforms-form-2176');
     if (form) {
       form.addEventListener('submit', () => {
         saveFormData();
       });
     }
-    
-    // Очищаем временные данные TTM
-    chrome.storage.local.remove('ttmFormData');
   }, 'Ошибка заполнения формы');
 }
 
 // ==================== ИНИЦИАЛИЗАЦИЯ ====================
-function init() {
-  console.log('Form Autofill v1.2');
-  
-  // Загружаем настройки и сохраненные данные
-  chrome.storage.local.get(['settings', 'savedFormData', 'ttmFormData'], (result) => {
-    settings = result.settings || { omnichatTemplates: true, ttmButton: true };
-    savedFormData = result.savedFormData || { region: '', fio: '' };
-    ttmFormData = result.ttmFormData || null;
-    
-    console.log('Загружены данные:', { savedFormData, ttmFormData });
-    
-    // Ждем загрузки формы
-    setTimeout(tryFillForm, 1500);
-  });
+async function init() {
+  console.log('Form Autofill v1.3');
+
+  const result = await storageGet(['settings', 'savedFormData']);
+  settings = result.settings || { omnichatTemplates: true, ttmButton: true };
+  savedFormData = result.savedFormData || { region: '', fio: '' };
+  myTabId = await getMyTabId();
+
+  // Ждём данные, привязанные к этой вкладке (background пишет после tabs.create)
+  ttmFormData = await waitForTargetFormData(myTabId);
+
+  console.log('Загружены данные:', { savedFormData, ttmFormData, myTabId });
+
+  setTimeout(tryFillForm, 500);
 }
 
 function isFormReady() {
@@ -318,7 +381,7 @@ const observer = new MutationObserver(() => {
 
 // ==================== ЗАПУСК ====================
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
+  document.addEventListener('DOMContentLoaded', () => { init(); });
 } else {
   init();
 }

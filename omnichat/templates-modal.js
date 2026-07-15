@@ -13,16 +13,40 @@
     };
   }
 
-  function cacheTabClasses(wrapperTabs) {
-    const inactive = wrapperTabs.querySelector(SELECTORS.tabFavorites)
-      || wrapperTabs.querySelector('[aria-selected="false"]');
-    const active = wrapperTabs.querySelector(SELECTORS.tabAllTemplate)
-      || wrapperTabs.querySelector('[aria-selected="true"]');
+  function cacheTabClasses(wrapperTabs, { force = false } = {}) {
+    if (!wrapperTabs) return;
+
+    // Кэшируем стили только когда среди нативных вкладок есть и active, и inactive.
+    // Иначе (уже на «Дополнительно») обе нативные вкладки inactive — «active» классы
+    // перезапишутся inactive-стилями и подчёркивание пропадёт при повторном клике.
+    const nativeTabs = Array.from(
+      wrapperTabs.querySelectorAll(`${SELECTORS.tabFavorites}, ${SELECTORS.tabAllTemplate}`)
+    );
+    let active = nativeTabs.find((btn) => btn.getAttribute('aria-selected') === 'true') || null;
+    let inactive = nativeTabs.find((btn) => btn.getAttribute('aria-selected') !== 'true') || null;
+
+    if (!active || !inactive) {
+      if (state.tabClasses?.activeBtn && state.tabClasses?.inactiveBtn && !force) {
+        return;
+      }
+      // Первичная инициализация: берём «Все шаблоны» как active-образец, «Избранные» как inactive
+      active = wrapperTabs.querySelector(`${SELECTORS.tabAllTemplate}[aria-selected="true"]`)
+        || wrapperTabs.querySelector(SELECTORS.tabAllTemplate)
+        || nativeTabs[1]
+        || nativeTabs[0];
+      inactive = wrapperTabs.querySelector(`${SELECTORS.tabFavorites}[aria-selected="false"]`)
+        || wrapperTabs.querySelector(SELECTORS.tabFavorites)
+        || nativeTabs.find((btn) => btn !== active)
+        || nativeTabs[0];
+    }
+
+    if (!active || !inactive) return;
+
     state.tabClasses = {
-      inactiveBtn: inactive?.className || '',
-      inactiveSpan: inactive?.querySelector('span')?.className || '',
-      activeBtn: active?.className || '',
-      activeSpan: active?.querySelector('span')?.className || ''
+      inactiveBtn: inactive.className || '',
+      inactiveSpan: inactive.querySelector('span')?.className || '',
+      activeBtn: active.className || '',
+      activeSpan: active.querySelector('span')?.className || ''
     };
   }
 
@@ -48,18 +72,21 @@
 
   function setAdditionalTabSelected(selected) {
     const btn = document.querySelector(SELECTORS.tabAdditional);
-    if (!btn || !state.tabClasses) return;
+    if (!btn) return;
 
     const wrapperTabs = getWrapperTabs();
     wrapperTabs?.classList.toggle('omnichat-ext-additional-mode', selected);
 
     if (selected) {
-      if (wrapperTabs) cacheTabClasses(wrapperTabs);
+      // Не пересчитываем классы, если нативные вкладки уже все inactive
+      if (wrapperTabs) cacheTabClasses(wrapperTabs, { force: false });
+      if (!state.tabClasses) return;
       setNativeTabsInactive();
       applyTabButtonStyle(btn, true);
       return;
     }
 
+    if (!state.tabClasses) return;
     applyTabButtonStyle(btn, false);
   }
 
@@ -164,8 +191,23 @@
     return host;
   }
 
+  function isProtectedLayoutNode(node) {
+    if (!node || node.nodeType !== 1) return true;
+    if (node.hasAttribute('data-omnichat-templates-overlay')) return true;
+    if (node.hasAttribute('data-omnichat-search-host')) return true;
+    if (node.hasAttribute('data-omnichat-filter-host')) return true;
+    if (node.matches?.(SELECTORS.tabsGroup) || node.matches?.(SELECTORS.wrapperTabs)) return true;
+    if (node.matches?.(SELECTORS.tabAdditional) || node.matches?.(SELECTORS.tabFavorites) || node.matches?.(SELECTORS.tabAllTemplate)) return true;
+    if (node.id === 'scroll-box-root' || node.matches?.(SELECTORS.scrollBoxRoot)) return true;
+    if (node.querySelector?.(SELECTORS.tabsGroup) || node.querySelector?.(SELECTORS.wrapperTabs)) return true;
+    if (node.querySelector?.('[data-omnichat-templates-overlay]')) return true;
+    return false;
+  }
+
   function hideNativeTemplateContent(templatesBox, hidden) {
     if (!templatesBox) return;
+    // Сам scroll-box шаблонов никогда не скрываем — только нативные children
+    templatesBox.classList.remove(CSS.nativeHidden);
     templatesBox.querySelectorAll(':scope > *').forEach((child) => {
       if (child.hasAttribute('data-omnichat-templates-overlay')) return;
       child.classList.toggle(CSS.nativeHidden, hidden);
@@ -174,6 +216,8 @@
 
   function ensureTemplatesOverlay(templatesBox) {
     if (!templatesBox) return null;
+
+    templatesBox.classList.remove(CSS.nativeHidden);
 
     const savedHeight = templatesBox.offsetHeight;
     if (savedHeight > 0) {
@@ -198,19 +242,19 @@
 
   function hideNativeSearchRow(searchRow) {
     if (!searchRow) return;
+    // Нельзя скрывать вкладки / scroll-box шаблонов, если searchRow оказался слишком широким
     searchRow.querySelectorAll(':scope > *').forEach((child) => {
-      if (!child.hasAttribute('data-omnichat-search-host')) {
-        child.classList.add(CSS.nativeHidden);
-      }
+      if (isProtectedLayoutNode(child)) return;
+      child.classList.add(CSS.nativeHidden);
     });
   }
 
   function showNativeSearchRow(searchRow) {
     if (!searchRow) return;
     searchRow.querySelectorAll(':scope > *').forEach((child) => {
-      if (!child.hasAttribute('data-omnichat-search-host')) {
-        child.classList.remove(CSS.nativeHidden);
-      }
+      if (child.hasAttribute('data-omnichat-search-host')) return;
+      if (isProtectedLayoutNode(child)) return;
+      child.classList.remove(CSS.nativeHidden);
     });
   }
 
@@ -222,7 +266,8 @@
     host.setAttribute('data-omnichat-search-host', 'true');
     host.className = 'omnichat-ext-search-host';
 
-    const sampleInput = searchRow.querySelector(SELECTORS.searchTemplate);
+    const sampleInput = searchRow.querySelector(SELECTORS.searchTemplate)
+      || O.getModal()?.querySelector(SELECTORS.searchTemplate);
     const input = document.createElement('input');
     input.type = 'search';
     input.className = 'omnichat-ext-search-input';
@@ -237,12 +282,26 @@
     return host;
   }
 
+  function resolveSearchMount(searchRow) {
+    if (searchRow && !searchRow.matches?.(SELECTORS.tabsGroup) && !searchRow.querySelector?.(SELECTORS.tabsGroup)) {
+      return searchRow;
+    }
+
+    const layout = O.getModalLayout();
+    const narrow = layout?.searchRow;
+    if (narrow && !narrow.querySelector?.(SELECTORS.tabsGroup)) return narrow;
+
+    const nativeSearch = layout?.modal?.querySelector(SELECTORS.searchTemplate);
+    return nativeSearch?.parentElement?.parentElement || nativeSearch?.parentElement || null;
+  }
+
   function setupAdditionalSearch(searchRow) {
-    if (!searchRow) return;
+    const mount = resolveSearchMount(searchRow);
+    if (!mount) return;
 
-    hideNativeSearchRow(searchRow);
+    hideNativeSearchRow(mount);
 
-    const host = ensureSearchHost(searchRow);
+    const host = ensureSearchHost(mount);
     host.classList.remove(CSS.nativeHidden);
 
     const input = host.querySelector('input');
@@ -259,7 +318,8 @@
   }
 
   function restoreAdditionalSearch(searchRow) {
-    if (!searchRow) return;
+    const mount = resolveSearchMount(searchRow) || searchRow;
+    if (!mount) return;
 
     if (state.searchInput && state.searchInputHandler) {
       state.searchInput.removeEventListener('input', state.searchInputHandler);
@@ -267,16 +327,24 @@
 
     state.searchInput = null;
     state.searchInputHandler = null;
-    searchRow.querySelector('[data-omnichat-search-host]')?.classList.add(CSS.nativeHidden);
-    showNativeSearchRow(searchRow);
+    mount.querySelector('[data-omnichat-search-host]')?.classList.add(CSS.nativeHidden);
+    // Хост мог остаться в другом mount после смены вёрстки
+    state.searchHost?.classList.add(CSS.nativeHidden);
+    showNativeSearchRow(mount);
   }
 
   O.activateAdditionalTab = function () {
     const layout = O.getModalLayout();
-    if (!layout?.categoriesCol || !layout.templates) return;
+    if (!layout?.templates) return;
 
-    buildFilterHost(layout.categoriesCol);
-    state.filterHost?.classList.remove(CSS.nativeHidden);
+    // Вкладки должны оставаться видимыми всегда
+    layout.tabsGroup?.classList.remove(CSS.nativeHidden);
+    layout.tabsGroup?.querySelector(SELECTORS.wrapperTabs)?.classList.remove(CSS.nativeHidden);
+
+    if (layout.categoriesCol && !layout.categoriesCol.closest(SELECTORS.titleModal)) {
+      buildFilterHost(layout.categoriesCol);
+      state.filterHost?.classList.remove(CSS.nativeHidden);
+    }
     layout.categories?.classList.add(CSS.nativeHidden);
 
     setupAdditionalSearch(layout.searchRow);
@@ -297,6 +365,7 @@
 
     state.filterHost?.classList.add(CSS.nativeHidden);
     layout?.categories?.classList.remove(CSS.nativeHidden);
+    layout?.tabsGroup?.classList.remove(CSS.nativeHidden);
     hideNativeTemplateContent(layout?.templates, false);
     state.templatesOverlay?.classList.add(CSS.nativeHidden);
 
@@ -444,6 +513,11 @@
       btn.className = state.tabClasses?.inactiveBtn || '';
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
+        // Повторный клик по уже активной вкладке — только восстановить подсветку, без re-cache
+        if (state.isAdditionalTabActive) {
+          setAdditionalTabSelected(true);
+          return;
+        }
         O.trackEvent('omnichat_templates_tab_open');
         O.activateAdditionalTab();
       });
@@ -495,8 +569,15 @@
 
     const layout = O.getModalLayout();
     layout?.categories?.classList.remove(CSS.nativeHidden);
+    layout?.tabsGroup?.classList.remove(CSS.nativeHidden);
+    layout?.templates?.classList.remove(CSS.nativeHidden);
     hideNativeTemplateContent(layout?.templates, false);
     restoreAdditionalSearch(layout?.searchRow);
+
+    // На всякий случай снимаем ошибочно навешанные hidden с вкладок
+    document.querySelectorAll(
+      `${SELECTORS.tabsGroup}.${CSS.nativeHidden}, ${SELECTORS.wrapperTabs}.${CSS.nativeHidden}`
+    ).forEach((el) => el.classList.remove(CSS.nativeHidden));
   };
 
   function observeModalClose() {

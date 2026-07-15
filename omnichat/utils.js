@@ -254,38 +254,52 @@
     return document.querySelector(O.SELECTORS.modal);
   };
 
-  O.getModalScrollBoxes = function () {
-    const modal = O.getModal();
-    if (!modal) return { categories: null, templates: null };
+  /**
+   * Находит «ряд» нативных контролов поиска (search-template + sorting),
+   * не захватывая вкладки и список шаблонов.
+   * Важно: в Omnichat 3.26+ старый sc-jBOuCM обёртка стала шире и включала tabs —
+   * hideNativeSearchRow тогда скрывал «Дополнительно».
+   */
+  O.findSearchControlsRow = function (modal, tabsGroup) {
+    if (!modal) return null;
 
-    const categoriesCol = modal.querySelector(O.SELECTORS.modalCategoriesCol);
-    const categories = categoriesCol?.querySelector(O.SELECTORS.scrollBoxRoot) || null;
+    const searchInput = modal.querySelector(O.SELECTORS.searchTemplate);
+    if (!searchInput) return null;
 
-    const tabsGroup = modal.querySelector(O.SELECTORS.tabsGroup);
-    let templates = null;
-    if (tabsGroup) {
-      let sibling = tabsGroup.nextElementSibling;
-      while (sibling) {
-        if (sibling.id === 'scroll-box-root') {
-          templates = sibling;
-          break;
-        }
-        sibling = sibling.nextElementSibling;
+    // Идём вверх, пока не упрёмся в предка, который уже содержит вкладки
+    let el = searchInput.parentElement;
+    let candidate = el;
+
+    while (el && el !== modal) {
+      if (tabsGroup && el.contains(tabsGroup)) break;
+
+      const hasSorting = Boolean(el.querySelector(O.SELECTORS.modalSorting));
+      const hasSearch = Boolean(el.querySelector(O.SELECTORS.searchTemplate));
+      if (hasSearch || hasSorting) candidate = el;
+
+      // Родитель содержит tabs как соседа — candidate = ряд поиска
+      const parent = el.parentElement;
+      if (parent && tabsGroup && parent.contains(tabsGroup) && !el.contains(tabsGroup)) {
+        return el;
       }
+
+      el = parent;
     }
 
-    if (!templates) {
-      const boxes = modal.querySelectorAll(O.SELECTORS.scrollBoxRoot);
-      templates = boxes[boxes.length - 1] || null;
-    }
+    return candidate;
+  };
 
-    return { categories, templates };
+  O.getModalScrollBoxes = function () {
+    const layout = O.getModalLayout();
+    return {
+      categories: layout?.categories || null,
+      templates: layout?.templates || null
+    };
   };
 
   O.isModalReady = function () {
-    const tabsGroup = document.querySelector(O.SELECTORS.tabsGroup);
-    const { templates } = O.getModalScrollBoxes();
-    return Boolean(tabsGroup && templates);
+    const layout = O.getModalLayout();
+    return Boolean(layout?.tabsGroup && layout?.templates);
   };
 
   O.getChatMessagesContainer = function () {
@@ -314,14 +328,52 @@
     const modal = O.getModal();
     if (!modal) return null;
 
-    const scrollBoxes = O.getModalScrollBoxes();
+    const tabsGroup = modal.querySelector(O.SELECTORS.tabsGroup);
+    const boxes = Array.from(modal.querySelectorAll(O.SELECTORS.scrollBoxRoot));
+
+    // Левая колонка: scroll-box со списком категорий
+    const categories = boxes.find((box) => box.querySelector(O.SELECTORS.listElement)) || null;
+    // Не title-modal: parent scroll-box-а со списком
+    let categoriesCol = categories?.parentElement || null;
+    if (categoriesCol?.closest?.(O.SELECTORS.titleModal)) {
+      categoriesCol = categories?.parentElement?.parentElement || categoriesCol;
+    }
+
+    // Правая колонка: scroll-box сразу после вкладок, иначе со списком reply-template
+    let templates = null;
+    if (tabsGroup) {
+      let sibling = tabsGroup.nextElementSibling;
+      while (sibling) {
+        if (sibling.id === 'scroll-box-root' || sibling.matches?.(O.SELECTORS.scrollBoxRoot)) {
+          templates = sibling;
+          break;
+        }
+        sibling = sibling.nextElementSibling;
+      }
+    }
+
+    if (!templates) {
+      templates = boxes.find((box) =>
+        box !== categories && (
+          box.querySelector(O.SELECTORS.replyTemplate) ||
+          box.querySelector('[data-omnichat-templates-overlay]')
+        )
+      ) || null;
+    }
+
+    if (!templates) {
+      templates = boxes.filter((box) => box !== categories).pop() || null;
+    }
+
+    const searchRow = O.findSearchControlsRow(modal, tabsGroup);
+
     return {
       modal,
-      categoriesCol: modal.querySelector(O.SELECTORS.modalCategoriesCol),
-      searchRow: modal.querySelector(O.SELECTORS.modalSearchRow),
-      tabsGroup: modal.querySelector(O.SELECTORS.tabsGroup),
-      categories: scrollBoxes.categories,
-      templates: scrollBoxes.templates
+      categoriesCol,
+      searchRow,
+      tabsGroup,
+      categories,
+      templates
     };
   };
 

@@ -17,8 +17,9 @@
     appealPreview: '[data-testid="appeal-preview"]',
     chatMessage: '[data-messageid]',
     draftEditorContent: '.public-DraftEditor-content[contenteditable="true"]',
-    modalCategoriesCol: '.sc-frssml',
-    modalSearchRow: '.sc-jBOuCM',
+    // sc-* классы styled-components нестабильны (ломаются при обновлении Omnichat).
+    // layout ищется структурно в getModalLayout() по data-testid.
+    listElement: '[data-testid="list-element"]',
     modalSorting: '[data-testid="sorting"]'
   };
 

@@ -30,90 +30,224 @@ function safelyExecute(callback, errorMsg = 'Ошибка') {
 }
 
 // ==================== АВТОПОИСК ИЗ OMNICHAT ====================
-function fillSearchAndExecute() {
-  chrome.storage.local.get(['ttmSearchData'], (result) => {
-    if (!result.ttmSearchData) {
-      return;
-    }
-    
-    const { searchValue, timestamp } = result.ttmSearchData;
-    
-    // Проверяем, не устарели ли данные (30 секунд)
-    if (Date.now() - timestamp > 30000) {
-      chrome.storage.local.remove(['ttmSearchData']);
-      return;
-    }
-    
-    console.log('[TTM] Автопоиск:', searchValue);
-    trackEvent('ttm_autosearch');
-    chrome.storage.local.remove(['ttmSearchData']);
-    
-    // Ищем поле поиска
-    const searchInput = document.querySelector('[data-qa-id="ticket-global-search-input"]') ||
-                        document.querySelector('#searchField') ||
-                        document.querySelector('input[placeholder*="быстрый поиск" i]') ||
-                        document.querySelector('input[placeholder*="поиск" i]');
-    
-    if (!searchInput) {
-      console.warn('[TTM] Поле поиска не найдено');
-      return;
-    }
-    
-    // Находим форму
-    const searchForm = searchInput.closest('form');
-    
-    // Заполняем поле
-    searchInput.value = searchValue;
-    searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-    searchInput.dispatchEvent(new Event('change', { bubbles: true }));
-    
-    // Фокусируемся и запускаем поиск
-    setTimeout(() => {
-      searchInput.focus();
-      
-      // Способ 1: Submit формы (самый надежный)
-      if (searchForm) {
-        console.log('[TTM] Отправка формы поиска');
-        searchForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-      }
-      
-      // Способ 2: Клик по кнопке поиска
-      const searchButton = document.querySelector('[data-qa-id="ticket-global-search-input-icon"]')?.closest('button') ||
-                           searchForm?.querySelector('button[type="submit"]');
-      if (searchButton) {
-        console.log('[TTM] Клик по кнопке поиска');
-        searchButton.click();
-      }
-      
-      // Способ 3: Enter для надежности
-      const enterEvent = new KeyboardEvent('keydown', {
-        key: 'Enter',
-        code: 'Enter',
-        keyCode: 13,
-        which: 13,
-        bubbles: true,
-        cancelable: true
+// Важно: один submit на одну целевую вкладку.
+// Раньше: submit + click + 3×Enter и поиск во ВСЕХ открытых TTM → антиспам TTM.
+const TTM_SEARCH_TTL_MS = 20000;
+const TTM_SEARCH_RETRY_MS = 700;
+const TTM_SEARCH_SUBMIT_DELAY_MS = 350;
+let ttmAutoSearchDone = false;
+let ttmAutoSearchInProgress = false;
+let ttmAutoSearchObserver = null;
+let ttmAutoSearchTimer = null;
+let ttmAutoSearchStopTimer = null;
+let myTtmTabId = null;
+let myTtmTabIdPromise = null;
+
+function getMyTtmTabId() {
+  if (myTtmTabId != null) return Promise.resolve(myTtmTabId);
+  if (myTtmTabIdPromise) return myTtmTabIdPromise;
+
+  myTtmTabIdPromise = new Promise((resolve) => {
+    try {
+      chrome.runtime.sendMessage({ action: 'getTabId' }, (response) => {
+        if (chrome.runtime.lastError) {
+          myTtmTabIdPromise = null;
+          resolve(null);
+          return;
+        }
+        myTtmTabId = response?.tabId ?? null;
+        resolve(myTtmTabId);
       });
-      searchInput.dispatchEvent(enterEvent);
-      
-      console.log('[TTM] Поиск выполнен для:', searchValue);
-    }, 300);
+    } catch (e) {
+      myTtmTabIdPromise = null;
+      resolve(null);
+    }
+  });
+  return myTtmTabIdPromise;
+}
+
+function findTtmSearchInput() {
+  return document.querySelector('app-ticket-global-search input[data-qa-id="ticket-global-search-input"]')
+    || document.querySelector('[data-qa-id="ticket-global-search-input"]')
+    || document.querySelector('app-ticket-global-search #searchField')
+    || document.querySelector('#searchField')
+    || document.querySelector('app-ticket-global-search input[formcontrolname="searchInputControl"]')
+    || document.querySelector('input[formcontrolname="searchInputControl"]')
+    || document.querySelector('app-ticket-global-search input.mat-input-element')
+    || document.querySelector('input[placeholder*="быстрый поиск" i]');
+}
+
+function setNativeInputValue(input, value) {
+  const descriptor = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value');
+  if (descriptor?.set) {
+    descriptor.set.call(input, value);
+  } else {
+    input.value = value;
+  }
+  // Одно событие input — достаточно для Angular FormControl
+  try {
+    input.dispatchEvent(new InputEvent('input', { bubbles: true, data: value, inputType: 'insertText' }));
+  } catch (e) {
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+}
+
+function runTtmSearch(searchInput, searchValue) {
+  setNativeInputValue(searchInput, searchValue);
+
+  setTimeout(() => {
+    try { searchInput.focus(); } catch (e) { /* ignore */ }
+
+    // Ровно один способ отправки: кнопка поиска, иначе один Enter (keydown)
+    const searchForm = searchInput.closest('form')
+      || searchInput.closest('app-ticket-global-search')?.querySelector('form');
+    const searchButton = document.querySelector('[data-qa-id="ticket-global-search-input-icon"]')?.closest('button')
+      || searchForm?.querySelector('button[type="submit"]')
+      || searchInput.closest('mat-form-field')?.querySelector('button.mat-focus-indicator')
+      || searchInput.closest('mat-form-field')?.querySelector('button');
+
+    if (searchButton) {
+      searchButton.click();
+      console.log('[TTM] Поиск (кнопка):', searchValue);
+      return;
+    }
+
+    searchInput.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'Enter',
+      code: 'Enter',
+      keyCode: 13,
+      which: 13,
+      bubbles: true,
+      cancelable: true
+    }));
+    console.log('[TTM] Поиск (Enter):', searchValue);
+  }, TTM_SEARCH_SUBMIT_DELAY_MS);
+}
+
+function stopTtmAutoSearchWatchers() {
+  if (ttmAutoSearchTimer) {
+    clearTimeout(ttmAutoSearchTimer);
+    ttmAutoSearchTimer = null;
+  }
+  if (ttmAutoSearchStopTimer) {
+    clearTimeout(ttmAutoSearchStopTimer);
+    ttmAutoSearchStopTimer = null;
+  }
+  if (ttmAutoSearchObserver) {
+    ttmAutoSearchObserver.disconnect();
+    ttmAutoSearchObserver = null;
+  }
+}
+
+function isSearchDataForThisTab(data, tabId) {
+  if (!data?.searchValue) return false;
+  if (data.timestamp && Date.now() - data.timestamp > TTM_SEARCH_TTL_MS) return false;
+  // С targetTabId — строго одна вкладка. Без него (legacy) — не трогаем чужие фоновые вкладки.
+  if (data.targetTabId != null) {
+    return tabId != null && Number(data.targetTabId) === Number(tabId);
+  }
+  return document.visibilityState === 'visible';
+}
+
+function fillSearchAndExecute() {
+  if (ttmAutoSearchDone || ttmAutoSearchInProgress) return;
+  ttmAutoSearchInProgress = true;
+
+  getMyTtmTabId().then((tabId) => {
+    chrome.storage.local.get(['ttmSearchData'], (result) => {
+      ttmAutoSearchInProgress = false;
+
+      if (ttmAutoSearchDone) return;
+
+      const data = result.ttmSearchData;
+      if (!data) {
+        stopTtmAutoSearchWatchers();
+        return;
+      }
+
+      if (!data.searchValue || (data.timestamp && Date.now() - data.timestamp > TTM_SEARCH_TTL_MS)) {
+        chrome.storage.local.remove(['ttmSearchData']);
+        stopTtmAutoSearchWatchers();
+        return;
+      }
+
+      // Чужая вкладка — сразу выходим, не поллим
+      if (!isSearchDataForThisTab(data, tabId)) {
+        stopTtmAutoSearchWatchers();
+        return;
+      }
+
+      const searchInput = findTtmSearchInput();
+      if (!searchInput) {
+        // Поле ещё не в DOM — ждём retry/observer, данные не удаляем
+        return;
+      }
+
+      // Claim до submit, чтобы observer/retry не запустили второй поиск
+      ttmAutoSearchDone = true;
+      stopTtmAutoSearchWatchers();
+      chrome.storage.local.remove(['ttmSearchData']);
+
+      console.log('[TTM] Автопоиск:', data.searchValue);
+      trackEvent('ttm_autosearch');
+      runTtmSearch(searchInput, data.searchValue);
+    });
   });
 }
 
 function initAutoSearch() {
-  // Запускаем с задержкой, чтобы страница успела загрузиться
-  if (document.readyState === 'complete') {
-    setTimeout(fillSearchAndExecute, 500);
-  } else {
-    window.addEventListener('load', () => {
-      setTimeout(fillSearchAndExecute, 500);
+  stopTtmAutoSearchWatchers();
+  // Не сбрасываем done, если уже успешно искали в этой загрузке страницы
+  // (повторный init только для новой порции данных — вызывающий код сбрасывает done)
+
+  const scheduleRetry = () => {
+    if (ttmAutoSearchDone) return;
+    ttmAutoSearchTimer = setTimeout(() => {
+      fillSearchAndExecute();
+      if (!ttmAutoSearchDone) scheduleRetry();
+    }, TTM_SEARCH_RETRY_MS);
+  };
+
+  // Сначала проверяем, наши ли это данные — иначе не вешаем observer
+  getMyTtmTabId().then((tabId) => {
+    chrome.storage.local.get(['ttmSearchData'], (result) => {
+      const data = result.ttmSearchData;
+      if (!data || !isSearchDataForThisTab(data, tabId)) {
+        return;
+      }
+
+      fillSearchAndExecute();
+      scheduleRetry();
+
+      let observerDebounce = null;
+      ttmAutoSearchObserver = new MutationObserver(() => {
+        if (ttmAutoSearchDone) return;
+        if (observerDebounce) clearTimeout(observerDebounce);
+        observerDebounce = setTimeout(() => {
+          if (!ttmAutoSearchDone && findTtmSearchInput()) {
+            fillSearchAndExecute();
+          }
+        }, 250);
+      });
+      ttmAutoSearchObserver.observe(document.documentElement, { childList: true, subtree: true });
+
+      ttmAutoSearchStopTimer = setTimeout(() => {
+        if (!ttmAutoSearchDone) {
+          stopTtmAutoSearchWatchers();
+          chrome.storage.local.get(['ttmSearchData'], (r) => {
+            const d = r.ttmSearchData;
+            if (d && isSearchDataForThisTab(d, tabId)
+                && d.timestamp && Date.now() - d.timestamp > TTM_SEARCH_TTL_MS) {
+              chrome.storage.local.remove(['ttmSearchData']);
+              console.warn('[TTM] Поле поиска не найдено за отведённое время');
+            }
+          });
+        } else {
+          stopTtmAutoSearchWatchers();
+        }
+      }, TTM_SEARCH_TTL_MS + 500);
     });
-  }
-  // Дополнительная попытка через 1 секунду
-  setTimeout(fillSearchAndExecute, 1000);
-  // И через 2 секунды
-  setTimeout(fillSearchAndExecute, 2000);
+  });
 }
 
 // ==================== ПОЛУЧЕНИЕ ДАННЫХ ИЗ TTM ====================
@@ -460,12 +594,21 @@ function openAssistantForm() {
       clientRF,
       timestamp: Date.now()
     };
-    
-    chrome.storage.local.set({ ttmFormData: formData }, () => {
-      chrome.runtime.sendMessage({
-        action: 'openForm',
-        url: 'https://bzbti.rt.ru/vip/ispolzovanie-assistenta/'
-      });
+
+    // Данные + targetTabId выставляет background после создания вкладки формы,
+    // чтобы другие уже открытые вкладки формы/TTM не подхватили чужую заявку.
+    chrome.runtime.sendMessage({
+      action: 'openAssistantForm',
+      url: 'https://bzbti.rt.ru/vip/ispolzovanie-assistenta/',
+      formData
+    }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.error('[TTM] openAssistantForm:', chrome.runtime.lastError.message);
+        return;
+      }
+      if (!response?.success) {
+        console.error('[TTM] Не удалось открыть форму:', response?.error);
+      }
     });
   }, 'Ошибка при открытии формы');
 }
@@ -1080,6 +1223,22 @@ function clearCommentBuilderDraft(ticketNumber) {
 function handleVolgaHelpPaste(pending) {
   if (!pending?.text || !pending.commentEditorQaId) return;
   if (pending.timestamp && pending.timestamp === lastVolgaHelpPasteTimestamp) return;
+
+  // storage.onChanged приходит во ВСЕ вкладки TTM. Вставляем только в целевую заявку,
+  // остальные вкладки молча игнорируют (без alert об ошибке вставки).
+  const currentTicket = getIncidentNumber();
+  if (pending.ticketNumber) {
+    if (!currentTicket || String(currentTicket) !== String(pending.ticketNumber)) {
+      return;
+    }
+  }
+
+  const editor = document.querySelector(`[data-qa-id="${pending.commentEditorQaId}"] .ql-editor`);
+  if (!editor) {
+    // Редактор другой вкладки / другой карточки — не наша цель
+    return;
+  }
+
   if (pending.timestamp) lastVolgaHelpPasteTimestamp = pending.timestamp;
 
   const inserted = replaceCommentEditorText(pending.commentEditorQaId, pending.text);
@@ -1127,8 +1286,8 @@ function checkUrlChange() {
     setTimeout(tryAddButton, 500);
     setTimeout(tryAddButton, 1500);
     setTimeout(tryAddButton, 3000);
-    // Пробуем автопоиск при навигации
-    setTimeout(fillSearchAndExecute, 1000);
+    // Автопоиск при SPA-навигации НЕ перезапускаем:
+    // смена URL после первого поиска иначе снова дергала бы API и антиспам TTM.
   }
 }
 
@@ -1168,6 +1327,15 @@ function init() {
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes.volgaHelpPastePending?.newValue) {
     handleVolgaHelpPaste(changes.volgaHelpPastePending.newValue);
+  }
+
+  if (area === 'local' && changes.ttmSearchData?.newValue) {
+    const data = changes.ttmSearchData.newValue;
+    getMyTtmTabId().then((tabId) => {
+      if (!isSearchDataForThisTab(data, tabId)) return;
+      ttmAutoSearchDone = false;
+      initAutoSearch();
+    });
   }
 
   if (area === 'local' && changes.settings) {

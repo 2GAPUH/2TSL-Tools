@@ -53,9 +53,56 @@ async function createExtensionTab(url, senderTabId) {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'openForm') {
     createExtensionTab(request.url, sender.tab?.id)
-      .then(() => sendResponse({ success: true }))
+      .then((tab) => sendResponse({ success: true, tabId: tab?.id }))
       .catch((error) => sendResponse({ success: false, error: error.message }));
     return true;
+  }
+
+  // Форма ассистента: сначала создаём вкладку, затем пишем ttmFormData с targetTabId.
+  // Иначе все уже открытые вкладки формы могут прочитать чужие данные заявки.
+  if (request.action === 'openAssistantForm') {
+    createExtensionTab(request.url, sender.tab?.id)
+      .then(async (tab) => {
+        const formData = {
+          ...(request.formData || {}),
+          targetTabId: tab.id,
+          sourceTabId: sender.tab?.id || null,
+          timestamp: Date.now()
+        };
+        await chrome.storage.local.set({ ttmFormData: formData });
+        sendResponse({ success: true, tabId: tab.id });
+      })
+      .catch((error) => sendResponse({ success: false, error: error.message }));
+    return true;
+  }
+
+  // Omnichat → TTM: одна новая вкладка + search data только для неё (не для всех TTM-вкладок).
+  if (request.action === 'openTtmSearch') {
+    const searchValue = String(request.searchValue || '').replace(/\s+/g, '');
+    if (!searchValue) {
+      sendResponse({ success: false, error: 'empty_search' });
+      return false;
+    }
+
+    createExtensionTab(request.url || 'https://www.ttm.rt.ru/', sender.tab?.id)
+      .then(async (tab) => {
+        await chrome.storage.local.set({
+          ttmSearchData: {
+            searchValue,
+            targetTabId: tab.id,
+            sourceTabId: sender.tab?.id || null,
+            timestamp: Date.now()
+          }
+        });
+        sendResponse({ success: true, tabId: tab.id });
+      })
+      .catch((error) => sendResponse({ success: false, error: error.message }));
+    return true;
+  }
+
+  if (request.action === 'getTabId') {
+    sendResponse({ success: true, tabId: sender.tab?.id ?? null });
+    return false;
   }
 
   if (request.action === 'trackEvent') {

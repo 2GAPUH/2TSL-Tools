@@ -9,15 +9,13 @@
     }
 
     const cleanValue = searchValue.replace(/\s+/g, '');
-    O.storageSet({
-      ttmSearchData: {
-        searchValue: cleanValue,
-        timestamp: Date.now()
-      }
-    }).then(() => O.sendExtensionMessage({
-      action: 'openForm',
-      url: 'https://www.ttm.rt.ru/'
-    })).catch(() => {});
+    // Вкладку создаёт background и только потом пишет ttmSearchData с targetTabId,
+    // чтобы другие уже открытые TTM-вкладки не запускали поиск (антиспам TTM).
+    O.sendExtensionMessage({
+      action: 'openTtmSearch',
+      url: 'https://www.ttm.rt.ru/',
+      searchValue: cleanValue
+    }).catch(() => {});
   }
 
   function createClickableLink(text, value, linkType = 'ticket') {

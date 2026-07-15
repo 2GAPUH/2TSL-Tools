@@ -3,7 +3,7 @@
   const { state, SELECTORS } = O;
 
   function init() {
-    console.log('[Omnichat] v9.1 — модульная версия');
+    console.log('[Omnichat] v9.2 — стабильные селекторы модалки (без sc-*)');
 
     if (!O.isContextValid()) {
       O.handleContextInvalidated();
