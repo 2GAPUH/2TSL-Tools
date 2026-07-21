@@ -32,3 +32,4 @@ AI_CONTEXT.md
 agent-tools/analyze_argus2.py
 agent-tools/analyze_argus3.py
 agent-tools/analyze_argus.py
+agent-tools/probe_fixmypc.py

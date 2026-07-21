@@ -14,6 +14,7 @@
     searchHost: null,
     templatesOverlay: null,
     templatesGuardObserver: null,
+    templatesGuardTimer: null,
     tabClasses: null,
     ttmLinksObservers: [],
     linkRootsWatcher: null,

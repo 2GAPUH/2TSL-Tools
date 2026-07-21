@@ -106,6 +106,12 @@
   }
 
   function stopTemplatesGuard() {
+    // Важно: сбрасывать отложенный setTimeout, иначе после ухода с «Дополнительно»
+    // таймер снова скроет нативный список и покажет оверлей своих шаблонов.
+    if (state.templatesGuardTimer) {
+      clearTimeout(state.templatesGuardTimer);
+      state.templatesGuardTimer = null;
+    }
     if (state.templatesGuardObserver) {
       state.templatesGuardObserver.disconnect();
       state.templatesGuardObserver = null;
@@ -116,11 +122,12 @@
     stopTemplatesGuard();
     if (!templatesBox) return;
 
-    let timer = null;
     state.templatesGuardObserver = new MutationObserver(() => {
       if (!state.isAdditionalTabActive) return;
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => {
+      if (state.templatesGuardTimer) clearTimeout(state.templatesGuardTimer);
+      state.templatesGuardTimer = setTimeout(() => {
+        state.templatesGuardTimer = null;
+        if (!state.isAdditionalTabActive) return;
         hideNativeTemplateContent(templatesBox, true);
         state.templatesOverlay?.classList.remove(CSS.nativeHidden);
       }, 0);
@@ -211,6 +218,30 @@
     templatesBox.querySelectorAll(':scope > *').forEach((child) => {
       if (child.hasAttribute('data-omnichat-templates-overlay')) return;
       child.classList.toggle(CSS.nativeHidden, hidden);
+    });
+  }
+
+  /** Полностью убрать UI «Дополнительно» из колонки шаблонов и вернуть нативный список. */
+  function restoreNativeTemplatesView(templatesBox) {
+    if (!templatesBox) return;
+
+    templatesBox.querySelectorAll('[data-omnichat-templates-overlay]').forEach((overlay) => {
+      overlay.textContent = '';
+      overlay.classList.add(CSS.nativeHidden);
+    });
+
+    templatesBox.classList.remove(CSS.nativeHidden);
+    templatesBox.querySelectorAll(':scope > *').forEach((child) => {
+      if (child.hasAttribute('data-omnichat-templates-overlay')) return;
+      child.classList.remove(CSS.nativeHidden);
+    });
+
+    // На случай, если nativeHidden остался на вложенных нативных узлах
+    templatesBox.querySelectorAll(`.${CSS.nativeHidden}`).forEach((el) => {
+      if (el.hasAttribute('data-omnichat-templates-overlay')) return;
+      if (el.hasAttribute('data-omnichat-search-host')) return;
+      if (el.hasAttribute('data-omnichat-filter-host')) return;
+      el.classList.remove(CSS.nativeHidden);
     });
   }
 
@@ -361,18 +392,24 @@
   O.deactivateAdditionalTab = function () {
     if (!state.isAdditionalTabActive) return;
 
+    // Сразу снимаем флаг и гард, чтобы отложенный setTimeout не вернул оверлей.
+    state.isAdditionalTabActive = false;
+    stopTemplatesGuard();
+    state.currentLoadingId++;
+
     const layout = O.getModalLayout();
 
     state.filterHost?.classList.add(CSS.nativeHidden);
     layout?.categories?.classList.remove(CSS.nativeHidden);
     layout?.tabsGroup?.classList.remove(CSS.nativeHidden);
-    hideNativeTemplateContent(layout?.templates, false);
-    state.templatesOverlay?.classList.add(CSS.nativeHidden);
+
+    restoreNativeTemplatesView(layout?.templates);
+    if (state.templatesOverlay) {
+      state.templatesOverlay.textContent = '';
+      state.templatesOverlay.classList.add(CSS.nativeHidden);
+    }
 
     restoreAdditionalSearch(layout?.searchRow);
-    stopTemplatesGuard();
-
-    state.isAdditionalTabActive = false;
     setAdditionalTabSelected(false);
   };
 
@@ -535,11 +572,23 @@
           if (e.target.closest(SELECTORS.tabAdditional)) return;
           const nativeTab = e.target.closest(`${SELECTORS.tabFavorites}, ${SELECTORS.tabAllTemplate}`);
           if (!nativeTab) return;
+
+          const wasAdditional = state.isAdditionalTabActive;
           O.deactivateAdditionalTab();
+
+          // Подсветка нативных вкладок; при уходе с «Дополнительно» ещё раз
+          // гарантируем показ нативного списка (после возможного React re-render).
           applyTabButtonStyle(nativeTab, true);
           wrapperTabs.querySelectorAll(`${SELECTORS.tabFavorites}, ${SELECTORS.tabAllTemplate}`).forEach((btn) => {
             if (btn !== nativeTab) applyTabButtonStyle(btn, false);
           });
+
+          if (wasAdditional) {
+            requestAnimationFrame(() => {
+              const layout = O.getModalLayout();
+              restoreNativeTemplatesView(layout?.templates);
+            });
+          }
         }, true);
       }
 
