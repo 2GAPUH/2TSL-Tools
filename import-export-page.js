@@ -14,6 +14,8 @@ const DEFAULT_SETTINGS = {
   ttmSipal: true,
   omnichatTTMLinks: true,
   darkMode: false,
+  argusDarkTheme: false,
+  argusDarkPalette: 'slate',
   analyticsEnabled: true,
   popupLayoutScale: null,
   popupTabSizes: null,

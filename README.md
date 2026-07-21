@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <b>Версия:</b> 0.7.7 &nbsp;·&nbsp;
+  <b>Версия:</b> 0.7.11 &nbsp;·&nbsp;
   <b>Манифест:</b> V3 &nbsp;·&nbsp;
   <b>Зависимости:</b> 0 (расширение) &nbsp;·&nbsp;
   <b>Объём кода:</b> ~10 000+ строк
@@ -27,7 +27,7 @@
 | 🌐 **Grafana → SSH** | Кликабельные IP-адреса в дашбордах с автоматическим переходом на SSH-терминал |
 | 📈 **Аналитика** | Анонимная статистика использования через Google Таблицы (батч раз в 30 мин) |
 | 💬 **Обратная связь** | Отправка отзывов и багрепортов из настроек расширения |
-| 🌙 **Тёмная тема** | Поддержка светлой и тёмной темы во всех интерфейсах |
+| 🌙 **Тёмная тема** | Тёмная тема popup и отдельная тёмная тема Argus (Волга / Юг / СЗ) |
 | ⚙️ **Гибкие настройки** | Переключатели модулей, масштаб popup, порядок шаблонов |
 | 💾 **Резервная копия** | Импорт/экспорт шаблонов: JSON-файл (всем) и облако по токену |
 | ↕️ **Порядок шаблонов** | Кнопки ▲/▼ или перетаскивание — на выбор в настройках |
@@ -69,6 +69,8 @@ Grafana (IP-адреса)
 ├── content-ttm.js              # TTM: кнопки, автопоиск, конструктор комментариев
 ├── content-form.js             # Автозаполнение формы ассистента
 ├── content-volgahelp.js        # volgahelp.ru: черновики и копирование
+├── content-argus-theme.js      # Argus: тёмная тема (inject CSS)
+├── argus-dark.css              # Argus: палитра slate + framework overrides
 ├── content-grafana.js          # Grafana: IP → SSH переход
 ├── content-ssh.js              # SSH: автозаполнение IP
 ├── content-onyma.js            # Onyma: автозаполнение поиска
@@ -103,6 +105,7 @@ Grafana (IP-адреса)
 | `content-ttm.js` | `www.ttm.rt.ru` | Кнопки Ассистент / Таймер / Onyma / SIPAL; мягкий автопоиск |
 | `content-form.js` | `bzbti.rt.ru` | Автозаполнение формы ассистента (только целевая вкладка) |
 | `content-volgahelp.js` | `volgahelp.ru` | Конструктор комментария: черновики, «Скопировать всё» |
+| `content-argus-theme.js` + `argus-dark.css` | `argus.rt.ru`, `*.argus.rt.ru` | Тёмная тема Argus + портал (палитры slate/black/navy) |
 | `content-grafana.js` | `epd.rt.ru` | IP → SSH (Волга, Юг, СЗ) |
 | `content-ssh.js` | `10.x.x.x` | Автозаполнение IP |
 | `content-onyma.js` | `onymaweb.south.rt.ru` | Автопоиск ИЛС |
@@ -131,6 +134,8 @@ Grafana (IP-адреса)
 | `ttmOnyma` | ✅ | Кнопка перехода в Onyma |
 | `ttmSipal` | ✅ | Кнопка перехода в SIPAL |
 | `darkMode` | ❌ | Тёмная тема для popup |
+| `argusDarkTheme` | ❌ | Тёмная тема Argus (портал + регионы) |
+| `argusDarkPalette` | `slate` | Палитра: `slate` (как ЕПД), `black`, `navy` |
 | `analyticsEnabled` | ✅ | Анонимная статистика использования |
 | `popupUnifiedTabSize` | ❌ | Один размер окна для всех вкладок popup |
 | `templateReorderMode` | `buttons` | Порядок шаблонов: `buttons` (▲/▼) или `drag` |
@@ -216,7 +221,7 @@ python scripts/build_analytics_dashboard.py
 build.bat
 ```
 
-Нужен установленный [7-Zip](https://www.7-zip.org/). Архив: `dist/2TSL-toolbox-v0.7.7.zip` (только runtime-файлы).
+Нужен установленный [7-Zip](https://www.7-zip.org/). Архив: `dist/2TSL-toolbox-v0.7.9.zip` (только runtime-файлы).
 
 ### Обновление
 

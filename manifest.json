@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "2TSL toolbox",
-  "version": "0.7.7",
+  "version": "0.7.11",
   "description": "Набор инструментов для повышения эффективности работы: управление шаблонами, навигация между системами, напоминания и автоматизация рутинных задач.",
   "permissions": ["storage", "tabs", "notifications", "alarms", "identity", "identity.email"],
   "action": {
@@ -31,6 +31,15 @@
         "icons/check-check.png", "icons/check-check_white.png"
       ],
       "matches": ["https://omnichat.rt.ru/*", "https://www.ttm.rt.ru/*", "https://bzbti.rt.ru/*", "https://epd.rt.ru/*", "http://10.77.19.50/*", "http://10.144.39.131/*", "http://10.160.191.178/*"]
+    },
+    {
+      "resources": ["argus-dark.css"],
+      "matches": [
+        "https://argus.rt.ru/*",
+        "https://volga.argus.rt.ru/*",
+        "https://south.argus.rt.ru/*",
+        "https://sz.argus.rt.ru/*"
+      ]
     }
   ],
   "content_scripts": [
@@ -87,6 +96,16 @@
       "matches": ["https://volgahelp.ru/tag_api/comments/*"],
       "js": ["content-volgahelp.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://argus.rt.ru/*",
+        "https://volga.argus.rt.ru/*",
+        "https://south.argus.rt.ru/*",
+        "https://sz.argus.rt.ru/*"
+      ],
+      "js": ["content-argus-theme.js"],
+      "run_at": "document_start"
     }
   ],
   "host_permissions": [
@@ -100,6 +119,10 @@
     "https://onymaweb.south.rt.ru/*",
     "http://sipal.sz.rt.ru/*",
     "https://script.google.com/*",
-    "https://volgahelp.ru/*"
+    "https://volgahelp.ru/*",
+    "https://argus.rt.ru/*",
+    "https://volga.argus.rt.ru/*",
+    "https://south.argus.rt.ru/*",
+    "https://sz.argus.rt.ru/*"
   ]
 }

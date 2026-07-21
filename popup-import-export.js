@@ -8,6 +8,7 @@ const IE_MAX_BODY_LENGTH = 50000;
 const IE_SETTINGS_KEYS = [
   'omnichatTemplates', 'omnichatTTMLinks', 'ttmButton', 'accountingPanel',
   'grafanaSSH', 'reminder', 'ttmOnyma', 'ttmSipal', 'darkMode',
+  'argusDarkTheme', 'argusDarkPalette',
   'popupLayoutScale', 'popupTabSizes', 'popupUnifiedTabSize'
 ];
 
@@ -20,7 +21,9 @@ const IE_SETTINGS_LABELS = {
   reminder: 'Напоминалка',
   ttmOnyma: 'Переход TTM → Onyma',
   ttmSipal: 'Переход TTM → SIPAL',
-  darkMode: 'Тёмная тема',
+  darkMode: 'Тёмная тема popup',
+  argusDarkTheme: 'Тёмная тема Argus',
+  argusDarkPalette: 'Цвет темы Argus',
   popupUnifiedTabSize: 'Один размер для всех вкладок',
   popupLayoutScale: 'Масштаб оформления',
   popupTabSizes: 'Размеры вкладок'

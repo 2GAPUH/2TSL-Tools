@@ -96,6 +96,8 @@ let settings = {
   omnichatTTMLinks: true,
   openTabAdjacent: false,
   darkMode: false,
+  argusDarkTheme: false,
+  argusDarkPalette: 'slate',
   analyticsEnabled: true,
   popupLayoutScale: null,
   popupTabSizes: null,
@@ -144,6 +146,9 @@ const settingTTMOnyma = document.getElementById('settingTTMOnyma');
 const settingTTMSipal = document.getElementById('settingTTMSipal');
 const settingTTMCommentBuilder = document.getElementById('settingTTMCommentBuilder');
 const settingDarkMode = document.getElementById('settingDarkMode');
+const settingArgusDarkTheme = document.getElementById('settingArgusDarkTheme');
+const settingArgusDarkPalette = document.getElementById('settingArgusDarkPalette');
+const argusPaletteSettingRow = document.getElementById('argusPaletteSettingRow');
 const settingPopupPreset = document.getElementById('settingPopupPreset');
 const resetPopupLayoutBtn = document.getElementById('resetPopupLayout');
 const toggleLayoutAdvancedBtn = document.getElementById('toggleLayoutAdvanced');
@@ -762,7 +767,22 @@ function loadAllData() {
   chrome.storage.local.get(['templates', 'groups', 'settings', 'savedFormData', 'lastActiveTab', 'currentWorkingDate', 'requestsByDate', 'reminders'], (result) => {
     templates = result.templates || [];
     groups = result.groups || [];
-    settings = result.settings || { omnichatTemplates: true, ttmButton: true, accountingPanel: true, grafanaSSH: true, reminder: true, ttmOnyma: true, ttmSipal: true, ttmCommentBuilder: true, omnichatTTMLinks: true, darkMode: false, analyticsEnabled: true };
+    settings = result.settings || {
+      omnichatTemplates: true,
+      ttmButton: true,
+      accountingPanel: true,
+      grafanaSSH: true,
+      reminder: true,
+      ttmOnyma: true,
+      ttmSipal: true,
+      ttmCommentBuilder: true,
+      omnichatTTMLinks: true,
+      darkMode: false,
+      argusDarkTheme: false,
+      argusDarkPalette: 'slate',
+      analyticsEnabled: true
+    };
+    if (!settings.argusDarkPalette) settings.argusDarkPalette = 'slate';
     const hadLegacyLayout = Boolean(
       result.settings?.popupSize ||
       result.settings?.popupLayout ||
@@ -892,6 +912,8 @@ function applySettings() {
   settingTTMSipal.checked = settings.ttmSipal;
   settingTTMCommentBuilder.checked = settings.ttmCommentBuilder !== false;
   settingDarkMode.checked = settings.darkMode;
+  if (settingArgusDarkTheme) settingArgusDarkTheme.checked = settings.argusDarkTheme === true;
+  applyArgusPaletteUI();
   settingAnalytics.checked = settings.analyticsEnabled !== false;
   if (settingTemplateReorderMode) {
     settingTemplateReorderMode.value = getTemplateReorderMode();
@@ -965,6 +987,45 @@ bindSettingToggle(settingTTMOnyma, 'ttmOnyma');
 bindSettingToggle(settingTTMSipal, 'ttmSipal');
 bindSettingToggle(settingTTMCommentBuilder, 'ttmCommentBuilder');
 bindSettingToggle(settingDarkMode, 'darkMode');
+function normalizeArgusPalette(value) {
+  if (value === 'black' || value === 'navy' || value === 'slate') return value;
+  return 'slate';
+}
+
+function applyArgusPaletteUI() {
+  const enabled = settings.argusDarkTheme === true;
+  const palette = normalizeArgusPalette(settings.argusDarkPalette);
+  settings.argusDarkPalette = palette;
+  if (settingArgusDarkPalette) {
+    settingArgusDarkPalette.value = palette;
+    settingArgusDarkPalette.disabled = !enabled;
+  }
+  if (argusPaletteSettingRow) {
+    argusPaletteSettingRow.style.opacity = enabled ? '1' : '0.55';
+  }
+}
+
+if (settingArgusDarkTheme) {
+  settingArgusDarkTheme.addEventListener('change', (e) => {
+    settings.argusDarkTheme = e.target.checked;
+    if (!settings.argusDarkPalette) settings.argusDarkPalette = 'slate';
+    applyArgusPaletteUI();
+    saveSettings();
+    trackEvent(`settings_change_argusDarkTheme`);
+  });
+}
+
+if (settingArgusDarkPalette) {
+  settingArgusDarkPalette.addEventListener('change', (e) => {
+    settings.argusDarkPalette = normalizeArgusPalette(e.target.value);
+    if (!settings.argusDarkTheme) {
+      // палитра сохраняется и для будущего включения
+    }
+    saveSettings();
+    trackEvent('settings_change_argusDarkPalette');
+    trackEvent('argus_dark_palette_change');
+  });
+}
 
 // Автосброс статистики
 if (settingAutoResetShift) {

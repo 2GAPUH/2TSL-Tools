@@ -111,6 +111,10 @@ call :copy_req "content-ttm.js"
 if errorlevel 1 goto :fail
 call :copy_req "content-volgahelp.js"
 if errorlevel 1 goto :fail
+call :copy_req "content-argus-theme.js"
+if errorlevel 1 goto :fail
+call :copy_req "argus-dark.css"
+if errorlevel 1 goto :fail
 
 for %%F in (
   namespace.js

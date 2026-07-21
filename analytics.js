@@ -86,6 +86,8 @@ async function updateSettingsSnapshot() {
     ttmSipal: settings.ttmSipal !== false,
     ttmCommentBuilder: settings.ttmCommentBuilder !== false,
     darkMode: !!settings.darkMode,
+    argusDarkTheme: !!settings.argusDarkTheme,
+    argusDarkPalette: settings.argusDarkPalette || 'slate',
     templatesCount
   };
 

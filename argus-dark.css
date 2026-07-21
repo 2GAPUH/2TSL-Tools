@@ -1,0 +1,1244 @@
+/**
+ * 2TSL toolbox — тёмная тема Argus
+ * (PrimeFaces metroui / theme-family-argus + портал argus.rt.ru)
+ *
+ * Подход: CSS-токены + broad overrides по framework-классам.
+ * Без привязки к j_idt* и page-specific DOM.
+ *
+ * Палитры (data-tsl-argus-palette):
+ *   slate — как EPD Vuetify dark (rgb 18/33/66 + primary #2196f3)
+ *   black — чистый чёрный
+ *   navy  — тёмно-синий
+ *
+ * Семантика: .bg-active, error/warn growls — исходные цвета.
+ */
+
+/* ==================== ПАЛИТРЫ ==================== */
+
+html[data-tsl-argus-theme="on"],
+html[data-tsl-argus-theme="on"][data-tsl-argus-palette="slate"] {
+  color-scheme: dark;
+
+  /* EPD-aligned Material dark: --v-theme-background 18,18,18 / surface 33,33,33 */
+  --tsl-page-bg: #121212;
+  --tsl-surface: #212121;
+  --tsl-surface-2: #2a2a2a;
+  --tsl-surface-3: #363636;
+  --tsl-elevated: #424242;
+  --tsl-border: #3a3a3a;
+  --tsl-border-strong: #4a4a4a;
+  --tsl-text: #ffffff;
+  /* secondary/muted чуть светлее EPD-серого — #525252 на тёмном почти нечитаем */
+  --tsl-text-secondary: #d0d0d0;
+  --tsl-text-muted: #b0b0b0;
+  --tsl-primary: #2196f3;
+  --tsl-primary-strong: #1e88e5;
+  --tsl-link: #64b5f6;
+  --tsl-menu-bg: #1565c0;
+  --tsl-menu-hover: #1976d2;
+  --tsl-highlight: #424242;
+  --tsl-input-bg: #1a1a1a;
+  --tsl-zebra: #1a1a1a;
+  --tsl-disabled-bg: #2e2e2e;
+  --tsl-disabled-text: #757575;
+  --tsl-shadow: rgba(0, 0, 0, 0.55);
+  --tsl-focus-ring: rgba(33, 150, 243, 0.4);
+
+  /* Семантика (не инвертировать) */
+  --tsl-status-active: #2dd777;
+  --tsl-error: #cf6679;
+  --tsl-warn: #fb8c00;
+  --tsl-info: #2196f3;
+
+  /* Переопределение токенов Argus / PrimeFaces */
+  --primary-color: var(--tsl-primary);
+  --dark-color: #9e9e9e;
+  --background-color: var(--tsl-page-bg);
+  --text-color: var(--tsl-text);
+  --text-color-secondary: var(--tsl-text-secondary);
+  --state-default-color: var(--tsl-surface);
+  --state-hover-color: var(--tsl-primary);
+  --state-active-color: var(--tsl-primary-strong);
+  --state-focus-color: var(--tsl-primary);
+  --state-highlight-color: var(--tsl-highlight);
+  --menu-primary-color: var(--tsl-menu-bg);
+
+  /* Портал argus.rt.ru (стартовое меню) */
+  --g-blue: var(--tsl-primary);
+  --g-gray: var(--tsl-border-strong);
+  --g-blue-hover: rgba(33, 150, 243, 0.12);
+  --g-text: var(--tsl-text);
+  --g-text-sec: var(--tsl-text-secondary);
+  --g-bg: var(--tsl-page-bg);
+  --g-border: var(--tsl-border);
+}
+
+html[data-tsl-argus-theme="on"][data-tsl-argus-palette="black"] {
+  --tsl-page-bg: #000000;
+  --tsl-surface: #121212;
+  --tsl-surface-2: #1a1a1a;
+  --tsl-surface-3: #242424;
+  --tsl-elevated: #2e2e2e;
+  --tsl-border: #2a2a2a;
+  --tsl-border-strong: #3d3d3d;
+  --tsl-text-secondary: #d4d4d4;
+  --tsl-text-muted: #b3b3b3;
+  --tsl-menu-bg: #0a0a0a;
+  --tsl-menu-hover: #1f1f1f;
+  --tsl-highlight: #333333;
+  --tsl-zebra: #0d0d0d;
+  --tsl-input-bg: #0a0a0a;
+  --tsl-primary: #42a5f5;
+  --tsl-primary-strong: #2196f3;
+  --tsl-link: #64b5f6;
+  --background-color: var(--tsl-page-bg);
+  --menu-primary-color: var(--tsl-menu-bg);
+  --state-default-color: var(--tsl-surface);
+  --primary-color: var(--tsl-primary);
+  --g-bg: var(--tsl-page-bg);
+  --g-blue: var(--tsl-primary);
+  --g-gray: var(--tsl-border-strong);
+  --g-text: var(--tsl-text);
+  --g-text-sec: var(--tsl-text-secondary);
+  --g-border: var(--tsl-border);
+  --g-blue-hover: rgba(66, 165, 245, 0.12);
+}
+
+html[data-tsl-argus-theme="on"][data-tsl-argus-palette="navy"] {
+  --tsl-page-bg: #0b1220;
+  --tsl-surface: #121c2e;
+  --tsl-surface-2: #18253a;
+  --tsl-surface-3: #22324d;
+  --tsl-elevated: #2a3c5a;
+  --tsl-border: #2a3a52;
+  --tsl-border-strong: #3a5270;
+  --tsl-text-secondary: #c5d0e0;
+  --tsl-text-muted: #9aabbf;
+  --tsl-menu-bg: #0d47a1;
+  --tsl-menu-hover: #1565c0;
+  --tsl-highlight: #1e3a5f;
+  --tsl-zebra: #0e1624;
+  --tsl-input-bg: #0a101c;
+  --tsl-primary: #42a5f5;
+  --tsl-primary-strong: #2196f3;
+  --tsl-link: #90caf9;
+  --background-color: var(--tsl-page-bg);
+  --menu-primary-color: var(--tsl-menu-bg);
+  --state-default-color: var(--tsl-surface);
+  --primary-color: var(--tsl-primary);
+  --g-bg: var(--tsl-page-bg);
+  --g-blue: var(--tsl-primary);
+  --g-gray: var(--tsl-border-strong);
+  --g-text: var(--tsl-text);
+  --g-text-sec: var(--tsl-text-secondary);
+  --g-border: var(--tsl-border);
+  --g-blue-hover: rgba(66, 165, 245, 0.14);
+}
+
+/* ==================== БАЗА ==================== */
+
+html[data-tsl-argus-theme="on"],
+html[data-tsl-argus-theme="on"] body {
+  background-color: var(--tsl-page-bg) !important;
+  color: var(--tsl-text) !important;
+}
+
+html[data-tsl-argus-theme="on"] body.theme-family-argus,
+html[data-tsl-argus-theme="on"] body {
+  font-family: "Segoe UI", FreeSans, Arial, sans-serif;
+}
+
+/*
+ * Argus: a { color:#101010 } и a { color:#101010; font-weight:bold } —
+ * без !important ссылки (в т.ч. НЛС) остаются чёрными на тёмном фоне.
+ */
+html[data-tsl-argus-theme="on"] a,
+html[data-tsl-argus-theme="on"] a:link,
+html[data-tsl-argus-theme="on"] a:visited,
+html[data-tsl-argus-theme="on"] .ui-link,
+html[data-tsl-argus-theme="on"] a.ui-link,
+html[data-tsl-argus-theme="on"] .ui-link.ui-widget,
+html[data-tsl-argus-theme="on"] a.ui-widget {
+  color: var(--tsl-link) !important;
+}
+
+html[data-tsl-argus-theme="on"] a:hover,
+html[data-tsl-argus-theme="on"] a:focus,
+html[data-tsl-argus-theme="on"] .ui-link:hover,
+html[data-tsl-argus-theme="on"] a.ui-link:hover,
+html[data-tsl-argus-theme="on"] .ui-link.ui-widget:hover {
+  color: var(--tsl-primary) !important;
+}
+
+/* text-strike (закрытые заявки) — приглушённо, но читаемо */
+html[data-tsl-argus-theme="on"] a.text-strike,
+html[data-tsl-argus-theme="on"] .ui-link.text-strike {
+  color: var(--tsl-text-muted) !important;
+}
+
+html[data-tsl-argus-theme="on"] hr {
+  border-color: var(--tsl-border) !important;
+}
+
+html[data-tsl-argus-theme="on"] ::selection {
+  background: var(--tsl-focus-ring);
+  color: var(--tsl-text);
+}
+
+/* Scrollbars (Chromium) */
+html[data-tsl-argus-theme="on"] * {
+  scrollbar-color: var(--tsl-border-strong) var(--tsl-surface);
+}
+
+html[data-tsl-argus-theme="on"] ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+html[data-tsl-argus-theme="on"] ::-webkit-scrollbar-track {
+  background: var(--tsl-surface);
+}
+
+html[data-tsl-argus-theme="on"] ::-webkit-scrollbar-thumb {
+  background: var(--tsl-border-strong);
+  border-radius: 5px;
+}
+
+html[data-tsl-argus-theme="on"] ::-webkit-scrollbar-thumb:hover {
+  background: var(--tsl-text-muted);
+}
+
+/* ==================== LAYOUT ==================== */
+
+html[data-tsl-argus-theme="on"] .ui-layout-container,
+html[data-tsl-argus-theme="on"] .ui-layout-pane,
+html[data-tsl-argus-theme="on"] .ui-layout-pane-center,
+html[data-tsl-argus-theme="on"] .ui-layout-pane-north,
+html[data-tsl-argus-theme="on"] .ui-layout-pane-south,
+html[data-tsl-argus-theme="on"] .ui-layout-pane-west,
+html[data-tsl-argus-theme="on"] .ui-layout-pane-east,
+html[data-tsl-argus-theme="on"] .pe-layout-pane-content,
+html[data-tsl-argus-theme="on"] #content_body,
+html[data-tsl-argus-theme="on"] .ui-widget-content {
+  background-color: var(--tsl-page-bg) !important;
+  color: var(--tsl-text) !important;
+  border-color: var(--tsl-border) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-layout-resizer,
+html[data-tsl-argus-theme="on"] .ui-layout-resizer-north,
+html[data-tsl-argus-theme="on"] .ui-layout-resizer-south,
+html[data-tsl-argus-theme="on"] .ui-layout-resizer-west,
+html[data-tsl-argus-theme="on"] .ui-layout-resizer-east {
+  background-color: var(--tsl-surface-2) !important;
+  border-color: var(--tsl-border) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-layout-toggler {
+  background-color: var(--tsl-surface-3) !important;
+  border-color: var(--tsl-border) !important;
+}
+
+/* ==================== МЕНЮ ==================== */
+
+html[data-tsl-argus-theme="on"] .main-menu,
+html[data-tsl-argus-theme="on"] .ui-menubar.main-menu,
+html[data-tsl-argus-theme="on"] #mmf-main_menu_bar {
+  background-color: var(--tsl-menu-bg) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+}
+
+html[data-tsl-argus-theme="on"] .main-menu .ui-menuitem-link,
+html[data-tsl-argus-theme="on"] .main-menu .ui-menuitem-text,
+html[data-tsl-argus-theme="on"] .ui-menubar .ui-menuitem-link {
+  color: #fff !important;
+}
+
+html[data-tsl-argus-theme="on"] .main-menu .ui-menuitem-link:hover,
+html[data-tsl-argus-theme="on"] .main-menu .ui-menuitem-link.ui-state-hover,
+html[data-tsl-argus-theme="on"] .ui-menubar .ui-menuitem-link:hover {
+  background-color: var(--tsl-menu-hover) !important;
+  color: #fff !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-menu-child,
+html[data-tsl-argus-theme="on"] .ui-menu.ui-menu-child,
+html[data-tsl-argus-theme="on"] .ui-widget-content.ui-menu-child {
+  background-color: var(--tsl-surface) !important;
+  border: 1px solid var(--tsl-border) !important;
+  box-shadow: 0 8px 24px var(--tsl-shadow) !important;
+  color: var(--tsl-text) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-menu-child .ui-menuitem-link,
+html[data-tsl-argus-theme="on"] .ui-menu-child .ui-menuitem-text {
+  color: var(--tsl-text) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-menu-child .ui-menuitem-link:hover,
+html[data-tsl-argus-theme="on"] .ui-menu-child .ui-menuitem-link.ui-state-hover {
+  background-color: var(--tsl-surface-2) !important;
+  color: var(--tsl-text) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-menu,
+html[data-tsl-argus-theme="on"] .ui-widget.ui-menu {
+  background-color: var(--tsl-surface) !important;
+  border-color: var(--tsl-border) !important;
+  color: var(--tsl-text) !important;
+}
+
+/* ==================== ПАНЕЛИ / ЗАГОЛОВКИ ==================== */
+
+html[data-tsl-argus-theme="on"] .ui-widget-header,
+html[data-tsl-argus-theme="on"] .ui-panel-titlebar,
+html[data-tsl-argus-theme="on"] .ui-fieldset-legend {
+  background-color: var(--tsl-surface-2) !important;
+  color: var(--tsl-text) !important;
+  border-color: var(--tsl-border) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-panel,
+html[data-tsl-argus-theme="on"] .ui-panel-content,
+html[data-tsl-argus-theme="on"] .ui-fieldset,
+html[data-tsl-argus-theme="on"] .ui-fieldset-content,
+html[data-tsl-argus-theme="on"] .ui-toolbar,
+html[data-tsl-argus-theme="on"] .sys-comp-editable-section-writable {
+  background-color: var(--tsl-surface) !important;
+  color: var(--tsl-text) !important;
+  border-color: var(--tsl-border) !important;
+}
+
+html[data-tsl-argus-theme="on"] .logo-container {
+  border-bottom-color: var(--tsl-border) !important;
+}
+
+/* ==================== ВКЛАДКИ ==================== */
+
+html[data-tsl-argus-theme="on"] .ui-tabs,
+html[data-tsl-argus-theme="on"] .ui-tabs-nav,
+html[data-tsl-argus-theme="on"] .ui-tabs-navli,
+html[data-tsl-argus-theme="on"] ul.ui-tabs-nav {
+  background: var(--tsl-surface) !important;
+  border-color: var(--tsl-border) !important;
+  color: var(--tsl-text) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-tabs-nav .ui-tabs-header,
+html[data-tsl-argus-theme="on"] .ui-tabs-nav .ui-state-default,
+html[data-tsl-argus-theme="on"] .ui-tabs-nav li.ui-state-default {
+  background-color: var(--tsl-surface-2) !important;
+  color: var(--tsl-text-secondary) !important;
+  border-color: var(--tsl-border) !important;
+}
+
+/*
+ * Argus: .ui-tabs-nav>li>a { color:#101010 } — чёрный текст на неактивных вкладках.
+ * Красим именно <a>, не только li.
+ */
+html[data-tsl-argus-theme="on"] .ui-tabs-nav > li > a,
+html[data-tsl-argus-theme="on"] .ui-tabs .ui-tabs-nav li a,
+html[data-tsl-argus-theme="on"] .ui-tabs-nav li.ui-state-default > a,
+html[data-tsl-argus-theme="on"] .ui-tabs-nav li.ui-tabs-header > a {
+  color: var(--tsl-text-secondary) !important;
+  text-decoration: none !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-tabs-nav .ui-state-active,
+html[data-tsl-argus-theme="on"] .ui-tabs-nav .ui-tabs-selected,
+html[data-tsl-argus-theme="on"] .ui-tabs-nav li.ui-state-active,
+html[data-tsl-argus-theme="on"] .ui-tabs-nav li.ui-tabs-selected {
+  background: var(--tsl-surface) !important;
+  color: var(--tsl-text) !important;
+  border-color: var(--tsl-border) !important;
+  border-top-color: var(--tsl-primary) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-tabs-nav li.ui-state-active > a,
+html[data-tsl-argus-theme="on"] .ui-tabs-nav li.ui-tabs-selected > a,
+html[data-tsl-argus-theme="on"] .ui-tabs-nav .ui-state-active a,
+html[data-tsl-argus-theme="on"] .ui-tabs-nav .ui-tabs-selected a {
+  color: var(--tsl-text) !important;
+  background: transparent !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-tabs-nav li:not(.ui-state-active):not(.ui-tabs-selected) > a:hover {
+  color: var(--tsl-text) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-tabs-panels,
+html[data-tsl-argus-theme="on"] .ui-tabs-panel {
+  background-color: var(--tsl-page-bg) !important;
+  border-color: var(--tsl-border) !important;
+  color: var(--tsl-text) !important;
+}
+
+/* ==================== ТАБЛИЦЫ ==================== */
+
+html[data-tsl-argus-theme="on"] .ui-datatable,
+html[data-tsl-argus-theme="on"] .ui-datatable-tablewrapper,
+html[data-tsl-argus-theme="on"] .ui-datatable table {
+  background-color: var(--tsl-surface) !important;
+  color: var(--tsl-text) !important;
+  border-color: var(--tsl-border) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-datatable thead th,
+html[data-tsl-argus-theme="on"] .ui-datatable thead > tr > th,
+html[data-tsl-argus-theme="on"] .ui-datatable th.ui-state-default,
+html[data-tsl-argus-theme="on"] .ui-datatable .ui-sortable-column,
+html[data-tsl-argus-theme="on"] .ui-column-title,
+html[data-tsl-argus-theme="on"] .ui-datatable .ui-datatable-scrollable-header,
+html[data-tsl-argus-theme="on"] .ui-datatable .ui-datatable-scrollable-header-box,
+html[data-tsl-argus-theme="on"] .ui-datatable .ui-datatable-scrollable-footer {
+  background: var(--tsl-surface-2) !important;
+  background-color: var(--tsl-surface-2) !important;
+  color: var(--tsl-text-secondary) !important;
+  border-color: var(--tsl-border) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-datatable .ui-datatable-empty-message td,
+html[data-tsl-argus-theme="on"] .ui-datatable tr.ui-datatable-empty-message td {
+  background-color: var(--tsl-surface) !important;
+  color: var(--tsl-text-secondary) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-datatable tbody td,
+html[data-tsl-argus-theme="on"] .ui-datatable .ui-widget-content {
+  border-color: var(--tsl-border) !important;
+  color: var(--tsl-text) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-datatable-even,
+html[data-tsl-argus-theme="on"] .ui-datatable tr.ui-datatable-even {
+  background-color: var(--tsl-surface) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-datatable-odd,
+html[data-tsl-argus-theme="on"] .ui-datatable tr.ui-datatable-odd {
+  background-color: var(--tsl-zebra) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-datatable-selectable:hover,
+html[data-tsl-argus-theme="on"] .ui-datatable tbody tr:hover {
+  background-color: var(--tsl-surface-2) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-datatable tbody tr.ui-state-highlight,
+html[data-tsl-argus-theme="on"] .ui-datatable .ui-state-highlight {
+  background-color: var(--tsl-highlight) !important;
+  color: #fff !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-paginator {
+  background: var(--tsl-surface) !important;
+  border: 1px solid var(--tsl-border) !important;
+  color: var(--tsl-text) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-paginator .ui-state-default,
+html[data-tsl-argus-theme="on"] .ui-paginator .ui-paginator-page,
+html[data-tsl-argus-theme="on"] .ui-paginator .ui-paginator-next,
+html[data-tsl-argus-theme="on"] .ui-paginator .ui-paginator-prev,
+html[data-tsl-argus-theme="on"] .ui-paginator .ui-paginator-first,
+html[data-tsl-argus-theme="on"] .ui-paginator .ui-paginator-last {
+  background-color: var(--tsl-surface-2) !important;
+  color: var(--tsl-text) !important;
+  border-color: var(--tsl-border) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-paginator .ui-state-active {
+  background-color: var(--tsl-primary) !important;
+  color: #fff !important;
+  border-color: var(--tsl-primary) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-cell-editor-output {
+  background-color: var(--tsl-surface-2) !important;
+  color: var(--tsl-text) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-columntoggler {
+  background-color: var(--tsl-surface) !important;
+  border-color: var(--tsl-border) !important;
+  color: var(--tsl-text) !important;
+}
+
+/* ==================== ФОРМЫ / ИНПУТЫ ==================== */
+
+html[data-tsl-argus-theme="on"] input,
+html[data-tsl-argus-theme="on"] textarea,
+html[data-tsl-argus-theme="on"] select,
+html[data-tsl-argus-theme="on"] .ui-inputfield,
+html[data-tsl-argus-theme="on"] .ui-inputtext,
+html[data-tsl-argus-theme="on"] .ui-inputtextarea,
+html[data-tsl-argus-theme="on"] .ui-password,
+html[data-tsl-argus-theme="on"] .ui-autocomplete-input,
+html[data-tsl-argus-theme="on"] .ui-selectonemenu,
+html[data-tsl-argus-theme="on"] .ui-selectcheckboxmenu,
+html[data-tsl-argus-theme="on"] .ui-inputfield.ui-state-default {
+  background-color: var(--tsl-input-bg) !important;
+  color: var(--tsl-text) !important;
+  border: 1px solid var(--tsl-border) !important;
+  box-shadow: none !important;
+}
+
+html[data-tsl-argus-theme="on"] input::placeholder,
+html[data-tsl-argus-theme="on"] textarea::placeholder {
+  color: var(--tsl-text-muted) !important;
+  opacity: 1;
+}
+
+html[data-tsl-argus-theme="on"] input:focus,
+html[data-tsl-argus-theme="on"] textarea:focus,
+html[data-tsl-argus-theme="on"] select:focus,
+html[data-tsl-argus-theme="on"] .ui-inputfield:focus,
+html[data-tsl-argus-theme="on"] .ui-state-focus {
+  border-color: var(--tsl-primary) !important;
+  outline: 1px solid var(--tsl-focus-ring);
+}
+
+html[data-tsl-argus-theme="on"] .ui-outputlabel,
+html[data-tsl-argus-theme="on"] label {
+  color: var(--tsl-text-secondary) !important;
+}
+
+/* Жёсткий #525252 / #101010 в Argus — поднимаем контраст на тёмном фоне */
+html[data-tsl-argus-theme="on"] .name-value > dt,
+html[data-tsl-argus-theme="on"] .name-value > dd,
+html[data-tsl-argus-theme="on"] .name-value,
+html[data-tsl-argus-theme="on"] .ui-column-title,
+html[data-tsl-argus-theme="on"] .textarea-counter,
+html[data-tsl-argus-theme="on"] .client-type,
+html[data-tsl-argus-theme="on"] .heading-accent,
+html[data-tsl-argus-theme="on"] .container-simple .container-header,
+html[data-tsl-argus-theme="on"] .ui-datatable th,
+html[data-tsl-argus-theme="on"] .ui-datatable th.ui-state-default,
+html[data-tsl-argus-theme="on"] .ui-outputlabel,
+html[data-tsl-argus-theme="on"] .label-status,
+html[data-tsl-argus-theme="on"] .ui-panel-title,
+html[data-tsl-argus-theme="on"] .ui-fieldset-legend,
+html[data-tsl-argus-theme="on"] .ui-datatable .ui-sortable-column {
+  color: var(--tsl-text-secondary) !important;
+}
+
+html[data-tsl-argus-theme="on"] .name-value > dd,
+html[data-tsl-argus-theme="on"] .container-simple,
+html[data-tsl-argus-theme="on"] .container-simple .accent-row,
+html[data-tsl-argus-theme="on"] .ui-datatable tbody td {
+  color: var(--tsl-text) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-selectonemenu-label,
+html[data-tsl-argus-theme="on"] .ui-selectonemenu .ui-selectonemenu-label {
+  color: var(--tsl-text) !important;
+  background-color: transparent !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-selectonemenu-trigger,
+html[data-tsl-argus-theme="on"] .ui-datepicker-trigger {
+  background-color: var(--tsl-surface-2) !important;
+  border-color: var(--tsl-border) !important;
+  color: var(--tsl-text) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-selectonemenu-panel,
+html[data-tsl-argus-theme="on"] .ui-autocomplete-panel,
+html[data-tsl-argus-theme="on"] .ui-selectcheckboxmenu-panel,
+html[data-tsl-argus-theme="on"] .ui-datepicker {
+  background-color: var(--tsl-surface) !important;
+  border: 1px solid var(--tsl-border) !important;
+  color: var(--tsl-text) !important;
+  box-shadow: 0 8px 24px var(--tsl-shadow) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-selectonemenu-item,
+html[data-tsl-argus-theme="on"] .ui-autocomplete-item,
+html[data-tsl-argus-theme="on"] .ui-selectcheckboxmenu-item,
+html[data-tsl-argus-theme="on"] .ui-datepicker td a {
+  color: var(--tsl-text) !important;
+  background-color: transparent !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-selectonemenu-item.ui-state-highlight,
+html[data-tsl-argus-theme="on"] .ui-autocomplete-item.ui-state-highlight,
+html[data-tsl-argus-theme="on"] .ui-selectcheckboxmenu-item.ui-state-highlight {
+  background-color: var(--tsl-highlight) !important;
+  color: #fff !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-chkbox-box,
+html[data-tsl-argus-theme="on"] .ui-radiobutton-box {
+  background-color: var(--tsl-input-bg) !important;
+  border-color: var(--tsl-border-strong) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-chkbox-box.ui-state-active,
+html[data-tsl-argus-theme="on"] .ui-radiobutton-box.ui-state-active {
+  background-color: var(--tsl-primary) !important;
+  border-color: var(--tsl-primary) !important;
+}
+
+/* ==================== КНОПКИ ==================== */
+
+html[data-tsl-argus-theme="on"] .ui-button,
+html[data-tsl-argus-theme="on"] button.ui-button,
+html[data-tsl-argus-theme="on"] .ui-button.ui-state-default {
+  background-color: var(--tsl-surface-2) !important;
+  border: 1px solid var(--tsl-border-strong) !important;
+  color: var(--tsl-text) !important;
+  box-shadow: none !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-button:hover,
+html[data-tsl-argus-theme="on"] .ui-button.ui-state-hover {
+  background-color: var(--tsl-surface-3) !important;
+  border-color: var(--tsl-primary) !important;
+  color: var(--tsl-text) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-button.ui-state-focus {
+  box-shadow: 0 0 0 2px var(--tsl-focus-ring) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-button.ui-priority-primary,
+html[data-tsl-argus-theme="on"] .ui-button.ui-state-active,
+html[data-tsl-argus-theme="on"] .ui-priority-primary {
+  background-color: var(--tsl-primary) !important;
+  border-color: var(--tsl-primary) !important;
+  color: #fff !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-button.ui-button-flat {
+  background-color: transparent !important;
+  border-color: transparent !important;
+  color: var(--tsl-link) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-button.ui-button-white {
+  background-color: var(--tsl-surface) !important;
+  color: var(--tsl-text) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-button.ui-state-disabled,
+html[data-tsl-argus-theme="on"] .ui-state-disabled,
+html[data-tsl-argus-theme="on"] .ui-button:disabled {
+  background-color: var(--tsl-disabled-bg) !important;
+  border-color: var(--tsl-border) !important;
+  color: var(--tsl-disabled-text) !important;
+  opacity: 0.75;
+}
+
+html[data-tsl-argus-theme="on"] .ui-button-text {
+  color: inherit !important;
+}
+
+/* ==================== ДИАЛОГИ ==================== */
+
+html[data-tsl-argus-theme="on"] .ui-dialog,
+html[data-tsl-argus-theme="on"] .ui-dialog.ui-widget-content {
+  background-color: var(--tsl-surface) !important;
+  border: 1px solid var(--tsl-border) !important;
+  color: var(--tsl-text) !important;
+  box-shadow: 0 12px 40px var(--tsl-shadow) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-dialog-titlebar,
+html[data-tsl-argus-theme="on"] .ui-dialog-title {
+  background-color: var(--tsl-surface-2) !important;
+  color: var(--tsl-text) !important;
+  border-color: var(--tsl-border) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-dialog-content {
+  background-color: var(--tsl-surface) !important;
+  color: var(--tsl-text) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-dialog-footer {
+  background-color: var(--tsl-surface-2) !important;
+  border-top: 1px solid var(--tsl-border) !important;
+  color: var(--tsl-text) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-widget-overlay {
+  background: #000 !important;
+  opacity: 0.55 !important;
+}
+
+/* ==================== MESSAGES / GROWL ==================== */
+
+html[data-tsl-argus-theme="on"] .ui-messages,
+html[data-tsl-argus-theme="on"] .ui-message,
+html[data-tsl-argus-theme="on"] #global_msg_container,
+html[data-tsl-argus-theme="on"] #global_msg_info,
+html[data-tsl-argus-theme="on"] #global_msg_info_html,
+html[data-tsl-argus-theme="on"] #global_msg_info_sticky {
+  background-color: var(--tsl-surface-2) !important;
+  border-color: var(--tsl-border) !important;
+  color: var(--tsl-text) !important;
+}
+
+/* Сохраняем семантику error/warn */
+html[data-tsl-argus-theme="on"] .ui-messages-error,
+html[data-tsl-argus-theme="on"] .ui-message-error,
+html[data-tsl-argus-theme="on"] .ui-growl-item.ui-growl-error,
+html[data-tsl-argus-theme="on"] #global_msg_error,
+html[data-tsl-argus-theme="on"] #global_msg_error_container {
+  background-color: #3b1f1f !important;
+  border-color: var(--tsl-error) !important;
+  color: #ffcdd2 !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-messages-warn,
+html[data-tsl-argus-theme="on"] .ui-message-warn,
+html[data-tsl-argus-theme="on"] .ui-growl-item.ui-growl-warn,
+html[data-tsl-argus-theme="on"] #global_msg_warn,
+html[data-tsl-argus-theme="on"] #global_msg_warn_html,
+html[data-tsl-argus-theme="on"] #global_msg_warn_container {
+  background-color: #3b2f14 !important;
+  border-color: var(--tsl-warn) !important;
+  color: #ffe0b2 !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-messages-info,
+html[data-tsl-argus-theme="on"] .ui-message-info,
+html[data-tsl-argus-theme="on"] .ui-growl-item.ui-growl-info {
+  background-color: #1a2e3d !important;
+  border-color: var(--tsl-info) !important;
+  color: #bbdefb !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-growl {
+  color: #fff;
+}
+
+/* ==================== СОСТОЯНИЯ UI (общие) ==================== */
+
+html[data-tsl-argus-theme="on"] .ui-state-default {
+  background-color: var(--tsl-surface) !important;
+  color: var(--tsl-text) !important;
+  border-color: var(--tsl-border) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-state-hover {
+  background-color: var(--tsl-surface-2) !important;
+  color: var(--tsl-text) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-state-active {
+  background-color: var(--tsl-primary) !important;
+  color: #fff !important;
+  border-color: var(--tsl-primary) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-state-highlight {
+  background-color: var(--tsl-highlight) !important;
+  color: #fff !important;
+}
+
+/* Tabs override: active tab должен оставаться «листом», не primary-кнопкой */
+html[data-tsl-argus-theme="on"] .ui-tabs-nav .ui-state-active,
+html[data-tsl-argus-theme="on"] .ui-tabs-nav li.ui-state-active,
+html[data-tsl-argus-theme="on"] .ui-tabs-nav li.ui-tabs-selected {
+  background: var(--tsl-surface) !important;
+  color: var(--tsl-text) !important;
+  border-color: var(--tsl-border) !important;
+  border-top: 2px solid var(--tsl-primary) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-tabs-nav .ui-state-active > a,
+html[data-tsl-argus-theme="on"] .ui-tabs-nav li.ui-state-active > a,
+html[data-tsl-argus-theme="on"] .ui-tabs-nav li.ui-tabs-selected > a {
+  color: var(--tsl-text) !important;
+}
+
+/* ==================== LOGIN ==================== */
+
+html[data-tsl-argus-theme="on"] #login_panel_container,
+html[data-tsl-argus-theme="on"] #login_form,
+html[data-tsl-argus-theme="on"] .login-panel,
+html[data-tsl-argus-theme="on"] form#login_form {
+  background-color: var(--tsl-surface) !important;
+  color: var(--tsl-text) !important;
+  border-color: var(--tsl-border) !important;
+}
+
+/* ==================== СТАТУСЫ УСЛУГ (semantic lock) ==================== */
+
+html[data-tsl-argus-theme="on"] .bg-active,
+html[data-tsl-argus-theme="on"] .object-status.bg-active {
+  background-color: var(--tsl-status-active) !important;
+}
+
+html[data-tsl-argus-theme="on"] .object-status {
+  /* геометрия как в Argus; цвет — от bg-* */
+  border-color: #656565;
+}
+
+/* ==================== ИКОНКИ ==================== */
+/*
+ * Sprite ui-icons_525252 на тёмном фоне может быть тусклым.
+ * Лёгкое осветление без полного invert страницы.
+ * Цветные PNG/логотипы не трогаем.
+ */
+
+html[data-tsl-argus-theme="on"] .ui-icon:not(.pi):not([class*="argus-ui-icon"]) {
+  filter: brightness(0) invert(0.85);
+  opacity: 0.9;
+}
+
+html[data-tsl-argus-theme="on"] .ui-button .ui-icon:not(.pi):not([class*="argus-ui-icon"]) {
+  filter: brightness(0) invert(0.9);
+}
+
+/* На primary-кнопках иконки уже светлые — не пересвечивать */
+html[data-tsl-argus-theme="on"] .ui-priority-primary .ui-icon:not(.pi),
+html[data-tsl-argus-theme="on"] .ui-button.ui-state-active .ui-icon:not(.pi),
+html[data-tsl-argus-theme="on"] .main-menu .ui-icon:not(.pi) {
+  filter: brightness(0) invert(1);
+  opacity: 1;
+}
+
+/* PrimeIcons (шрифт) — цвет текста */
+html[data-tsl-argus-theme="on"] .pi {
+  color: inherit;
+}
+
+/* ==================== TOOLTIP / OVERLAY PANELS ==================== */
+
+html[data-tsl-argus-theme="on"] .ui-tooltip,
+html[data-tsl-argus-theme="on"] .ui-tooltip-text,
+html[data-tsl-argus-theme="on"] .ui-overlaypanel,
+html[data-tsl-argus-theme="on"] .ui-sidebar {
+  background-color: var(--tsl-surface-2) !important;
+  color: var(--tsl-text) !important;
+  border-color: var(--tsl-border) !important;
+}
+
+/* ==================== MISC ARGUS ==================== */
+
+html[data-tsl-argus-theme="on"] .break-word,
+html[data-tsl-argus-theme="on"] .label-status {
+  color: var(--tsl-text) !important;
+}
+
+html[data-tsl-argus-theme="on"] .text-strike {
+  color: var(--tsl-text-muted) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-datatable-resizable tbody td {
+  color: var(--tsl-text);
+}
+
+/* Жёсткие светлые фоны, которые встречаются inline/редкими классами */
+html[data-tsl-argus-theme="on"] [style*="background-color:#fff"],
+html[data-tsl-argus-theme="on"] [style*="background-color: #fff"],
+html[data-tsl-argus-theme="on"] [style*="background-color:white"],
+html[data-tsl-argus-theme="on"] [style*="background-color: white"],
+html[data-tsl-argus-theme="on"] [style*="background:#fff"],
+html[data-tsl-argus-theme="on"] [style*="background: #fff"],
+html[data-tsl-argus-theme="on"] [style*="background-color:#ffffff"],
+html[data-tsl-argus-theme="on"] [style*="background-color: #ffffff"] {
+  background-color: var(--tsl-surface) !important;
+}
+
+html[data-tsl-argus-theme="on"] [style*="color:#101010"],
+html[data-tsl-argus-theme="on"] [style*="color: #101010"],
+html[data-tsl-argus-theme="on"] [style*="color:#000"],
+html[data-tsl-argus-theme="on"] [style*="color: #000"],
+html[data-tsl-argus-theme="on"] [style*="color:#525252"],
+html[data-tsl-argus-theme="on"] [style*="color: #525252"],
+html[data-tsl-argus-theme="on"] [style*="color:#666"],
+html[data-tsl-argus-theme="on"] [style*="color: #666"],
+html[data-tsl-argus-theme="on"] [style*="color:#333"],
+html[data-tsl-argus-theme="on"] [style*="color: #333"] {
+  color: var(--tsl-text-secondary) !important;
+}
+
+/* ==================== КАРТОЧКА КЛИЕНТА: белые полоски ==================== */
+/*
+ * .accent-row и thead th в Argus жёстко #fff — выглядят как белые полосы.
+ * container-simple / borders — секции «Параметры клиента» и т.п.
+ */
+
+html[data-tsl-argus-theme="on"] .container-simple {
+  background-color: var(--tsl-surface) !important;
+  border-color: var(--tsl-border) !important;
+  color: var(--tsl-text) !important;
+}
+
+html[data-tsl-argus-theme="on"] .container-simple .container-header,
+html[data-tsl-argus-theme="on"] .container-simple .heading-accent,
+html[data-tsl-argus-theme="on"] .heading-accent {
+  background-color: var(--tsl-surface-2) !important;
+  color: var(--tsl-text) !important;
+  border-color: var(--tsl-border) !important;
+}
+
+html[data-tsl-argus-theme="on"] .container-simple .accent-row,
+html[data-tsl-argus-theme="on"] .accent-row {
+  background-color: var(--tsl-surface) !important;
+  border-bottom-color: var(--tsl-border) !important;
+  color: var(--tsl-text) !important;
+}
+
+html[data-tsl-argus-theme="on"] .container-simple .name-value,
+html[data-tsl-argus-theme="on"] .container-simple .ui-grid,
+html[data-tsl-argus-theme="on"] .container-simple .ui-grid-row,
+html[data-tsl-argus-theme="on"] .container-simple .ui-grid-col-12,
+html[data-tsl-argus-theme="on"] .container-simple .columns,
+html[data-tsl-argus-theme="on"] .container-simple .column {
+  background-color: transparent !important;
+  color: var(--tsl-text) !important;
+  border-color: var(--tsl-border) !important;
+}
+
+html[data-tsl-argus-theme="on"] .container-simple .repeated:hover {
+  background-color: var(--tsl-surface-2) !important;
+}
+
+/* Разделители layout — не белые */
+html[data-tsl-argus-theme="on"] .ui-layout-resizer,
+html[data-tsl-argus-theme="on"] .ui-layout-resizer-open,
+html[data-tsl-argus-theme="on"] .ui-layout-resizer-north-open,
+html[data-tsl-argus-theme="on"] .ui-layout-resizer-south-open,
+html[data-tsl-argus-theme="on"] .ui-layout-resizer-west-open,
+html[data-tsl-argus-theme="on"] .ui-layout-resizer-east-open {
+  background: var(--tsl-surface-2) !important;
+  background-color: var(--tsl-surface-2) !important;
+  border-color: var(--tsl-border) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-separator,
+html[data-tsl-argus-theme="on"] .ui-divider,
+html[data-tsl-argus-theme="on"] hr {
+  background-color: var(--tsl-border) !important;
+  border-color: var(--tsl-border) !important;
+  color: var(--tsl-border) !important;
+}
+
+/* Частые светлые бордеры Argus */
+html[data-tsl-argus-theme="on"] .container-simple,
+html[data-tsl-argus-theme="on"] .ui-tabs .ui-tabs-panels,
+html[data-tsl-argus-theme="on"] .ui-tabs .ui-tabs-nav li,
+html[data-tsl-argus-theme="on"] .ui-menu-child,
+html[data-tsl-argus-theme="on"] .ui-paginator {
+  border-color: var(--tsl-border) !important;
+}
+
+/* PrimeFaces / PrimeVue light hovers (#eaeaea) */
+html[data-tsl-argus-theme="on"] body .p-autocomplete-items .p-autocomplete-list-item:hover,
+html[data-tsl-argus-theme="on"] body .p-dropdown-item:not(.p-highlight):not(.p-disabled):hover,
+html[data-tsl-argus-theme="on"] body .p-multiselect-item:not(.p-highlight):not(.p-disabled):hover,
+html[data-tsl-argus-theme="on"] body .p-listbox-item:not(.p-highlight):not(.p-disabled):hover {
+  background-color: var(--tsl-surface-2) !important;
+  color: var(--tsl-text) !important;
+}
+
+html[data-tsl-argus-theme="on"] body .p-inputtext,
+html[data-tsl-argus-theme="on"] body .p-dropdown,
+html[data-tsl-argus-theme="on"] body .p-multiselect,
+html[data-tsl-argus-theme="on"] body .p-inputtextarea {
+  background-color: var(--tsl-input-bg) !important;
+  color: var(--tsl-text) !important;
+  border-color: var(--tsl-border) !important;
+}
+
+html[data-tsl-argus-theme="on"] body .p-inputtext:enabled:hover,
+html[data-tsl-argus-theme="on"] body .p-dropdown:not(.p-disabled):hover,
+html[data-tsl-argus-theme="on"] body .p-multiselect:not(.p-disabled):hover {
+  background-color: var(--tsl-surface) !important;
+  border-color: var(--tsl-border-strong) !important;
+}
+
+html[data-tsl-argus-theme="on"] body .p-inputswitch .p-inputswitch-slider:before {
+  background-color: var(--tsl-text-secondary) !important;
+}
+
+/* history / client card layout units */
+html[data-tsl-argus-theme="on"] .history-layout-unit,
+html[data-tsl-argus-theme="on"] .client-layout-unit,
+html[data-tsl-argus-theme="on"] #client_card,
+html[data-tsl-argus-theme="on"] #client_layout_unit {
+  background-color: var(--tsl-page-bg) !important;
+  color: var(--tsl-text) !important;
+  border-color: var(--tsl-border) !important;
+}
+
+/* tbody rows: не оставлять светлый ui-widget-content */
+html[data-tsl-argus-theme="on"] .ui-datatable tbody tr.ui-widget-content,
+html[data-tsl-argus-theme="on"] .ui-datatable tbody tr.ui-datatable-even,
+html[data-tsl-argus-theme="on"] .ui-datatable tbody tr.ui-datatable-odd {
+  border-color: var(--tsl-border) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-datatable tbody tr.ui-datatable-even {
+  background-color: var(--tsl-surface) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-datatable tbody tr.ui-datatable-odd {
+  background-color: var(--tsl-zebra) !important;
+}
+
+/*
+ * Prime p-datatable — таблицы на карточке (логины, сессии, зона и т.п.).
+ * Не используют ui-datatable, поэтому оставались белыми.
+ */
+html[data-tsl-argus-theme="on"] .p-datatable,
+html[data-tsl-argus-theme="on"] .p-datatable.p-component,
+html[data-tsl-argus-theme="on"] .p-datatable-auto-layout,
+html[data-tsl-argus-theme="on"] .p-datatable-wrapper,
+html[data-tsl-argus-theme="on"] .p-datatable table,
+html[data-tsl-argus-theme="on"] .p-datatable-scrollable-wrapper,
+html[data-tsl-argus-theme="on"] .p-datatable-scrollable-body,
+html[data-tsl-argus-theme="on"] .p-datatable-scrollable-header,
+html[data-tsl-argus-theme="on"] .p-datatable-scrollable-footer {
+  background-color: var(--tsl-surface) !important;
+  color: var(--tsl-text) !important;
+  border-color: var(--tsl-border) !important;
+}
+
+html[data-tsl-argus-theme="on"] .p-datatable-thead,
+html[data-tsl-argus-theme="on"] .p-datatable-thead > tr,
+html[data-tsl-argus-theme="on"] .p-datatable-thead > tr > th,
+html[data-tsl-argus-theme="on"] .p-datatable th,
+html[data-tsl-argus-theme="on"] .p-column-title,
+html[data-tsl-argus-theme="on"] .p-datatable .p-sortable-column {
+  background-color: var(--tsl-surface-2) !important;
+  color: var(--tsl-text-secondary) !important;
+  border-color: var(--tsl-border) !important;
+}
+
+html[data-tsl-argus-theme="on"] .p-datatable-tbody,
+html[data-tsl-argus-theme="on"] .p-datatable-tbody > tr,
+html[data-tsl-argus-theme="on"] .p-datatable-row,
+html[data-tsl-argus-theme="on"] .p-datatable-tbody > tr > td,
+html[data-tsl-argus-theme="on"] .p-datatable td {
+  background-color: var(--tsl-surface) !important;
+  color: var(--tsl-text) !important;
+  border-color: var(--tsl-border) !important;
+}
+
+html[data-tsl-argus-theme="on"] .p-datatable-tbody > tr:nth-child(even),
+html[data-tsl-argus-theme="on"] .p-datatable-tbody > tr.p-datatable-row:nth-child(even) {
+  background-color: var(--tsl-zebra) !important;
+}
+
+html[data-tsl-argus-theme="on"] .p-datatable-tbody > tr:hover,
+html[data-tsl-argus-theme="on"] .p-datatable-row:hover {
+  background-color: var(--tsl-surface-2) !important;
+}
+
+html[data-tsl-argus-theme="on"] .p-datatable-tbody > tr.p-highlight,
+html[data-tsl-argus-theme="on"] .p-datatable-row.p-highlight {
+  background-color: var(--tsl-highlight) !important;
+  color: #fff !important;
+}
+
+html[data-tsl-argus-theme="on"] .p-datatable-emptymessage,
+html[data-tsl-argus-theme="on"] .p-datatable-tbody > tr.p-datatable-emptymessage > td {
+  background-color: var(--tsl-surface) !important;
+  color: var(--tsl-text-secondary) !important;
+}
+
+/* Прочие p-* поверхности */
+html[data-tsl-argus-theme="on"] .p-component:not(.p-inputtext):not(.p-dropdown):not(.p-button),
+html[data-tsl-argus-theme="on"] .p-panel,
+html[data-tsl-argus-theme="on"] .p-panel-content,
+html[data-tsl-argus-theme="on"] .p-card,
+html[data-tsl-argus-theme="on"] .p-fieldset,
+html[data-tsl-argus-theme="on"] .p-fieldset-content,
+html[data-tsl-argus-theme="on"] .p-tabview,
+html[data-tsl-argus-theme="on"] .p-tabview-panels,
+html[data-tsl-argus-theme="on"] .p-tabview-panel {
+  background-color: var(--tsl-surface) !important;
+  color: var(--tsl-text) !important;
+  border-color: var(--tsl-border) !important;
+}
+
+html[data-tsl-argus-theme="on"] .p-tabview-nav,
+html[data-tsl-argus-theme="on"] .p-tabview-nav-link {
+  background-color: var(--tsl-surface-2) !important;
+  color: var(--tsl-text-secondary) !important;
+  border-color: var(--tsl-border) !important;
+}
+
+html[data-tsl-argus-theme="on"] .p-tabview-nav li.p-highlight .p-tabview-nav-link,
+html[data-tsl-argus-theme="on"] .p-tabview-selected .p-tabview-nav-link {
+  background-color: var(--tsl-surface) !important;
+  color: var(--tsl-text) !important;
+  border-top-color: var(--tsl-primary) !important;
+}
+
+/* table inside fieldset (empty «Нет оборудования» etc.) */
+html[data-tsl-argus-theme="on"] .ui-fieldset-content .ui-datatable,
+html[data-tsl-argus-theme="on"] .ui-fieldset-content .ui-datatable-tablewrapper,
+html[data-tsl-argus-theme="on"] .ui-fieldset-content table,
+html[data-tsl-argus-theme="on"] .ui-fieldset-content .ui-widget-content {
+  background-color: var(--tsl-surface) !important;
+  color: var(--tsl-text) !important;
+  border-color: var(--tsl-border) !important;
+}
+
+/* Ссылки внутри таблиц / карточки (НЛС и др.) */
+html[data-tsl-argus-theme="on"] .ui-datatable a,
+html[data-tsl-argus-theme="on"] .p-datatable a,
+html[data-tsl-argus-theme="on"] .container-simple a,
+html[data-tsl-argus-theme="on"] .ui-fieldset-content a,
+html[data-tsl-argus-theme="on"] #installation_edit_form a,
+html[data-tsl-argus-theme="on"] a[id*="installationOwner"],
+html[data-tsl-argus-theme="on"] a[id*="installation"] {
+  color: var(--tsl-link) !important;
+}
+
+html[data-tsl-argus-theme="on"] .ui-datatable a:hover,
+html[data-tsl-argus-theme="on"] .p-datatable a:hover,
+html[data-tsl-argus-theme="on"] .container-simple a:hover,
+html[data-tsl-argus-theme="on"] a[id*="installationOwner"]:hover {
+  color: var(--tsl-primary) !important;
+}
+
+/* ==================== ДИАЛОГ «Идёт поиск» (new_block) ==================== */
+
+html[data-tsl-argus-theme="on"] #search_dialog,
+html[data-tsl-argus-theme="on"] #search_dialog.ui-dialog,
+html[data-tsl-argus-theme="on"] .ui-dialog.dialog-width-xx-small,
+html[data-tsl-argus-theme="on"] .ui-dialog.dialog-width-x-small,
+html[data-tsl-argus-theme="on"] .ui-dialog.dialog-width-small {
+  background-color: var(--tsl-surface) !important;
+  border: 1px solid var(--tsl-border) !important;
+  color: var(--tsl-text) !important;
+  box-shadow: 0 12px 40px var(--tsl-shadow) !important;
+}
+
+html[data-tsl-argus-theme="on"] #search_dialog .ui-dialog-titlebar,
+html[data-tsl-argus-theme="on"] #search_dialog .ui-dialog-title,
+html[data-tsl-argus-theme="on"] #search_dialog_title {
+  background-color: var(--tsl-surface-2) !important;
+  color: var(--tsl-text) !important;
+  border-color: var(--tsl-border) !important;
+}
+
+html[data-tsl-argus-theme="on"] #search_dialog .ui-dialog-content,
+html[data-tsl-argus-theme="on"] #search_dialog_form,
+html[data-tsl-argus-theme="on"] #search_dialog .text-center {
+  background-color: var(--tsl-surface) !important;
+  color: var(--tsl-text) !important;
+}
+
+/* GIF waiting_search на светлом — тёмный фон + лёгкий invert картинки */
+html[data-tsl-argus-theme="on"] .waiting-search,
+html[data-tsl-argus-theme="on"] p.waiting-search {
+  background-color: var(--tsl-surface) !important;
+  filter: invert(1) hue-rotate(180deg);
+  opacity: 0.9;
+}
+
+html[data-tsl-argus-theme="on"] .dialog-footer-buttons,
+html[data-tsl-argus-theme="on"] .dialog-footer-buttons.center,
+html[data-tsl-argus-theme="on"] #search_dialog .dialog-footer-buttons {
+  background-color: var(--tsl-surface-2) !important;
+  border-color: var(--tsl-border) !important;
+  color: var(--tsl-text) !important;
+}
+
+html[data-tsl-argus-theme="on"] #search_dialog .ui-button,
+html[data-tsl-argus-theme="on"] #search_dialog .ui-button-text {
+  color: var(--tsl-text) !important;
+}
+
+/* ==================== ПОРТАЛ argus.rt.ru (стартовое меню) ==================== */
+
+html[data-tsl-argus-theme="on"] .argus-header {
+  background: var(--tsl-surface) !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.45) !important;
+  color: var(--tsl-text) !important;
+}
+
+html[data-tsl-argus-theme="on"] .argus-title,
+html[data-tsl-argus-theme="on"] .argus-brand,
+html[data-tsl-argus-theme="on"] .argus-brand:hover,
+html[data-tsl-argus-theme="on"] .argus-brand:hover .argus-title {
+  color: var(--tsl-text) !important;
+}
+
+html[data-tsl-argus-theme="on"] .content,
+html[data-tsl-argus-theme="on"] #mainContent {
+  background-color: var(--tsl-page-bg) !important;
+  color: var(--tsl-text) !important;
+}
+
+html[data-tsl-argus-theme="on"] .section-label {
+  color: var(--tsl-text-secondary) !important;
+}
+
+html[data-tsl-argus-theme="on"] .card {
+  background: var(--tsl-surface) !important;
+  border: 1px solid var(--tsl-border) !important;
+  box-shadow: 0 2px 12px var(--tsl-shadow) !important;
+  color: var(--tsl-text) !important;
+}
+
+html[data-tsl-argus-theme="on"] .summary {
+  background: var(--tsl-surface-2) !important;
+  color: var(--tsl-link) !important;
+  border-bottom: 1px solid var(--tsl-border) !important;
+}
+
+html[data-tsl-argus-theme="on"] .summary-subtitle {
+  color: var(--tsl-text-secondary) !important;
+}
+
+html[data-tsl-argus-theme="on"] .details {
+  background: var(--tsl-surface) !important;
+  color: var(--tsl-text) !important;
+}
+
+html[data-tsl-argus-theme="on"] .link {
+  color: var(--tsl-text-secondary) !important;
+}
+
+html[data-tsl-argus-theme="on"] .link:hover {
+  background-color: var(--tsl-surface-2) !important;
+  color: var(--tsl-primary) !important;
+}
+
+html[data-tsl-argus-theme="on"] .link:hover::before {
+  background-color: var(--tsl-primary) !important;
+}
+
+html[data-tsl-argus-theme="on"] .button {
+  background-color: rgba(33, 150, 243, 0.16) !important;
+  border: 1px solid var(--tsl-border-strong) !important;
+  color: var(--tsl-link) !important;
+  box-shadow: 0 2px 10px var(--tsl-shadow) !important;
+}
+
+html[data-tsl-argus-theme="on"] .button:hover {
+  background-color: var(--tsl-primary) !important;
+  color: #ffffff !important;
+  box-shadow: 0 6px 16px rgba(33, 150, 243, 0.35) !important;
+}
+
+html[data-tsl-argus-theme="on"] .button:active {
+  background-color: var(--tsl-primary-strong) !important;
+  color: #ffffff !important;
+}
+
+html[data-tsl-argus-theme="on"] footer {
+  background-color: var(--tsl-surface-2) !important;
+  color: var(--tsl-text-secondary) !important;
+}
+
+html[data-tsl-argus-theme="on"] .version-table tr:hover {
+  background-color: var(--tsl-surface-2) !important;
+}
+
+/* Логотип/иконки портала на тёмном фоне */
+html[data-tsl-argus-theme="on"] .center-logo img,
+html[data-tsl-argus-theme="on"] .argus-logo-icon {
+  filter: brightness(0) invert(1);
+  opacity: 0.92;
+}
