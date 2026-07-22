@@ -1,12 +1,12 @@
-// content-argus-theme.js
-// Тёмная тема Argus (все регионы). CSS-first, без page-specific DOM.
+// content-axiros-theme.js
+// Тёмная тема Axiros (СЗ / Юг / Волга). CSS-first, Bootstrap 3 overrides.
 
 (function () {
   'use strict';
 
-  const STYLE_ID = 'tsl-argus-dark-style';
-  const THEME_ATTR = 'data-tsl-argus-theme';
-  const PALETTE_ATTR = 'data-tsl-argus-palette';
+  const STYLE_ID = 'tsl-axiros-dark-style';
+  const THEME_ATTR = 'data-tsl-axiros-theme';
+  const PALETTE_ATTR = 'data-tsl-axiros-palette';
   const DEFAULT_PALETTE = 'slate';
   const VALID_PALETTES = new Set(['slate', 'black', 'navy']);
 
@@ -26,6 +26,12 @@
     return DEFAULT_PALETTE;
   }
 
+  /** Общая палитра: systemsDarkPalette, fallback argusDarkPalette (legacy). */
+  function readPalette(settings) {
+    const s = settings || {};
+    return normalizePalette(s.systemsDarkPalette || s.argusDarkPalette);
+  }
+
   function getRoot() {
     return document.documentElement;
   }
@@ -34,9 +40,9 @@
     if (cssText) return Promise.resolve(cssText);
     if (cssLoadPromise) return cssLoadPromise;
 
-    cssLoadPromise = fetch(chrome.runtime.getURL('argus-dark.css'))
+    cssLoadPromise = fetch(chrome.runtime.getURL('axiros-dark.css'))
       .then((res) => {
-        if (!res.ok) throw new Error('argus-dark.css HTTP ' + res.status);
+        if (!res.ok) throw new Error('axiros-dark.css HTTP ' + res.status);
         return res.text();
       })
       .then((text) => {
@@ -44,7 +50,7 @@
         return cssText;
       })
       .catch((err) => {
-        console.warn('[2TSL] Не удалось загрузить argus-dark.css:', err);
+        console.warn('[2TSL] Не удалось загрузить axiros-dark.css:', err);
         cssLoadPromise = null;
         return null;
       });
@@ -57,7 +63,7 @@
     if (!el) {
       el = document.createElement('style');
       el.id = STYLE_ID;
-      el.setAttribute('data-tsl', 'argus-dark');
+      el.setAttribute('data-tsl', 'axiros-dark');
       const root = getRoot();
       if (root.firstChild) {
         root.insertBefore(el, root.firstChild);
@@ -97,13 +103,11 @@
       return;
     }
 
-    // Маркеры сразу — даже пока CSS грузится (минимальный FOUC для color-scheme)
     applyDomMarkers(true, palette);
 
     const text = await loadCss();
     if (!text) return;
 
-    // Если за время загрузки тему выключили — не вставляем
     if (!enabled) {
       applyDomMarkers(false, palette);
       removeStyleElement();
@@ -114,16 +118,10 @@
     applyDomMarkers(true, palette);
   }
 
-  /** Общая палитра: systemsDarkPalette, fallback argusDarkPalette (legacy). */
-  function readPalette(settings) {
-    const s = settings || {};
-    return normalizePalette(s.systemsDarkPalette || s.argusDarkPalette);
-  }
-
   function readFromSettings(settings) {
     const s = settings || {};
     return {
-      enabled: s.argusDarkTheme === true,
+      enabled: s.axirosDarkTheme === true,
       palette: readPalette(s)
     };
   }
@@ -131,7 +129,7 @@
   function initFromStorage() {
     chrome.storage.local.get(['settings'], (result) => {
       if (chrome.runtime.lastError) {
-        console.warn('[2TSL] Argus theme storage:', chrome.runtime.lastError.message);
+        console.warn('[2TSL] Axiros theme storage:', chrome.runtime.lastError.message);
         return;
       }
       const { enabled: on, palette: pal } = readFromSettings(result.settings);
@@ -145,9 +143,9 @@
     const wasEnabled = enabled;
     const prevPalette = palette;
     applyTheme(on, pal).then(() => {
-      if (on && !wasEnabled) trackEvent('argus_dark_theme_on');
-      if (!on && wasEnabled) trackEvent('argus_dark_theme_off');
-      if (on && wasEnabled && pal !== prevPalette) trackEvent('argus_dark_palette_change');
+      if (on && !wasEnabled) trackEvent('axiros_dark_theme_on');
+      if (!on && wasEnabled) trackEvent('axiros_dark_theme_off');
+      if (on && wasEnabled && pal !== prevPalette) trackEvent('axiros_dark_palette_change');
     });
   });
 

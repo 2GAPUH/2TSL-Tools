@@ -33,3 +33,10 @@ agent-tools/analyze_argus2.py
 agent-tools/analyze_argus3.py
 agent-tools/analyze_argus.py
 agent-tools/probe_fixmypc.py
+.grok/skills/feature-workflow/SKILL.md
+AGENTS.md
+AI_CONTEXT.md
+AGENT_WORKFLOW.md
+AI_CONTEXT.md
+/dist
+/systems-html

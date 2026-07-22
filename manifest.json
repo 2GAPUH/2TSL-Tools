@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "2TSL toolbox",
-  "version": "0.7.11",
+  "version": "0.7.12",
   "description": "Набор инструментов для повышения эффективности работы: управление шаблонами, навигация между системами, напоминания и автоматизация рутинных задач.",
   "permissions": ["storage", "tabs", "notifications", "alarms", "identity", "identity.email"],
   "action": {
@@ -39,6 +39,14 @@
         "https://volga.argus.rt.ru/*",
         "https://south.argus.rt.ru/*",
         "https://sz.argus.rt.ru/*"
+      ]
+    },
+    {
+      "resources": ["axiros-dark.css"],
+      "matches": [
+        "http://acs-tr69.sz.rt.ru:4673/*",
+        "http://tr069.south.rt.ru:9673/*",
+        "http://10.82.16.11:9673/*"
       ]
     }
   ],
@@ -106,6 +114,15 @@
       ],
       "js": ["content-argus-theme.js"],
       "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "http://acs-tr69.sz.rt.ru:4673/*",
+        "http://tr069.south.rt.ru:9673/*",
+        "http://10.82.16.11:9673/*"
+      ],
+      "js": ["content-axiros-theme.js"],
+      "run_at": "document_start"
     }
   ],
   "host_permissions": [
@@ -123,6 +140,9 @@
     "https://argus.rt.ru/*",
     "https://volga.argus.rt.ru/*",
     "https://south.argus.rt.ru/*",
-    "https://sz.argus.rt.ru/*"
+    "https://sz.argus.rt.ru/*",
+    "http://acs-tr69.sz.rt.ru:4673/*",
+    "http://tr069.south.rt.ru:9673/*",
+    "http://10.82.16.11:9673/*"
   ]
 }

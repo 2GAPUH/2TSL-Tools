@@ -1,0 +1,777 @@
+/**
+ * 2TSL toolbox — тёмная тема Axiros
+ * (AngularJS SPA + Bootstrap 3.2 + Glyphicons / FA)
+ *
+ * Подход: CSS-токены + broad overrides по framework-классам BS3.
+ * Без привязки к page-specific DOM и ng-*.
+ *
+ * Палитры (data-tsl-axiros-palette):
+ *   slate — как EPD / Argus slate
+ *   black — чистый чёрный
+ *   navy  — тёмно-синий
+ *
+ * Семантика: .label-*, .alert-*, .btn-success/danger/warning —
+ * исходные hue сохранены (слегка подправлены для тёмного фона).
+ * RT-акцент #ff4f12 (loader, empty-state) — не трогаем.
+ */
+
+/* ==================== ПАЛИТРЫ ==================== */
+
+html[data-tsl-axiros-theme="on"],
+html[data-tsl-axiros-theme="on"][data-tsl-axiros-palette="slate"] {
+  color-scheme: dark;
+
+  --tsl-page-bg: #121212;
+  --tsl-surface: #212121;
+  --tsl-surface-2: #2a2a2a;
+  --tsl-surface-3: #363636;
+  --tsl-elevated: #424242;
+  --tsl-border: #3a3a3a;
+  --tsl-border-strong: #4a4a4a;
+  --tsl-text: #ffffff;
+  --tsl-text-secondary: #d0d0d0;
+  --tsl-text-muted: #b0b0b0;
+  --tsl-primary: #2196f3;
+  --tsl-primary-strong: #1e88e5;
+  --tsl-link: #64b5f6;
+  --tsl-menu-bg: #1a1a1a;
+  --tsl-menu-hover: #2a2a2a;
+  --tsl-highlight: #424242;
+  --tsl-input-bg: #1a1a1a;
+  --tsl-zebra: #1a1a1a;
+  --tsl-disabled-bg: #2e2e2e;
+  --tsl-disabled-text: #757575;
+  --tsl-shadow: rgba(0, 0, 0, 0.55);
+  --tsl-focus-ring: rgba(33, 150, 243, 0.45);
+
+  /* Семантика (hue сохранён) */
+  --tsl-label-success-bg: #2e7d32;
+  --tsl-label-info-bg: #0277bd;
+  --tsl-label-warning-bg: #ffc107;
+  --tsl-label-warning-fg: #000000;
+  --tsl-label-danger-bg: #af4448;
+  --tsl-label-default-bg: #616161;
+  --tsl-alert-success-bg: #1b3d22;
+  --tsl-alert-success-fg: #a5d6a7;
+  --tsl-alert-success-border: #2e7d32;
+  --tsl-alert-info-bg: #0d3a4f;
+  --tsl-alert-info-fg: #81d4fa;
+  --tsl-alert-info-border: #0288d1;
+  --tsl-alert-warning-bg: #3e3418;
+  --tsl-alert-warning-fg: #ffe082;
+  --tsl-alert-warning-border: #ffc107;
+  --tsl-alert-danger-bg: #3e1a1c;
+  --tsl-alert-danger-fg: #ef9a9a;
+  --tsl-alert-danger-border: #af4448;
+}
+
+html[data-tsl-axiros-theme="on"][data-tsl-axiros-palette="black"] {
+  --tsl-page-bg: #000000;
+  --tsl-surface: #121212;
+  --tsl-surface-2: #1a1a1a;
+  --tsl-surface-3: #242424;
+  --tsl-elevated: #2e2e2e;
+  --tsl-border: #2a2a2a;
+  --tsl-border-strong: #3d3d3d;
+  --tsl-text-secondary: #d4d4d4;
+  --tsl-text-muted: #b3b3b3;
+  --tsl-menu-bg: #0a0a0a;
+  --tsl-menu-hover: #1f1f1f;
+  --tsl-highlight: #333333;
+  --tsl-zebra: #0d0d0d;
+  --tsl-input-bg: #0a0a0a;
+  --tsl-primary: #42a5f5;
+  --tsl-primary-strong: #2196f3;
+  --tsl-link: #64b5f6;
+  --tsl-focus-ring: rgba(66, 165, 245, 0.45);
+}
+
+html[data-tsl-axiros-theme="on"][data-tsl-axiros-palette="navy"] {
+  --tsl-page-bg: #0b1220;
+  --tsl-surface: #121c2e;
+  --tsl-surface-2: #18253a;
+  --tsl-surface-3: #22324d;
+  --tsl-elevated: #2a3c5a;
+  --tsl-border: #2a3a52;
+  --tsl-border-strong: #3a5270;
+  --tsl-text-secondary: #c5d0e0;
+  --tsl-text-muted: #9aabbf;
+  --tsl-menu-bg: #0d1628;
+  --tsl-menu-hover: #1a2740;
+  --tsl-highlight: #1e3a5f;
+  --tsl-zebra: #0e1624;
+  --tsl-input-bg: #0a101c;
+  --tsl-primary: #42a5f5;
+  --tsl-primary-strong: #2196f3;
+  --tsl-link: #90caf9;
+  --tsl-focus-ring: rgba(66, 165, 245, 0.45);
+}
+
+/* ==================== БАЗА ==================== */
+
+html[data-tsl-axiros-theme="on"],
+html[data-tsl-axiros-theme="on"] body {
+  background-color: var(--tsl-page-bg) !important;
+  color: var(--tsl-text) !important;
+}
+
+html[data-tsl-axiros-theme="on"] a {
+  color: var(--tsl-link);
+}
+
+html[data-tsl-axiros-theme="on"] a:hover,
+html[data-tsl-axiros-theme="on"] a:focus {
+  color: var(--tsl-primary);
+}
+
+html[data-tsl-axiros-theme="on"] h1,
+html[data-tsl-axiros-theme="on"] h2,
+html[data-tsl-axiros-theme="on"] h3,
+html[data-tsl-axiros-theme="on"] h4,
+html[data-tsl-axiros-theme="on"] h5,
+html[data-tsl-axiros-theme="on"] h6,
+html[data-tsl-axiros-theme="on"] .h1,
+html[data-tsl-axiros-theme="on"] .h2,
+html[data-tsl-axiros-theme="on"] .h3,
+html[data-tsl-axiros-theme="on"] .h4,
+html[data-tsl-axiros-theme="on"] .h5,
+html[data-tsl-axiros-theme="on"] .h6 {
+  color: var(--tsl-text);
+}
+
+html[data-tsl-axiros-theme="on"] hr {
+  border-top-color: var(--tsl-border);
+}
+
+html[data-tsl-axiros-theme="on"] code,
+html[data-tsl-axiros-theme="on"] kbd,
+html[data-tsl-axiros-theme="on"] pre,
+html[data-tsl-axiros-theme="on"] samp {
+  background-color: var(--tsl-surface-2);
+  color: var(--tsl-text-secondary);
+  border-color: var(--tsl-border);
+}
+
+/* Inline color:#333 из шаблонов карточки */
+html[data-tsl-axiros-theme="on"] [style*="color:#333"],
+html[data-tsl-axiros-theme="on"] [style*="color: #333"],
+html[data-tsl-axiros-theme="on"] [style*="color:#333333"],
+html[data-tsl-axiros-theme="on"] [style*="color: #333333"] {
+  color: var(--tsl-text) !important;
+}
+
+/* ==================== NAVBAR ==================== */
+
+html[data-tsl-axiros-theme="on"] .navbar-default {
+  background-color: var(--tsl-menu-bg) !important;
+  border-color: var(--tsl-border) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .navbar-default .navbar-brand,
+html[data-tsl-axiros-theme="on"] .navbar-default .navbar-text,
+html[data-tsl-axiros-theme="on"] .navbar-default .navbar-nav > li > a,
+html[data-tsl-axiros-theme="on"] .navbar-default .navbar-link {
+  color: var(--tsl-text) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .navbar-default .navbar-nav > li > a:hover,
+html[data-tsl-axiros-theme="on"] .navbar-default .navbar-nav > li > a:focus,
+html[data-tsl-axiros-theme="on"] .navbar-default .navbar-brand:hover,
+html[data-tsl-axiros-theme="on"] .navbar-default .navbar-brand:focus,
+html[data-tsl-axiros-theme="on"] .navbar-default .navbar-link:hover {
+  color: var(--tsl-link) !important;
+  background-color: var(--tsl-menu-hover) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .navbar-default .navbar-nav > .active > a,
+html[data-tsl-axiros-theme="on"] .navbar-default .navbar-nav > .active > a:hover,
+html[data-tsl-axiros-theme="on"] .navbar-default .navbar-nav > .active > a:focus,
+html[data-tsl-axiros-theme="on"] .navbar-default .navbar-nav > .open > a,
+html[data-tsl-axiros-theme="on"] .navbar-default .navbar-nav > .open > a:hover,
+html[data-tsl-axiros-theme="on"] .navbar-default .navbar-nav > .open > a:focus {
+  color: var(--tsl-text) !important;
+  background-color: var(--tsl-surface-3) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .navbar-default .navbar-toggle {
+  border-color: var(--tsl-border-strong);
+}
+
+html[data-tsl-axiros-theme="on"] .navbar-default .navbar-toggle:hover,
+html[data-tsl-axiros-theme="on"] .navbar-default .navbar-toggle:focus {
+  background-color: var(--tsl-surface-2);
+}
+
+html[data-tsl-axiros-theme="on"] .navbar-default .navbar-toggle .icon-bar {
+  background-color: var(--tsl-text-secondary);
+}
+
+html[data-tsl-axiros-theme="on"] .navbar-default .navbar-collapse,
+html[data-tsl-axiros-theme="on"] .navbar-default .navbar-form {
+  border-color: var(--tsl-border);
+}
+
+html[data-tsl-axiros-theme="on"] .navbar-inverse {
+  background-color: var(--tsl-menu-bg) !important;
+  border-color: var(--tsl-border) !important;
+}
+
+/* ==================== DROPDOWN ==================== */
+
+html[data-tsl-axiros-theme="on"] .dropdown-menu {
+  background-color: var(--tsl-surface) !important;
+  border-color: var(--tsl-border) !important;
+  box-shadow: 0 6px 12px var(--tsl-shadow);
+}
+
+html[data-tsl-axiros-theme="on"] .dropdown-menu > li > a {
+  color: var(--tsl-text) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .dropdown-menu > li > a:hover,
+html[data-tsl-axiros-theme="on"] .dropdown-menu > li > a:focus {
+  color: var(--tsl-text) !important;
+  background-color: var(--tsl-surface-3) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .dropdown-menu > .active > a,
+html[data-tsl-axiros-theme="on"] .dropdown-menu > .active > a:hover,
+html[data-tsl-axiros-theme="on"] .dropdown-menu > .active > a:focus {
+  color: #fff !important;
+  background-color: var(--tsl-primary) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .dropdown-menu .divider {
+  background-color: var(--tsl-border) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .dropdown-header {
+  color: var(--tsl-text-muted);
+}
+
+/* ==================== FORMS ==================== */
+
+html[data-tsl-axiros-theme="on"] .form-control,
+html[data-tsl-axiros-theme="on"] .input-sm,
+html[data-tsl-axiros-theme="on"] .input-xs,
+html[data-tsl-axiros-theme="on"] input[type="text"],
+html[data-tsl-axiros-theme="on"] input[type="password"],
+html[data-tsl-axiros-theme="on"] input[type="email"],
+html[data-tsl-axiros-theme="on"] input[type="number"],
+html[data-tsl-axiros-theme="on"] input[type="search"],
+html[data-tsl-axiros-theme="on"] input[type="tel"],
+html[data-tsl-axiros-theme="on"] input[type="url"],
+html[data-tsl-axiros-theme="on"] select,
+html[data-tsl-axiros-theme="on"] textarea {
+  background-color: var(--tsl-input-bg) !important;
+  color: var(--tsl-text) !important;
+  border-color: var(--tsl-border-strong) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .form-control:focus,
+html[data-tsl-axiros-theme="on"] input:focus,
+html[data-tsl-axiros-theme="on"] select:focus,
+html[data-tsl-axiros-theme="on"] textarea:focus {
+  border-color: var(--tsl-primary) !important;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.35), 0 0 8px var(--tsl-focus-ring) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .form-control[disabled],
+html[data-tsl-axiros-theme="on"] .form-control[readonly],
+html[data-tsl-axiros-theme="on"] fieldset[disabled] .form-control {
+  background-color: var(--tsl-disabled-bg) !important;
+  color: var(--tsl-disabled-text) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .form-control::-webkit-input-placeholder,
+html[data-tsl-axiros-theme="on"] .form-control::placeholder {
+  color: var(--tsl-text-muted) !important;
+  opacity: 1;
+}
+
+html[data-tsl-axiros-theme="on"] .form-control::-moz-placeholder {
+  color: var(--tsl-text-muted) !important;
+  opacity: 1;
+}
+
+html[data-tsl-axiros-theme="on"] .control-label,
+html[data-tsl-axiros-theme="on"] label {
+  color: var(--tsl-text-secondary);
+}
+
+html[data-tsl-axiros-theme="on"] .help-block {
+  color: var(--tsl-text-muted);
+}
+
+html[data-tsl-axiros-theme="on"] .input-group-addon {
+  background-color: var(--tsl-surface-2) !important;
+  color: var(--tsl-text-secondary) !important;
+  border-color: var(--tsl-border-strong) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .input-group-btn .btn {
+  border-color: var(--tsl-border-strong);
+}
+
+/* ==================== BUTTONS ==================== */
+
+html[data-tsl-axiros-theme="on"] .btn-default {
+  color: var(--tsl-text) !important;
+  background-color: var(--tsl-surface-2) !important;
+  border-color: var(--tsl-border-strong) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .btn-default:hover,
+html[data-tsl-axiros-theme="on"] .btn-default:focus,
+html[data-tsl-axiros-theme="on"] .btn-default:active,
+html[data-tsl-axiros-theme="on"] .btn-default.active,
+html[data-tsl-axiros-theme="on"] .open > .dropdown-toggle.btn-default {
+  color: var(--tsl-text) !important;
+  background-color: var(--tsl-surface-3) !important;
+  border-color: var(--tsl-border-strong) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .btn-primary {
+  color: #fff !important;
+  background-color: var(--tsl-primary) !important;
+  border-color: var(--tsl-primary-strong) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .btn-primary:hover,
+html[data-tsl-axiros-theme="on"] .btn-primary:focus,
+html[data-tsl-axiros-theme="on"] .btn-primary:active,
+html[data-tsl-axiros-theme="on"] .btn-primary.active {
+  color: #fff !important;
+  background-color: var(--tsl-primary-strong) !important;
+  border-color: var(--tsl-primary-strong) !important;
+}
+
+/* Семантические кнопки — hue сохранён */
+html[data-tsl-axiros-theme="on"] .btn-success {
+  color: #fff !important;
+  background-color: #2e7d32 !important;
+  border-color: #1b5e20 !important;
+}
+
+html[data-tsl-axiros-theme="on"] .btn-info {
+  color: #fff !important;
+  background-color: #0277bd !important;
+  border-color: #01579b !important;
+}
+
+html[data-tsl-axiros-theme="on"] .btn-warning {
+  color: #000 !important;
+  background-color: #ffc107 !important;
+  border-color: #ffa000 !important;
+}
+
+html[data-tsl-axiros-theme="on"] .btn-danger {
+  color: #fff !important;
+  background-color: #af4448 !important;
+  border-color: #8e2a2e !important;
+}
+
+html[data-tsl-axiros-theme="on"] .btn-link {
+  color: var(--tsl-link) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .btn.disabled,
+html[data-tsl-axiros-theme="on"] .btn[disabled],
+html[data-tsl-axiros-theme="on"] fieldset[disabled] .btn {
+  opacity: 0.55;
+}
+
+/* ==================== PANELS ==================== */
+
+html[data-tsl-axiros-theme="on"] .panel {
+  background-color: var(--tsl-surface) !important;
+  border-color: var(--tsl-border) !important;
+  box-shadow: 0 1px 1px var(--tsl-shadow);
+}
+
+html[data-tsl-axiros-theme="on"] .panel-default {
+  border-color: var(--tsl-border) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .panel-default > .panel-heading {
+  color: var(--tsl-text) !important;
+  background-color: var(--tsl-surface-2) !important;
+  border-color: var(--tsl-border) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .panel-body,
+html[data-tsl-axiros-theme="on"] .panel-footer {
+  background-color: var(--tsl-surface) !important;
+  color: var(--tsl-text) !important;
+  border-color: var(--tsl-border) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .panel-primary > .panel-heading {
+  background-color: var(--tsl-primary) !important;
+  border-color: var(--tsl-primary-strong) !important;
+  color: #fff !important;
+}
+
+html[data-tsl-axiros-theme="on"] .panel-success > .panel-heading {
+  background-color: var(--tsl-alert-success-bg) !important;
+  border-color: var(--tsl-alert-success-border) !important;
+  color: var(--tsl-alert-success-fg) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .panel-info > .panel-heading {
+  background-color: var(--tsl-alert-info-bg) !important;
+  border-color: var(--tsl-alert-info-border) !important;
+  color: var(--tsl-alert-info-fg) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .panel-warning > .panel-heading {
+  background-color: var(--tsl-alert-warning-bg) !important;
+  border-color: var(--tsl-alert-warning-border) !important;
+  color: var(--tsl-alert-warning-fg) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .panel-danger > .panel-heading {
+  background-color: var(--tsl-alert-danger-bg) !important;
+  border-color: var(--tsl-alert-danger-border) !important;
+  color: var(--tsl-alert-danger-fg) !important;
+}
+
+/* ==================== TABLES ==================== */
+
+html[data-tsl-axiros-theme="on"] .table,
+html[data-tsl-axiros-theme="on"] table {
+  color: var(--tsl-text);
+  background-color: transparent;
+}
+
+html[data-tsl-axiros-theme="on"] .table > thead > tr > th,
+html[data-tsl-axiros-theme="on"] .table > tbody > tr > th,
+html[data-tsl-axiros-theme="on"] .table > tfoot > tr > th,
+html[data-tsl-axiros-theme="on"] .table > thead > tr > td,
+html[data-tsl-axiros-theme="on"] .table > tbody > tr > td,
+html[data-tsl-axiros-theme="on"] .table > tfoot > tr > td,
+html[data-tsl-axiros-theme="on"] table > thead > tr > th,
+html[data-tsl-axiros-theme="on"] table > tbody > tr > th,
+html[data-tsl-axiros-theme="on"] table > tbody > tr > td {
+  border-color: var(--tsl-border) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .table > thead > tr > th,
+html[data-tsl-axiros-theme="on"] table > thead > tr > th {
+  background-color: var(--tsl-surface-2);
+  color: var(--tsl-text);
+  border-bottom-color: var(--tsl-border-strong) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .table-striped > tbody > tr:nth-child(odd) > td,
+html[data-tsl-axiros-theme="on"] .table-striped > tbody > tr:nth-child(odd) > th {
+  background-color: var(--tsl-zebra) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .table-hover > tbody > tr:hover > td,
+html[data-tsl-axiros-theme="on"] .table-hover > tbody > tr:hover > th {
+  background-color: var(--tsl-surface-3) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .table-bordered,
+html[data-tsl-axiros-theme="on"] .table-bordered > thead > tr > th,
+html[data-tsl-axiros-theme="on"] .table-bordered > tbody > tr > th,
+html[data-tsl-axiros-theme="on"] .table-bordered > tfoot > tr > th,
+html[data-tsl-axiros-theme="on"] .table-bordered > thead > tr > td,
+html[data-tsl-axiros-theme="on"] .table-bordered > tbody > tr > td,
+html[data-tsl-axiros-theme="on"] .table-bordered > tfoot > tr > td {
+  border-color: var(--tsl-border) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .table-responsive {
+  border-color: var(--tsl-border);
+}
+
+/* ==================== NAV TABS / PILLS ==================== */
+
+html[data-tsl-axiros-theme="on"] .nav > li > a {
+  color: var(--tsl-text-secondary);
+}
+
+html[data-tsl-axiros-theme="on"] .nav > li > a:hover,
+html[data-tsl-axiros-theme="on"] .nav > li > a:focus {
+  background-color: var(--tsl-surface-2) !important;
+  color: var(--tsl-text) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .nav-tabs {
+  border-bottom-color: var(--tsl-border) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .nav-tabs > li > a {
+  color: var(--tsl-text-secondary);
+}
+
+html[data-tsl-axiros-theme="on"] .nav-tabs > li.active > a,
+html[data-tsl-axiros-theme="on"] .nav-tabs > li.active > a:hover,
+html[data-tsl-axiros-theme="on"] .nav-tabs > li.active > a:focus {
+  color: var(--tsl-text) !important;
+  background-color: var(--tsl-surface) !important;
+  border-color: var(--tsl-border) var(--tsl-border) transparent !important;
+}
+
+html[data-tsl-axiros-theme="on"] .nav-tabs > li > a:hover {
+  border-color: var(--tsl-surface-2) var(--tsl-surface-2) var(--tsl-border) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .nav-pills > li.active > a,
+html[data-tsl-axiros-theme="on"] .nav-pills > li.active > a:hover,
+html[data-tsl-axiros-theme="on"] .nav-pills > li.active > a:focus {
+  background-color: var(--tsl-primary) !important;
+  color: #fff !important;
+}
+
+html[data-tsl-axiros-theme="on"] .nav .open > a,
+html[data-tsl-axiros-theme="on"] .nav .open > a:hover,
+html[data-tsl-axiros-theme="on"] .nav .open > a:focus {
+  background-color: var(--tsl-surface-3) !important;
+  border-color: var(--tsl-border) !important;
+}
+
+/* ==================== PAGINATION ==================== */
+
+html[data-tsl-axiros-theme="on"] .pagination > li > a,
+html[data-tsl-axiros-theme="on"] .pagination > li > span {
+  color: var(--tsl-link) !important;
+  background-color: var(--tsl-surface) !important;
+  border-color: var(--tsl-border) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .pagination > li > a:hover,
+html[data-tsl-axiros-theme="on"] .pagination > li > span:hover,
+html[data-tsl-axiros-theme="on"] .pagination > li > a:focus,
+html[data-tsl-axiros-theme="on"] .pagination > li > span:focus {
+  color: var(--tsl-text) !important;
+  background-color: var(--tsl-surface-3) !important;
+  border-color: var(--tsl-border-strong) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .pagination > .active > a,
+html[data-tsl-axiros-theme="on"] .pagination > .active > span,
+html[data-tsl-axiros-theme="on"] .pagination > .active > a:hover,
+html[data-tsl-axiros-theme="on"] .pagination > .active > span:hover {
+  color: #fff !important;
+  background-color: var(--tsl-primary) !important;
+  border-color: var(--tsl-primary) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .pagination > .disabled > a,
+html[data-tsl-axiros-theme="on"] .pagination > .disabled > span {
+  color: var(--tsl-disabled-text) !important;
+  background-color: var(--tsl-surface) !important;
+  border-color: var(--tsl-border) !important;
+}
+
+/* ==================== LABELS / BADGES (семантика) ==================== */
+
+html[data-tsl-axiros-theme="on"] .label-default {
+  background-color: var(--tsl-label-default-bg) !important;
+  color: #fff !important;
+}
+
+html[data-tsl-axiros-theme="on"] .label-primary {
+  background-color: var(--tsl-primary) !important;
+  color: #fff !important;
+}
+
+html[data-tsl-axiros-theme="on"] .label-success {
+  background-color: var(--tsl-label-success-bg) !important;
+  color: #fff !important;
+}
+
+html[data-tsl-axiros-theme="on"] .label-info {
+  background-color: var(--tsl-label-info-bg) !important;
+  color: #fff !important;
+}
+
+html[data-tsl-axiros-theme="on"] .label-warning {
+  background-color: var(--tsl-label-warning-bg) !important;
+  color: var(--tsl-label-warning-fg) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .label-danger {
+  background-color: var(--tsl-label-danger-bg) !important;
+  color: #fff !important;
+}
+
+html[data-tsl-axiros-theme="on"] .badge {
+  background-color: var(--tsl-elevated);
+  color: var(--tsl-text);
+}
+
+/* ==================== ALERTS (семантика, тёмный фон) ==================== */
+
+html[data-tsl-axiros-theme="on"] .alert {
+  border-width: 1px;
+}
+
+html[data-tsl-axiros-theme="on"] .alert-success {
+  color: var(--tsl-alert-success-fg) !important;
+  background-color: var(--tsl-alert-success-bg) !important;
+  border-color: var(--tsl-alert-success-border) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .alert-info {
+  color: var(--tsl-alert-info-fg) !important;
+  background-color: var(--tsl-alert-info-bg) !important;
+  border-color: var(--tsl-alert-info-border) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .alert-warning {
+  color: var(--tsl-alert-warning-fg) !important;
+  background-color: var(--tsl-alert-warning-bg) !important;
+  border-color: var(--tsl-alert-warning-border) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .alert-danger {
+  color: var(--tsl-alert-danger-fg) !important;
+  background-color: var(--tsl-alert-danger-bg) !important;
+  border-color: var(--tsl-alert-danger-border) !important;
+}
+
+/* ==================== MODAL / WELL / LIST / PROGRESS ==================== */
+
+html[data-tsl-axiros-theme="on"] .modal-content {
+  background-color: var(--tsl-surface) !important;
+  border-color: var(--tsl-border) !important;
+  color: var(--tsl-text);
+  box-shadow: 0 5px 15px var(--tsl-shadow);
+}
+
+html[data-tsl-axiros-theme="on"] .modal-header,
+html[data-tsl-axiros-theme="on"] .modal-footer {
+  border-color: var(--tsl-border) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .modal-header .close {
+  color: var(--tsl-text);
+  text-shadow: none;
+  opacity: 0.7;
+}
+
+html[data-tsl-axiros-theme="on"] .modal-backdrop {
+  background-color: #000;
+}
+
+html[data-tsl-axiros-theme="on"] .well,
+html[data-tsl-axiros-theme="on"] .well-sm,
+html[data-tsl-axiros-theme="on"] .well-lg {
+  background-color: var(--tsl-surface-2) !important;
+  border-color: var(--tsl-border) !important;
+  color: var(--tsl-text);
+  box-shadow: none;
+}
+
+html[data-tsl-axiros-theme="on"] .list-group-item {
+  background-color: var(--tsl-surface) !important;
+  border-color: var(--tsl-border) !important;
+  color: var(--tsl-text) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .list-group-item:hover,
+html[data-tsl-axiros-theme="on"] a.list-group-item:hover,
+html[data-tsl-axiros-theme="on"] button.list-group-item:hover {
+  background-color: var(--tsl-surface-2) !important;
+  color: var(--tsl-text) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .list-group-item.active,
+html[data-tsl-axiros-theme="on"] .list-group-item.active:hover,
+html[data-tsl-axiros-theme="on"] .list-group-item.active:focus {
+  background-color: var(--tsl-primary) !important;
+  border-color: var(--tsl-primary) !important;
+  color: #fff !important;
+}
+
+html[data-tsl-axiros-theme="on"] .progress {
+  background-color: var(--tsl-surface-2) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .breadcrumb {
+  background-color: var(--tsl-surface-2) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .breadcrumb > li + li:before {
+  color: var(--tsl-text-muted);
+}
+
+html[data-tsl-axiros-theme="on"] .breadcrumb > .active {
+  color: var(--tsl-text-muted);
+}
+
+html[data-tsl-axiros-theme="on"] .thumbnail {
+  background-color: var(--tsl-surface);
+  border-color: var(--tsl-border);
+}
+
+html[data-tsl-axiros-theme="on"] .popover {
+  background-color: var(--tsl-surface);
+  border-color: var(--tsl-border);
+  color: var(--tsl-text);
+}
+
+html[data-tsl-axiros-theme="on"] .popover-title {
+  background-color: var(--tsl-surface-2);
+  border-bottom-color: var(--tsl-border);
+  color: var(--tsl-text);
+}
+
+html[data-tsl-axiros-theme="on"] .tooltip-inner {
+  background-color: var(--tsl-elevated);
+  color: var(--tsl-text);
+}
+
+/* ==================== GLYPHICONS / ICONS ==================== */
+
+html[data-tsl-axiros-theme="on"] .glyphicon,
+html[data-tsl-axiros-theme="on"] .fa {
+  color: inherit;
+}
+
+/* ==================== MISC APP / BOOTSTRAP UTILS ==================== */
+
+html[data-tsl-axiros-theme="on"] .text-muted {
+  color: var(--tsl-text-muted) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .text-primary {
+  color: var(--tsl-primary) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .close {
+  color: var(--tsl-text);
+  text-shadow: none;
+  opacity: 0.65;
+}
+
+html[data-tsl-axiros-theme="on"] .close:hover {
+  color: var(--tsl-text);
+  opacity: 1;
+}
+
+html[data-tsl-axiros-theme="on"] .page-header {
+  border-bottom-color: var(--tsl-border);
+}
+
+html[data-tsl-axiros-theme="on"] .jumbotron {
+  background-color: var(--tsl-surface-2);
+  color: var(--tsl-text);
+}
+
+/* Empty-state: заголовок RT-оранжевый — не трогаем; reason — читаемый текст */
+html[data-tsl-axiros-theme="on"] .ax-no-configuration-reason {
+  color: var(--tsl-text-secondary) !important;
+}
+
+/* Notification area / fixed toasts reuse .alert — covered above */
+
+/* Container fluid background transparent so page-bg shows */
+html[data-tsl-axiros-theme="on"] .container,
+html[data-tsl-axiros-theme="on"] .container-fluid {
+  background-color: transparent;
+}

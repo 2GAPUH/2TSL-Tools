@@ -8,7 +8,7 @@ const IE_MAX_BODY_LENGTH = 50000;
 const IE_SETTINGS_KEYS = [
   'omnichatTemplates', 'omnichatTTMLinks', 'ttmButton', 'accountingPanel',
   'grafanaSSH', 'reminder', 'ttmOnyma', 'ttmSipal', 'darkMode',
-  'argusDarkTheme', 'argusDarkPalette',
+  'argusDarkTheme', 'axirosDarkTheme', 'systemsDarkPalette',
   'popupLayoutScale', 'popupTabSizes', 'popupUnifiedTabSize'
 ];
 
@@ -23,7 +23,8 @@ const IE_SETTINGS_LABELS = {
   ttmSipal: 'Переход TTM → SIPAL',
   darkMode: 'Тёмная тема popup',
   argusDarkTheme: 'Тёмная тема Argus',
-  argusDarkPalette: 'Цвет темы Argus',
+  axirosDarkTheme: 'Тёмная тема Axiros',
+  systemsDarkPalette: 'Цвет тёмной темы (Argus / Axiros)',
   popupUnifiedTabSize: 'Один размер для всех вкладок',
   popupLayoutScale: 'Масштаб оформления',
   popupTabSizes: 'Размеры вкладок'
@@ -68,12 +69,17 @@ function ieFormatSettingValue(key, value) {
 }
 
 function ieSanitizeSettings(settings) {
+  if (!settings || typeof settings !== 'object') return {};
   const out = {};
   IE_SETTINGS_KEYS.forEach((key) => {
     if (settings[key] !== undefined) {
       out[key] = settings[key];
     }
   });
+  // Legacy: старые экспорты с argusDarkPalette
+  if (out.systemsDarkPalette === undefined && settings.argusDarkPalette !== undefined) {
+    out.systemsDarkPalette = settings.argusDarkPalette;
+  }
   return out;
 }
 

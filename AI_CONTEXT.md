@@ -1,7 +1,8 @@
 # AI Context — 2TSL Toolbox
 
 > **Для AI-ассистентов:** читай этот файл в начале нового диалога по проекту.  
-> Краткий контекст, архитектура, соглашения и текущее состояние.
+> Краткий контекст, архитектура, соглашения и текущее состояние.  
+> Процесс работы над фичами: **`AGENT_WORKFLOW.md`**. Always-on: **`AGENTS.md`**.
 
 ---
 
@@ -12,7 +13,7 @@
 
 | Параметр | Значение |
 |----------|----------|
-| Версия | `0.7.11` (см. `manifest.json`) |
+| Версия | `0.7.12` (см. `manifest.json`) |
 | Язык UI/комментариев | Русский |
 | Runtime-зависимости | 0 (vanilla JS) |
 | Автор / репо | 2GAPUH / https://github.com/2GAPUH/2TSL-Tools |
@@ -66,6 +67,8 @@ Content scripts **никогда не делают fetch** для аналити
 | `content-volgahelp.js` | Черновики volgahelp, «Скопировать всё» |
 | `content-argus-theme.js` | Argus: вкл/выкл тёмной темы (CSS inject) |
 | `argus-dark.css` | Argus: палитры + framework overrides |
+| `content-axiros-theme.js` | Axiros: вкл/выкл тёмной темы (CSS inject) |
+| `axiros-dark.css` | Axiros: Bootstrap 3 overrides + палитры |
 | `content-accounting.js` | Боковая панель учёта |
 | `analytics.js` | ID, очередь, flush 30 мин |
 | `cloud-sync.js` | Eligibility, export/import по токену |
@@ -110,7 +113,9 @@ Content scripts **никогда не делают fetch** для аналити
   ttmCommentBuilder: true,
   darkMode: false,
   argusDarkTheme: false,           // тёмная тема Argus (отдельный переключатель)
-  argusDarkPalette: 'slate',       // 'slate' (EPD) | 'black' | 'navy'
+  axirosDarkTheme: false,          // тёмная тема Axiros (отдельный переключатель)
+  systemsDarkPalette: 'slate',     // общая палитра Argus+Axiros: 'slate' | 'black' | 'navy'
+  // legacy: argusDarkPalette — читается как fallback, если systemsDarkPalette нет
   analyticsEnabled: true,   // opt-out с confirm при выключении
   popupUnifiedTabSize: false,
   templateReorderMode: 'buttons',  // 'buttons' | 'drag'
@@ -169,7 +174,7 @@ Content scripts **никогда не делают fetch** для аналити
 
 ### Каталог событий (основные)
 
-`ttm_assistant_click`, `ttm_timer_click`, `ttm_reminder_created`, `ttm_onyma_click`, `ttm_sipal_click`, `ttm_comment_builder_open`, `ttm_comment_builder_copy`, `ttm_comment_builder_paste`, `ttm_comment_builder_close`, `ttm_autosearch`, `omnichat_templates_tab_open`, `omnichat_template_insert`, `omnichat_link_click_nls`, `omnichat_link_click_ticket`, `accounting_panel_open`, `accounting_entry_closed`, `accounting_entry_field`, `accounting_csv_export`, `grafana_ip_click`, `ssh_autofill`, `form_autofill`, `popup_open`, `popup_tab_*`, `popup_template_copy`, `popup_template_paste`, `settings_change_*`, `argus_dark_theme_on`, `argus_dark_theme_off`, `argus_dark_palette_change`, `cloud_export`, `cloud_import`, `feedback_sent`, `extension_installed`, `extension_updated`
+`ttm_assistant_click`, `ttm_timer_click`, `ttm_reminder_created`, `ttm_onyma_click`, `ttm_sipal_click`, `ttm_comment_builder_open`, `ttm_comment_builder_copy`, `ttm_comment_builder_paste`, `ttm_comment_builder_close`, `ttm_autosearch`, `omnichat_templates_tab_open`, `omnichat_template_insert`, `omnichat_link_click_nls`, `omnichat_link_click_ticket`, `accounting_panel_open`, `accounting_entry_closed`, `accounting_entry_field`, `accounting_csv_export`, `grafana_ip_click`, `ssh_autofill`, `form_autofill`, `popup_open`, `popup_tab_*`, `popup_template_copy`, `popup_template_paste`, `settings_change_*`, `argus_dark_theme_on`, `argus_dark_theme_off`, `argus_dark_palette_change`, `axiros_dark_theme_on`, `axiros_dark_theme_off`, `axiros_dark_palette_change`, `cloud_export`, `cloud_import`, `feedback_sent`, `extension_installed`, `extension_updated`
 
 ---
 
@@ -260,7 +265,8 @@ python scripts/build_analytics_dashboard.py
 | Форма ассистента | `content-form.js` + `openAssistantForm` в background |
 | Новое событие аналитики | `trackEvent()` + при необходимости Apps Script |
 | Новый переключатель | popup.html, popup.js settings, content script guard |
-| Тёмная тема Argus | `argus-dark.css` + `content-argus-theme.js` + setting `argusDarkTheme` / `argusDarkPalette` |
+| Тёмная тема Argus | `argus-dark.css` + `content-argus-theme.js` + `argusDarkTheme` / `systemsDarkPalette` |
+| Тёмная тема Axiros | `axiros-dark.css` + `content-axiros-theme.js` + `axirosDarkTheme` / `systemsDarkPalette` |
 | Изменить интервал flush | `FLUSH_INTERVAL_MINUTES` в `analytics.js` |
 | ZIP-сборка | `build.bat` (список файлов внутри) |
 

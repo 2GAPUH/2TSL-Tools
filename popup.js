@@ -97,7 +97,8 @@ let settings = {
   openTabAdjacent: false,
   darkMode: false,
   argusDarkTheme: false,
-  argusDarkPalette: 'slate',
+  axirosDarkTheme: false,
+  systemsDarkPalette: 'slate',
   analyticsEnabled: true,
   popupLayoutScale: null,
   popupTabSizes: null,
@@ -147,8 +148,9 @@ const settingTTMSipal = document.getElementById('settingTTMSipal');
 const settingTTMCommentBuilder = document.getElementById('settingTTMCommentBuilder');
 const settingDarkMode = document.getElementById('settingDarkMode');
 const settingArgusDarkTheme = document.getElementById('settingArgusDarkTheme');
-const settingArgusDarkPalette = document.getElementById('settingArgusDarkPalette');
-const argusPaletteSettingRow = document.getElementById('argusPaletteSettingRow');
+const settingAxirosDarkTheme = document.getElementById('settingAxirosDarkTheme');
+const settingSystemsDarkPalette = document.getElementById('settingSystemsDarkPalette');
+const systemsPaletteSettingRow = document.getElementById('systemsPaletteSettingRow');
 const settingPopupPreset = document.getElementById('settingPopupPreset');
 const resetPopupLayoutBtn = document.getElementById('resetPopupLayout');
 const toggleLayoutAdvancedBtn = document.getElementById('toggleLayoutAdvanced');
@@ -779,10 +781,16 @@ function loadAllData() {
       omnichatTTMLinks: true,
       darkMode: false,
       argusDarkTheme: false,
-      argusDarkPalette: 'slate',
+      axirosDarkTheme: false,
+      systemsDarkPalette: 'slate',
       analyticsEnabled: true
     };
-    if (!settings.argusDarkPalette) settings.argusDarkPalette = 'slate';
+    const hadLegacyPalette = !settings.systemsDarkPalette && !!settings.argusDarkPalette;
+    migrateSystemsDarkPalette();
+    if (hadLegacyPalette) {
+      // Перенос argusDarkPalette → systemsDarkPalette
+      saveSettings();
+    }
     const hadLegacyLayout = Boolean(
       result.settings?.popupSize ||
       result.settings?.popupLayout ||
@@ -913,7 +921,8 @@ function applySettings() {
   settingTTMCommentBuilder.checked = settings.ttmCommentBuilder !== false;
   settingDarkMode.checked = settings.darkMode;
   if (settingArgusDarkTheme) settingArgusDarkTheme.checked = settings.argusDarkTheme === true;
-  applyArgusPaletteUI();
+  if (settingAxirosDarkTheme) settingAxirosDarkTheme.checked = settings.axirosDarkTheme === true;
+  applySystemsPaletteUI();
   settingAnalytics.checked = settings.analyticsEnabled !== false;
   if (settingTemplateReorderMode) {
     settingTemplateReorderMode.value = getTemplateReorderMode();
@@ -987,43 +996,57 @@ bindSettingToggle(settingTTMOnyma, 'ttmOnyma');
 bindSettingToggle(settingTTMSipal, 'ttmSipal');
 bindSettingToggle(settingTTMCommentBuilder, 'ttmCommentBuilder');
 bindSettingToggle(settingDarkMode, 'darkMode');
-function normalizeArgusPalette(value) {
+function normalizeSystemsPalette(value) {
   if (value === 'black' || value === 'navy' || value === 'slate') return value;
   return 'slate';
 }
 
-function applyArgusPaletteUI() {
-  const enabled = settings.argusDarkTheme === true;
-  const palette = normalizeArgusPalette(settings.argusDarkPalette);
-  settings.argusDarkPalette = palette;
-  if (settingArgusDarkPalette) {
-    settingArgusDarkPalette.value = palette;
-    settingArgusDarkPalette.disabled = !enabled;
+/** systemsDarkPalette + fallback с legacy argusDarkPalette */
+function migrateSystemsDarkPalette() {
+  if (!settings.systemsDarkPalette && settings.argusDarkPalette) {
+    settings.systemsDarkPalette = settings.argusDarkPalette;
   }
-  if (argusPaletteSettingRow) {
-    argusPaletteSettingRow.style.opacity = enabled ? '1' : '0.55';
+  settings.systemsDarkPalette = normalizeSystemsPalette(settings.systemsDarkPalette);
+}
+
+function applySystemsPaletteUI() {
+  migrateSystemsDarkPalette();
+  const enabled = settings.argusDarkTheme === true || settings.axirosDarkTheme === true;
+  const palette = settings.systemsDarkPalette;
+  if (settingSystemsDarkPalette) {
+    settingSystemsDarkPalette.value = palette;
+    settingSystemsDarkPalette.disabled = !enabled;
+  }
+  if (systemsPaletteSettingRow) {
+    systemsPaletteSettingRow.style.opacity = enabled ? '1' : '0.55';
   }
 }
 
 if (settingArgusDarkTheme) {
   settingArgusDarkTheme.addEventListener('change', (e) => {
     settings.argusDarkTheme = e.target.checked;
-    if (!settings.argusDarkPalette) settings.argusDarkPalette = 'slate';
-    applyArgusPaletteUI();
+    migrateSystemsDarkPalette();
+    applySystemsPaletteUI();
     saveSettings();
-    trackEvent(`settings_change_argusDarkTheme`);
+    trackEvent('settings_change_argusDarkTheme');
   });
 }
 
-if (settingArgusDarkPalette) {
-  settingArgusDarkPalette.addEventListener('change', (e) => {
-    settings.argusDarkPalette = normalizeArgusPalette(e.target.value);
-    if (!settings.argusDarkTheme) {
-      // палитра сохраняется и для будущего включения
-    }
+if (settingAxirosDarkTheme) {
+  settingAxirosDarkTheme.addEventListener('change', (e) => {
+    settings.axirosDarkTheme = e.target.checked;
+    migrateSystemsDarkPalette();
+    applySystemsPaletteUI();
     saveSettings();
-    trackEvent('settings_change_argusDarkPalette');
-    trackEvent('argus_dark_palette_change');
+    trackEvent('settings_change_axirosDarkTheme');
+  });
+}
+
+if (settingSystemsDarkPalette) {
+  settingSystemsDarkPalette.addEventListener('change', (e) => {
+    settings.systemsDarkPalette = normalizeSystemsPalette(e.target.value);
+    saveSettings();
+    trackEvent('settings_change_systemsDarkPalette');
   });
 }
 

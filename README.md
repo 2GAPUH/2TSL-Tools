@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <b>Версия:</b> 0.7.11 &nbsp;·&nbsp;
+  <b>Версия:</b> 0.7.12 &nbsp;·&nbsp;
   <b>Манифест:</b> V3 &nbsp;·&nbsp;
   <b>Зависимости:</b> 0 (расширение) &nbsp;·&nbsp;
   <b>Объём кода:</b> ~10 000+ строк
@@ -27,7 +27,7 @@
 | 🌐 **Grafana → SSH** | Кликабельные IP-адреса в дашбордах с автоматическим переходом на SSH-терминал |
 | 📈 **Аналитика** | Анонимная статистика использования через Google Таблицы (батч раз в 30 мин) |
 | 💬 **Обратная связь** | Отправка отзывов и багрепортов из настроек расширения |
-| 🌙 **Тёмная тема** | Тёмная тема popup и отдельная тёмная тема Argus (Волга / Юг / СЗ) |
+| 🌙 **Тёмная тема** | Тёмная тема popup, Argus и Axiros (отдельные переключатели, общая палитра) |
 | ⚙️ **Гибкие настройки** | Переключатели модулей, масштаб popup, порядок шаблонов |
 | 💾 **Резервная копия** | Импорт/экспорт шаблонов: JSON-файл (всем) и облако по токену |
 | ↕️ **Порядок шаблонов** | Кнопки ▲/▼ или перетаскивание — на выбор в настройках |
@@ -71,6 +71,8 @@ Grafana (IP-адреса)
 ├── content-volgahelp.js        # volgahelp.ru: черновики и копирование
 ├── content-argus-theme.js      # Argus: тёмная тема (inject CSS)
 ├── argus-dark.css              # Argus: палитра slate + framework overrides
+├── content-axiros-theme.js     # Axiros: тёмная тема (inject CSS)
+├── axiros-dark.css             # Axiros: Bootstrap 3 overrides + палитры
 ├── content-grafana.js          # Grafana: IP → SSH переход
 ├── content-ssh.js              # SSH: автозаполнение IP
 ├── content-onyma.js            # Onyma: автозаполнение поиска
@@ -80,6 +82,8 @@ Grafana (IP-адреса)
 ├── scripts/
 │   └── build_analytics_dashboard.py  # Оформление xlsx-отчёта и графики
 ├── AI_CONTEXT.md               # Контекст проекта для AI-ассистентов
+├── AGENTS.md                   # Always-on правила для агентов
+├── AGENT_WORKFLOW.md           # Процесс: план → вопросы → реализация
 └── icons/                      # Иконки (светлая / тёмная версии)
 ```
 
@@ -106,6 +110,7 @@ Grafana (IP-адреса)
 | `content-form.js` | `bzbti.rt.ru` | Автозаполнение формы ассистента (только целевая вкладка) |
 | `content-volgahelp.js` | `volgahelp.ru` | Конструктор комментария: черновики, «Скопировать всё» |
 | `content-argus-theme.js` + `argus-dark.css` | `argus.rt.ru`, `*.argus.rt.ru` | Тёмная тема Argus + портал (палитры slate/black/navy) |
+| `content-axiros-theme.js` + `axiros-dark.css` | `acs-tr69.sz.rt.ru:4673`, `tr069.south.rt.ru:9673`, `10.82.16.11:9673` | Тёмная тема Axiros (Bootstrap 3) |
 | `content-grafana.js` | `epd.rt.ru` | IP → SSH (Волга, Юг, СЗ) |
 | `content-ssh.js` | `10.x.x.x` | Автозаполнение IP |
 | `content-onyma.js` | `onymaweb.south.rt.ru` | Автопоиск ИЛС |
@@ -135,7 +140,8 @@ Grafana (IP-адреса)
 | `ttmSipal` | ✅ | Кнопка перехода в SIPAL |
 | `darkMode` | ❌ | Тёмная тема для popup |
 | `argusDarkTheme` | ❌ | Тёмная тема Argus (портал + регионы) |
-| `argusDarkPalette` | `slate` | Палитра: `slate` (как ЕПД), `black`, `navy` |
+| `axirosDarkTheme` | ❌ | Тёмная тема Axiros (СЗ / Юг / Волга) |
+| `systemsDarkPalette` | `slate` | Общая палитра Argus+Axiros: `slate` (как ЕПД), `black`, `navy` |
 | `analyticsEnabled` | ✅ | Анонимная статистика использования |
 | `popupUnifiedTabSize` | ❌ | Один размер окна для всех вкладок popup |
 | `templateReorderMode` | `buttons` | Порядок шаблонов: `buttons` (▲/▼) или `drag` |

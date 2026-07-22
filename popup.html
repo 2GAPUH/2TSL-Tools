@@ -1769,12 +1769,23 @@
         </label>
       </div>
 
-      <div class="setting-item" id="argusPaletteSettingRow">
+      <div class="setting-item">
         <div>
-          <div class="setting-label">Цвет темы Argus</div>
-          <div class="setting-description">Палитра тёмной темы. «Тёмно-серый» совпадает с оформлением ЕПД</div>
+          <div class="setting-label">Тёмная тема Axiros</div>
+          <div class="setting-description">Тёмный интерфейс Axiros (TR-069): СЗ, Юг, Волга. Независимо от Argus и темы popup. Метки статусов и RT-акцент сохранены</div>
         </div>
-        <select class="setting-select" id="settingArgusDarkPalette" disabled>
+        <label class="toggle-switch">
+          <input type="checkbox" id="settingAxirosDarkTheme">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-item" id="systemsPaletteSettingRow">
+        <div>
+          <div class="setting-label">Цвет тёмной темы</div>
+          <div class="setting-description">Общая палитра для Argus и Axiros. «Тёмно-серый» совпадает с оформлением ЕПД</div>
+        </div>
+        <select class="setting-select" id="settingSystemsDarkPalette" disabled>
           <option value="slate">Тёмно-серый</option>
           <option value="black">Чёрный</option>
           <option value="navy">Тёмно-синий</option>
