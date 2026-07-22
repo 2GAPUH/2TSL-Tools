@@ -13,7 +13,7 @@
 
 | Параметр | Значение |
 |----------|----------|
-| Версия | `0.7.12` (см. `manifest.json`) |
+| Версия | `0.8.0` (см. `manifest.json`) |
 | Язык UI/комментариев | Русский |
 | Runtime-зависимости | 0 (vanilla JS) |
 | Автор / репо | 2GAPUH / https://github.com/2GAPUH/2TSL-Tools |
@@ -45,6 +45,7 @@ build.bat                      ← упаковка runtime-файлов в ZIP
 | `openForm` | content scripts | `chrome.tabs.create({ url })` |
 | `openTtmSearch` | omnichat/ttm-links | Создаёт вкладку TTM → пишет `ttmSearchData` **с `targetTabId`** |
 | `openAssistantForm` | content-ttm | Создаёт вкладку формы → пишет `ttmFormData` **с `targetTabId`** |
+| `lookupMacOui` | content-epd-mac | Background → maclookup.app (кэш OUI 30 дн.), без CORS с страницы |
 | `getTabId` | content-form, content-ttm | `{ tabId }` отправителя (для targetTabId) |
 | `addReminder` / `removeReminder` / `updateReminder` | content-ttm, popup | Напоминалка |
 | `cloudCheckEligibility` / `cloudExport` / `cloudImport` | import-export page | Облачный обмен шаблонами |
@@ -69,6 +70,7 @@ Content scripts **никогда не делают fetch** для аналити
 | `argus-dark.css` | Argus: палитры + framework overrides |
 | `content-axiros-theme.js` | Axiros: вкл/выкл тёмной темы (CSS inject) |
 | `axiros-dark.css` | Axiros: Bootstrap 3 overrides + палитры |
+| `content-epd-mac.js` | EPD customers: tooltip OUI (вендор + YYYY-MM) на MAC |
 | `content-accounting.js` | Боковая панель учёта |
 | `analytics.js` | ID, очередь, flush 30 мин |
 | `cloud-sync.js` | Eligibility, export/import по токену |
@@ -107,6 +109,7 @@ Content scripts **никогда не делают fetch** для аналити
   ttmButton: true,
   accountingPanel: true,
   grafanaSSH: true,
+  epdMacYear: true,                // EPD customers: title на MAC → вендор + YYYY-MM (OUI)
   reminder: true,
   ttmOnyma: true,
   ttmSipal: true,
@@ -267,6 +270,7 @@ python scripts/build_analytics_dashboard.py
 | Новый переключатель | popup.html, popup.js settings, content script guard |
 | Тёмная тема Argus | `argus-dark.css` + `content-argus-theme.js` + `argusDarkTheme` / `systemsDarkPalette` |
 | Тёмная тема Axiros | `axiros-dark.css` + `content-axiros-theme.js` + `axirosDarkTheme` / `systemsDarkPalette` |
+| EPD MAC OUI tooltip | `content-epd-mac.js` + `lookupMacOui` в background + `epdMacYear` |
 | Изменить интервал flush | `FLUSH_INTERVAL_MINUTES` в `analytics.js` |
 | ZIP-сборка | `build.bat` (список файлов внутри) |
 

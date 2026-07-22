@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "2TSL toolbox",
-  "version": "0.7.12",
+  "version": "0.8.0",
   "description": "Набор инструментов для повышения эффективности работы: управление шаблонами, навигация между системами, напоминания и автоматизация рутинных задач.",
   "permissions": ["storage", "tabs", "notifications", "alarms", "identity", "identity.email"],
   "action": {
@@ -82,6 +82,11 @@
       "run_at": "document_idle"
     },
     {
+      "matches": ["https://epd.rt.ru/customers/*"],
+      "js": ["content-epd-mac.js"],
+      "run_at": "document_idle"
+    },
+    {
       "matches": [
         "http://10.77.19.50/stb_ssh/*",
         "http://10.144.39.131/stb_ssh/*",
@@ -143,6 +148,7 @@
     "https://sz.argus.rt.ru/*",
     "http://acs-tr69.sz.rt.ru:4673/*",
     "http://tr069.south.rt.ru:9673/*",
-    "http://10.82.16.11:9673/*"
+    "http://10.82.16.11:9673/*",
+    "https://api.maclookup.app/*"
   ]
 }

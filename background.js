@@ -206,8 +206,135 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
+  // EPD: lookup OUI (год/месяц + вендор) через maclookup.app
+  if (request.action === 'lookupMacOui') {
+    lookupMacOui(request.mac || request.oui)
+      .then((data) => sendResponse({ success: true, data }))
+      .catch((err) => sendResponse({ success: false, error: err.message, data: { found: false } }));
+    return true;
+  }
+
   return true;
 });
+
+// ==================== MAC OUI LOOKUP (maclookup.app) ====================
+
+const MAC_OUI_CACHE_KEY = 'macOuiCache';
+const MAC_OUI_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 дней
+const MAC_OUI_FETCH_GAP_MS = 120; // ~8 req/s, лимит API 10/s
+
+/** @type {Map<string, {data: object, savedAt: number}>} */
+const macOuiMem = new Map();
+/** @type {Map<string, Promise<object>>} */
+const macOuiInflight = new Map();
+let macOuiLastFetchAt = 0;
+
+function normalizeOuiHex(macOrOui) {
+  const hex = String(macOrOui || '').toUpperCase().replace(/[^0-9A-F]/g, '');
+  return hex.slice(0, 6);
+}
+
+async function loadMacOuiCacheStore() {
+  try {
+    const res = await chrome.storage.local.get([MAC_OUI_CACHE_KEY]);
+    return res[MAC_OUI_CACHE_KEY] && typeof res[MAC_OUI_CACHE_KEY] === 'object'
+      ? res[MAC_OUI_CACHE_KEY]
+      : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+async function saveMacOuiCacheEntry(oui, data) {
+  try {
+    const store = await loadMacOuiCacheStore();
+    store[oui] = { data, savedAt: Date.now() };
+    // Ограничим размер кэша (~500 OUI)
+    const keys = Object.keys(store);
+    if (keys.length > 500) {
+      keys
+        .map((k) => ({ k, t: store[k]?.savedAt || 0 }))
+        .sort((a, b) => a.t - b.t)
+        .slice(0, keys.length - 500)
+        .forEach(({ k }) => { delete store[k]; });
+    }
+    await chrome.storage.local.set({ [MAC_OUI_CACHE_KEY]: store });
+  } catch (e) {
+    console.warn('[2TSL] macOui cache write:', e);
+  }
+}
+
+async function lookupMacOui(macOrOui) {
+  const oui = normalizeOuiHex(macOrOui);
+  if (oui.length < 6) {
+    return { found: false, error: 'invalid_oui' };
+  }
+
+  const mem = macOuiMem.get(oui);
+  if (mem && (Date.now() - mem.savedAt) < MAC_OUI_CACHE_TTL_MS) {
+    return mem.data;
+  }
+
+  const store = await loadMacOuiCacheStore();
+  const cached = store[oui];
+  if (cached?.data && (Date.now() - (cached.savedAt || 0)) < MAC_OUI_CACHE_TTL_MS) {
+    macOuiMem.set(oui, { data: cached.data, savedAt: cached.savedAt });
+    return cached.data;
+  }
+
+  if (macOuiInflight.has(oui)) {
+    return macOuiInflight.get(oui);
+  }
+
+  const job = (async () => {
+    const wait = MAC_OUI_FETCH_GAP_MS - (Date.now() - macOuiLastFetchAt);
+    if (wait > 0) {
+      await new Promise((r) => setTimeout(r, wait));
+    }
+    macOuiLastFetchAt = Date.now();
+
+    const url = 'https://api.maclookup.app/v2/macs/' + encodeURIComponent(oui);
+    const res = await fetch(url, { method: 'GET', credentials: 'omit' });
+
+    if (res.status === 404) {
+      const data = { found: false, oui };
+      macOuiMem.set(oui, { data, savedAt: Date.now() });
+      await saveMacOuiCacheEntry(oui, data);
+      return data;
+    }
+
+    if (res.status === 429) {
+      throw new Error('rate_limited');
+    }
+
+    if (!res.ok) {
+      throw new Error('http_' + res.status);
+    }
+
+    const json = await res.json();
+    const data = {
+      found: json.found === true,
+      oui,
+      macPrefix: json.macPrefix || oui,
+      company: json.company || '',
+      updated: json.updated || '',
+      blockType: json.blockType || '',
+      isPrivate: !!json.isPrivate,
+      isRand: !!json.isRand
+    };
+
+    macOuiMem.set(oui, { data, savedAt: Date.now() });
+    await saveMacOuiCacheEntry(oui, data);
+    return data;
+  })();
+
+  macOuiInflight.set(oui, job);
+  try {
+    return await job;
+  } finally {
+    macOuiInflight.delete(oui);
+  }
+}
 
 // ==================== НАПОМИНАЛКА ====================
 

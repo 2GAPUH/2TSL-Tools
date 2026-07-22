@@ -101,6 +101,8 @@ call :copy_req "content-form.js"
 if errorlevel 1 goto :fail
 call :copy_req "content-grafana.js"
 if errorlevel 1 goto :fail
+call :copy_req "content-epd-mac.js"
+if errorlevel 1 goto :fail
 call :copy_req "content-onyma.js"
 if errorlevel 1 goto :fail
 call :copy_req "content-sipal.js"

@@ -7,7 +7,7 @@ const IE_MAX_BODY_LENGTH = 50000;
 
 const IE_SETTINGS_KEYS = [
   'omnichatTemplates', 'omnichatTTMLinks', 'ttmButton', 'accountingPanel',
-  'grafanaSSH', 'reminder', 'ttmOnyma', 'ttmSipal', 'darkMode',
+  'grafanaSSH', 'epdMacYear', 'reminder', 'ttmOnyma', 'ttmSipal', 'darkMode',
   'argusDarkTheme', 'axirosDarkTheme', 'systemsDarkPalette',
   'popupLayoutScale', 'popupTabSizes', 'popupUnifiedTabSize'
 ];
@@ -18,13 +18,14 @@ const IE_SETTINGS_LABELS = {
   ttmButton: 'Кнопка TTM → Форма',
   accountingPanel: 'Панель «Учёт заявок»',
   grafanaSSH: 'Переход Grafana → SSH',
+  epdMacYear: 'Подсказка по MAC в ЕПД',
   reminder: 'Напоминалка',
   ttmOnyma: 'Переход TTM → Onyma',
   ttmSipal: 'Переход TTM → SIPAL',
   darkMode: 'Тёмная тема popup',
   argusDarkTheme: 'Тёмная тема Argus',
   axirosDarkTheme: 'Тёмная тема Axiros',
-  systemsDarkPalette: 'Цвет тёмной темы (Argus / Axiros)',
+  systemsDarkPalette: 'Цвет тёмной темы',
   popupUnifiedTabSize: 'Один размер для всех вкладок',
   popupLayoutScale: 'Масштаб оформления',
   popupTabSizes: 'Размеры вкладок'

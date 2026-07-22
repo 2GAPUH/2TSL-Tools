@@ -89,6 +89,7 @@ let settings = {
   ttmButton: true,
   accountingPanel: true,
   grafanaSSH: true,
+  epdMacYear: true,
   reminder: true,
   ttmOnyma: true,
   ttmSipal: true,
@@ -142,6 +143,7 @@ const settingOpenTabAdjacent = document.getElementById('settingOpenTabAdjacent')
 const settingTTMButton = document.getElementById('settingTTMButton');
 const settingAccountingPanel = document.getElementById('settingAccountingPanel');
 const settingGrafanaSSH = document.getElementById('settingGrafanaSSH');
+const settingEpdMacYear = document.getElementById('settingEpdMacYear');
 const settingReminder = document.getElementById('settingReminder');
 const settingTTMOnyma = document.getElementById('settingTTMOnyma');
 const settingTTMSipal = document.getElementById('settingTTMSipal');
@@ -774,6 +776,7 @@ function loadAllData() {
       ttmButton: true,
       accountingPanel: true,
       grafanaSSH: true,
+      epdMacYear: true,
       reminder: true,
       ttmOnyma: true,
       ttmSipal: true,
@@ -785,6 +788,7 @@ function loadAllData() {
       systemsDarkPalette: 'slate',
       analyticsEnabled: true
     };
+    if (settings.epdMacYear === undefined) settings.epdMacYear = true;
     const hadLegacyPalette = !settings.systemsDarkPalette && !!settings.argusDarkPalette;
     migrateSystemsDarkPalette();
     if (hadLegacyPalette) {
@@ -915,6 +919,7 @@ function applySettings() {
   settingTTMButton.checked = settings.ttmButton;
   settingAccountingPanel.checked = settings.accountingPanel;
   settingGrafanaSSH.checked = settings.grafanaSSH;
+  if (settingEpdMacYear) settingEpdMacYear.checked = settings.epdMacYear !== false;
   settingReminder.checked = settings.reminder;
   settingTTMOnyma.checked = settings.ttmOnyma;
   settingTTMSipal.checked = settings.ttmSipal;
@@ -991,6 +996,7 @@ bindSettingToggle(settingOpenTabAdjacent, 'openTabAdjacent');
 bindSettingToggle(settingTTMButton, 'ttmButton');
 bindSettingToggle(settingAccountingPanel, 'accountingPanel');
 bindSettingToggle(settingGrafanaSSH, 'grafanaSSH');
+if (settingEpdMacYear) bindSettingToggle(settingEpdMacYear, 'epdMacYear');
 bindSettingToggle(settingReminder, 'reminder');
 bindSettingToggle(settingTTMOnyma, 'ttmOnyma');
 bindSettingToggle(settingTTMSipal, 'ttmSipal');

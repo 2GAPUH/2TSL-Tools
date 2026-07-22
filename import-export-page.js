@@ -9,6 +9,7 @@ const DEFAULT_SETTINGS = {
   ttmButton: true,
   accountingPanel: true,
   grafanaSSH: true,
+  epdMacYear: true,
   reminder: true,
   ttmOnyma: true,
   ttmSipal: true,

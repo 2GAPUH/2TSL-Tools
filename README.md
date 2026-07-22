@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <b>Версия:</b> 0.7.12 &nbsp;·&nbsp;
+  <b>Версия:</b> 0.8.0 &nbsp;·&nbsp;
   <b>Манифест:</b> V3 &nbsp;·&nbsp;
   <b>Зависимости:</b> 0 (расширение) &nbsp;·&nbsp;
   <b>Объём кода:</b> ~10 000+ строк
@@ -74,6 +74,7 @@ Grafana (IP-адреса)
 ├── content-axiros-theme.js     # Axiros: тёмная тема (inject CSS)
 ├── axiros-dark.css             # Axiros: Bootstrap 3 overrides + палитры
 ├── content-grafana.js          # Grafana: IP → SSH переход
+├── content-epd-mac.js          # EPD customers: MAC hover → OUI год/месяц + вендор
 ├── content-ssh.js              # SSH: автозаполнение IP
 ├── content-onyma.js            # Onyma: автозаполнение поиска
 ├── content-sipal.js            # SIPAL: автозаполнение поиска
@@ -111,7 +112,8 @@ Grafana (IP-адреса)
 | `content-volgahelp.js` | `volgahelp.ru` | Конструктор комментария: черновики, «Скопировать всё» |
 | `content-argus-theme.js` + `argus-dark.css` | `argus.rt.ru`, `*.argus.rt.ru` | Тёмная тема Argus + портал (палитры slate/black/navy) |
 | `content-axiros-theme.js` + `axiros-dark.css` | `acs-tr69.sz.rt.ru:4673`, `tr069.south.rt.ru:9673`, `10.82.16.11:9673` | Тёмная тема Axiros (Bootstrap 3) |
-| `content-grafana.js` | `epd.rt.ru` | IP → SSH (Волга, Юг, СЗ) |
+| `content-grafana.js` | `epd.rt.ru/stb-events` | IP → SSH (Волга, Юг, СЗ) |
+| `content-epd-mac.js` | `epd.rt.ru/customers` | Наведение на MAC → вендор + YYYY-MM (OUI, maclookup.app) |
 | `content-ssh.js` | `10.x.x.x` | Автозаполнение IP |
 | `content-onyma.js` | `onymaweb.south.rt.ru` | Автопоиск ИЛС |
 | `content-sipal.js` | `sipal.sz.rt.ru` | Автопоиск НЛС |
@@ -135,6 +137,7 @@ Grafana (IP-адреса)
 | `ttmButton` | ✅ | Кнопка TTM → Форма ассистента |
 | `accountingPanel` | ✅ | Боковая панель учёта заявок |
 | `grafanaSSH` | ✅ | Кликабельные IP → SSH в Grafana |
+| `epdMacYear` | ✅ | EPD customers: подсказка OUI (вендор + месяц) при наведении на MAC |
 | `reminder` | ✅ | Кнопка таймера/напоминаний в TTM |
 | `ttmOnyma` | ✅ | Кнопка перехода в Onyma |
 | `ttmSipal` | ✅ | Кнопка перехода в SIPAL |
