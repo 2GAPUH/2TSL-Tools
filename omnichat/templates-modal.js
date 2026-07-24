@@ -307,6 +307,9 @@
       input.className += ` ${sampleInput.className}`;
     }
 
+    O.detectTheme();
+    if (state.isDarkTheme) host.classList.add('dark-theme');
+
     host.appendChild(input);
     searchRow.appendChild(host);
     state.searchHost = host;

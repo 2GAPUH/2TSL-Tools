@@ -768,6 +768,69 @@ html[data-tsl-axiros-theme="on"] .ax-no-configuration-reason {
   color: var(--tsl-text-secondary) !important;
 }
 
+/* ==================== КАРТА СЕТИ (jOrgChart / #topo_chart) ==================== */
+/*
+ * Плагин рисует белые .node, а body в тёмной теме даёт color:#fff —
+ * текст на блоках карты нечитаем. Задаём фон surface + светлый текст
+ * (и линии дерева) явно.
+ */
+html[data-tsl-axiros-theme="on"] #topo_chart .node,
+html[data-tsl-axiros-theme="on"] .jOrgChart .node {
+  background-color: var(--tsl-surface) !important;
+  background-image: none !important;
+  color: var(--tsl-text) !important;
+  border: 1px solid var(--tsl-border-strong) !important;
+}
+
+html[data-tsl-axiros-theme="on"] #topo_chart .node p,
+html[data-tsl-axiros-theme="on"] .jOrgChart .node p,
+html[data-tsl-axiros-theme="on"] #topo_chart .node div,
+html[data-tsl-axiros-theme="on"] .jOrgChart .node div,
+html[data-tsl-axiros-theme="on"] #topo_chart .node span,
+html[data-tsl-axiros-theme="on"] .jOrgChart .node span {
+  color: var(--tsl-text) !important;
+}
+
+/* Если у плагина остаётся жёсткий белый фон без нашего surface — тёмный текст */
+html[data-tsl-axiros-theme="on"] #topo_chart .node[style*="background"],
+html[data-tsl-axiros-theme="on"] .jOrgChart .node[style*="background"] {
+  color: var(--tsl-text) !important;
+}
+
+/*
+ * Линии jOrgChart:
+ *  - .down — вертикаль через background
+ *  - .left / .right / .top — только border (ячейка td.line.left иначе
+ *    заливается целиком, если задать background на .line)
+ */
+html[data-tsl-axiros-theme="on"] .jOrgChart .line {
+  background-color: transparent !important;
+}
+
+html[data-tsl-axiros-theme="on"] .jOrgChart .line.down {
+  background-color: var(--tsl-border-strong) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .jOrgChart .line.top {
+  border-top-color: var(--tsl-border-strong) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .jOrgChart .line.left {
+  border-right-color: var(--tsl-border-strong) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .jOrgChart .line.right {
+  border-left-color: var(--tsl-border-strong) !important;
+}
+
+html[data-tsl-axiros-theme="on"] .jOrgChart table {
+  background-color: transparent !important;
+}
+
+html[data-tsl-axiros-theme="on"] .jOrgChart td {
+  background-color: transparent !important;
+}
+
 /* Notification area / fixed toasts reuse .alert — covered above */
 
 /* Container fluid background transparent so page-bg shows */

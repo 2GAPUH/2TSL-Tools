@@ -1117,6 +1117,11 @@ function closeCommentBuilderWindow(trackClose = true) {
   if (trackClose) trackEvent('ttm_comment_builder_close');
 }
 
+/**
+ * Открыть/сфокусировать конструктор комментария.
+ * Не используем window.open('', name) — даёт мигание/blur TTM (как «обновление» страницы).
+ * Повторный клик: focus живого window или chrome.windows через background.
+ */
 function openCommentBuilderWindow(commentEditorQaId) {
   const incidentNumber = getIncidentNumber();
   if (!incidentNumber) {
@@ -1136,26 +1141,42 @@ function openCommentBuilderWindow(commentEditorQaId) {
         openedAt: Date.now()
       }
     }, () => {
+      // 1) Живая ссылка — только focus, без навигации
       if (commentBuilderPopup && !commentBuilderPopup.closed) {
-        commentBuilderPopup.focus();
-        commentBuilderPopup.location.href = VOLGA_HELP_URL;
+        try {
+          commentBuilderPopup.focus();
+        } catch (e) { /* ignore */ }
+        trackEvent('ttm_comment_builder_focus');
+        return;
+      }
+
+      // 2) Окно могло остаться после SPA — фокус через background (без popup-probe)
+      chrome.runtime.sendMessage({ action: 'focusVolgaHelpWindow' }, (response) => {
+        void chrome.runtime.lastError;
+
+        if (response && response.focused) {
+          trackEvent('ttm_comment_builder_focus');
+          return;
+        }
+
+        // 3) Новое окно
+        const popup = window.open(
+          VOLGA_HELP_URL,
+          COMMENT_BUILDER_POPUP_NAME,
+          popupFeatures
+        );
+
+        if (!popup) {
+          alert('Браузер заблокировал всплывающее окно. Разрешите popup-окна для ttm.rt.ru');
+          return;
+        }
+
+        commentBuilderPopup = popup;
+        try {
+          commentBuilderPopup.focus();
+        } catch (e) { /* ignore */ }
         trackEvent('ttm_comment_builder_open');
-        return;
-      }
-
-      commentBuilderPopup = window.open(
-        VOLGA_HELP_URL,
-        COMMENT_BUILDER_POPUP_NAME,
-        popupFeatures
-      );
-
-      if (!commentBuilderPopup) {
-        alert('Браузер заблокировал всплывающее окно. Разрешите popup-окна для ttm.rt.ru');
-        return;
-      }
-
-      commentBuilderPopup.focus();
-      trackEvent('ttm_comment_builder_open');
+      });
     });
   });
 }

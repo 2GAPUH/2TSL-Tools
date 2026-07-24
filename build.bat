@@ -130,6 +130,7 @@ for %%F in (
   draft-insert.js
   ttm-links.js
   templates-modal.js
+  scroll-appeals.js
   init.js
 ) do (
   call :copy_req "omnichat\%%F"

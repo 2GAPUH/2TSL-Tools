@@ -13,7 +13,7 @@
 
 | Параметр | Значение |
 |----------|----------|
-| Версия | `0.8.0` (см. `manifest.json`) |
+| Версия | `0.8.1` (см. `manifest.json`) |
 | Язык UI/комментариев | Русский |
 | Runtime-зависимости | 0 (vanilla JS) |
 | Автор / репо | 2GAPUH / https://github.com/2GAPUH/2TSL-Tools |
@@ -83,8 +83,12 @@ Content scripts **никогда не делают fetch** для аналити
 Порядок в `manifest.json`:
 
 1. `namespace.js` → `state.js` → `constants.js` → `utils.js`
-2. `draft-insert.js` → `ttm-links.js` → `templates-modal.js` → `init.js`
+2. `draft-insert.js` → `ttm-links.js` → `templates-modal.js` → `scroll-appeals.js` → `init.js`
 3. `content-accounting.js` (отдельно, та же страница)
+
+**Прокрутка к обращениям** (`scroll-appeals.js`, setting `omnichatScrollToAppeal`):
+кнопка «вверх» в `#Actions-button` справа от нативной «вниз» (или на её месте, если «вниз» скрыта);
+прыжки к блокам `Обращение #… создано` с автодогрузкой истории.
 
 **Layout модалки шаблонов** — только `data-testid` / структура DOM.  
 **Не использовать** styled-components классы `sc-*` (ломаются при обновлении Omnichat, напр. 3.26).
@@ -106,6 +110,7 @@ Content scripts **никогда не делают fetch** для аналити
 {
   omnichatTemplates: true,
   omnichatTTMLinks: true,
+  omnichatScrollToAppeal: true,  // кнопка вверх → «Обращение #… создано»
   ttmButton: true,
   accountingPanel: true,
   grafanaSSH: true,
@@ -263,6 +268,7 @@ python scripts/build_analytics_dashboard.py
 | Новая кнопка в TTM | `content-ttm.js` + settings в popup |
 | Конструктор комментария | `content-ttm.js` + `content-volgahelp.js` + `background.js` |
 | Вкладка «Дополнительно» / layout модалки | `omnichat/templates-modal.js`, `omnichat/utils.js`, `omnichat/constants.js` |
+| Кнопка вверх по «Обращение создано» | `omnichat/scroll-appeals.js` + `omnichatScrollToAppeal` |
 | Omnichat → TTM ссылки | `omnichat/ttm-links.js` + `openTtmSearch` в background |
 | Автопоиск TTM / антиспам | `content-ttm.js` (`runTtmSearch`, `initAutoSearch`) |
 | Форма ассистента | `content-form.js` + `openAssistantForm` в background |

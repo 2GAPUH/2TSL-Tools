@@ -169,6 +169,36 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
+  // TTM → сфокусировать уже открытое окно/вкладку конструктора (volgahelp), без reload
+  if (request.action === 'focusVolgaHelpWindow') {
+    chrome.tabs.query({ url: ['https://volgahelp.ru/*', 'http://volgahelp.ru/*'] })
+      .then(async (tabs) => {
+        if (!tabs || !tabs.length) {
+          sendResponse({ success: true, focused: false });
+          return;
+        }
+        // Предпочитаем вкладку с конструктором комментариев
+        const preferred =
+          tabs.find((t) => /\/tag_api\/comments/i.test(t.url || '')) ||
+          tabs[0];
+        try {
+          if (preferred.windowId != null) {
+            await chrome.windows.update(preferred.windowId, { focused: true });
+          }
+          if (preferred.id != null) {
+            await chrome.tabs.update(preferred.id, { active: true });
+          }
+          sendResponse({ success: true, focused: true, tabId: preferred.id });
+        } catch (error) {
+          sendResponse({ success: false, focused: false, error: error.message });
+        }
+      })
+      .catch((error) => {
+        sendResponse({ success: false, focused: false, error: error.message });
+      });
+    return true;
+  }
+
   if (request.action === 'cloudCheckEligibility') {
     checkCloudEligibility(request.force).then(sendResponse);
     return true;

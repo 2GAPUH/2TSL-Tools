@@ -14,6 +14,7 @@ const DEFAULT_SETTINGS = {
   ttmOnyma: true,
   ttmSipal: true,
   omnichatTTMLinks: true,
+  omnichatScrollToAppeal: true,
   darkMode: false,
   argusDarkTheme: false,
   axirosDarkTheme: false,

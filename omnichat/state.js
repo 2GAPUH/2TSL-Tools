@@ -20,10 +20,17 @@
     linkRootsWatcher: null,
     observedLinkRoots: new WeakSet(),
     contextInvalidated: false,
+    scrollAppealsObserver: null,
+    scrollAppealsHost: null,
+    scrollAppealsBusy: false,
+    scrollLastJumpKey: '',
+    scrollLastJumpAt: 0,
+    scrollJumpIndex: null,
     settings: {
       omnichatTemplates: true,
       ttmButton: true,
-      omnichatTTMLinks: true
+      omnichatTTMLinks: true,
+      omnichatScrollToAppeal: true
     }
   };
 })(window.OmnichatExt);

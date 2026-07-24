@@ -3,7 +3,7 @@
   const { state, SELECTORS } = O;
 
   function init() {
-    console.log('[Omnichat] v9.2 — стабильные селекторы модалки (без sc-*)');
+    console.log('[Omnichat] v9.3 — scroll-up к «Обращение создано»');
 
     if (!O.isContextValid()) {
       O.handleContextInvalidated();
@@ -14,8 +14,12 @@
       state.settings = result.settings || {
         omnichatTemplates: true,
         ttmButton: true,
-        omnichatTTMLinks: true
+        omnichatTTMLinks: true,
+        omnichatScrollToAppeal: true
       };
+      if (state.settings.omnichatScrollToAppeal === undefined) {
+        state.settings.omnichatScrollToAppeal = true;
+      }
 
       if (state.settings.omnichatTemplates) {
         O.injectBaseStyles();
@@ -27,6 +31,10 @@
 
       if (state.settings.omnichatTTMLinks) {
         O.initTTMLinks();
+      }
+
+      if (state.settings.omnichatScrollToAppeal !== false) {
+        setTimeout(O.initScrollToAppeal, 600);
       }
     }).catch(() => {});
   }
@@ -54,6 +62,15 @@
 
         if (!oldSettings.omnichatTTMLinks && state.settings.omnichatTTMLinks) {
           O.initTTMLinks();
+        }
+
+        const scrollWasOn = oldSettings.omnichatScrollToAppeal !== false;
+        const scrollIsOn = state.settings.omnichatScrollToAppeal !== false;
+        if (scrollWasOn && !scrollIsOn) {
+          O.disableScrollToAppeal();
+        }
+        if (!scrollWasOn && scrollIsOn) {
+          O.initScrollToAppeal();
         }
       });
     } catch (e) {

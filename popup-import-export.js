@@ -6,7 +6,7 @@ const IE_MAX_FILE_SIZE = 5 * 1024 * 1024;
 const IE_MAX_BODY_LENGTH = 50000;
 
 const IE_SETTINGS_KEYS = [
-  'omnichatTemplates', 'omnichatTTMLinks', 'ttmButton', 'accountingPanel',
+  'omnichatTemplates', 'omnichatTTMLinks', 'omnichatScrollToAppeal', 'ttmButton', 'accountingPanel',
   'grafanaSSH', 'epdMacYear', 'reminder', 'ttmOnyma', 'ttmSipal', 'darkMode',
   'argusDarkTheme', 'axirosDarkTheme', 'systemsDarkPalette',
   'popupLayoutScale', 'popupTabSizes', 'popupUnifiedTabSize'
@@ -15,6 +15,7 @@ const IE_SETTINGS_KEYS = [
 const IE_SETTINGS_LABELS = {
   omnichatTemplates: 'Шаблоны Omnichat',
   omnichatTTMLinks: 'Ссылки Omnichat → TTM',
+  omnichatScrollToAppeal: 'Прокрутка к обращениям',
   ttmButton: 'Кнопка TTM → Форма',
   accountingPanel: 'Панель «Учёт заявок»',
   grafanaSSH: 'Переход Grafana → SSH',

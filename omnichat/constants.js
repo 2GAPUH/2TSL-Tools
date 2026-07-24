@@ -20,7 +20,9 @@
     // sc-* классы styled-components нестабильны (ломаются при обновлении Omnichat).
     // layout ищется структурно в getModalLayout() по data-testid.
     listElement: '[data-testid="list-element"]',
-    modalSorting: '[data-testid="sorting"]'
+    modalSorting: '[data-testid="sorting"]',
+    // Нижняя панель чата: кнопка «прокрутить вниз» + Закрыть/Передать
+    actionsButton: '#Actions-button'
   };
 
   O.SIDEBAR_ACCOUNT_PANEL_TITLES = [
@@ -32,6 +34,11 @@
     nativeHidden: 'omnichat-ext-native-hidden',
     customTemplate: 'omnichat-custom-template',
     ttmLink: 'tsl-ttm-link',
-    textWrapper: 'tsl-text-wrapper'
+    textWrapper: 'tsl-text-wrapper',
+    scrollUpHost: 'omnichat-ext-scroll-up-host',
+    scrollUpBtn: 'omnichat-ext-scroll-up-btn'
   };
+
+  /** Текст системного баннера начала обращения (якорь прокрутки вверх). */
+  O.APPEAL_CREATED_RE = /Обращение\s*[#№]?\s*\d+\s*создано/i;
 })(window.OmnichatExt);

@@ -168,6 +168,16 @@
         background: #fff;
         box-sizing: border-box;
       }
+      .dark-theme .omnichat-ext-search-host .omnichat-ext-search-input,
+      .omnichat-ext-search-host.dark-theme .omnichat-ext-search-input {
+        color: #e4e7ec !important;
+        background: #1f242e !important;
+        border-color: #3d4654 !important;
+      }
+      .dark-theme .omnichat-ext-search-host .omnichat-ext-search-input::placeholder,
+      .omnichat-ext-search-host.dark-theme .omnichat-ext-search-input::placeholder {
+        color: rgba(228, 231, 236, 0.5);
+      }
       .omnichat-ext-templates-overlay {
         position: absolute;
         inset: 0;
@@ -208,6 +218,7 @@
         font-size: 14px;
         color: #333 !important;
         background: white !important;
+        border: 1px solid #d0d5dd;
         cursor: pointer;
       }
       .group-filter-select option { color: #333 !important; background: white !important; }
@@ -219,9 +230,31 @@
         cursor: pointer;
         color: #333;
         background: #f5f5f5;
+        border: 1px solid #d0d5dd;
         margin-top: 8px;
       }
       .group-filter-reset:hover { background: #e9e9e9; }
+      .dark-theme .group-filter-select,
+      .omnichat-ext-filter-host.dark-theme .group-filter-select {
+        color: #e4e7ec !important;
+        background: #1f242e !important;
+        border-color: #3d4654 !important;
+      }
+      .dark-theme .group-filter-select option,
+      .omnichat-ext-filter-host.dark-theme .group-filter-select option {
+        color: #e4e7ec !important;
+        background: #1f242e !important;
+      }
+      .dark-theme .group-filter-reset,
+      .omnichat-ext-filter-host.dark-theme .group-filter-reset {
+        color: #e4e7ec !important;
+        background: #2a3140 !important;
+        border-color: #3d4654 !important;
+      }
+      .dark-theme .group-filter-reset:hover,
+      .omnichat-ext-filter-host.dark-theme .group-filter-reset:hover {
+        background: #3d4654 !important;
+      }
       .template-group-badge {
         font-size: 11px;
         padding: 2px 6px;
@@ -245,6 +278,60 @@
       .dark-theme .tsl-ttm-link:hover {
         color: #80bdff !important;
         background-color: rgba(77, 163, 255, 0.1);
+      }
+
+      /* «Вверх» в слоте native «вниз» (left:20); native при появлении сдвигается вправо JS-ом */
+      .omnichat-ext-scroll-up-host {
+        position: absolute;
+        left: 20px;
+        width: 32px;
+        height: 32px;
+        z-index: 2;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        pointer-events: auto;
+      }
+      .omnichat-ext-scroll-up-btn {
+        border: none;
+        border-radius: 16px;
+        background: rgb(243, 244, 247);
+        width: 32px;
+        height: 32px;
+        padding: 4px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+        flex-shrink: 0;
+      }
+      .omnichat-ext-scroll-up-btn:hover {
+        background: rgb(228, 231, 236);
+      }
+      .omnichat-ext-scroll-up-btn:disabled {
+        opacity: 0.55;
+        cursor: default;
+      }
+      .omnichat-ext-scroll-up-btn svg {
+        display: block;
+        width: 24px;
+        height: 24px;
+        fill: rgba(16, 24, 40, 0.5);
+        pointer-events: none;
+      }
+      /* class dark-theme вешается на саму кнопку — оба селектора */
+      .omnichat-ext-scroll-up-btn.dark-theme,
+      .dark-theme .omnichat-ext-scroll-up-btn {
+        background: rgb(61, 74, 92) !important;
+      }
+      .omnichat-ext-scroll-up-btn.dark-theme:hover,
+      .dark-theme .omnichat-ext-scroll-up-btn:hover {
+        background: rgb(75, 90, 112) !important;
+      }
+      .omnichat-ext-scroll-up-btn.dark-theme svg,
+      .dark-theme .omnichat-ext-scroll-up-btn svg {
+        fill: rgba(255, 255, 255, 0.92) !important;
       }
     `;
     document.head.appendChild(style);

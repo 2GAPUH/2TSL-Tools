@@ -95,6 +95,7 @@ let settings = {
   ttmSipal: true,
   ttmCommentBuilder: true,
   omnichatTTMLinks: true,
+  omnichatScrollToAppeal: true,
   openTabAdjacent: false,
   darkMode: false,
   argusDarkTheme: false,
@@ -139,6 +140,7 @@ const addGroupBtn = document.getElementById('addGroupBtn');
 // Настройки
 const settingOmnichatTemplates = document.getElementById('settingOmnichatTemplates');
 const settingOmnichatTTMLinks = document.getElementById('settingOmnichatTTMLinks');
+const settingOmnichatScrollToAppeal = document.getElementById('settingOmnichatScrollToAppeal');
 const settingOpenTabAdjacent = document.getElementById('settingOpenTabAdjacent');
 const settingTTMButton = document.getElementById('settingTTMButton');
 const settingAccountingPanel = document.getElementById('settingAccountingPanel');
@@ -782,6 +784,7 @@ function loadAllData() {
       ttmSipal: true,
       ttmCommentBuilder: true,
       omnichatTTMLinks: true,
+      omnichatScrollToAppeal: true,
       darkMode: false,
       argusDarkTheme: false,
       axirosDarkTheme: false,
@@ -915,6 +918,9 @@ chrome.storage.onChanged.addListener((changes, area) => {
 function applySettings() {
   settingOmnichatTemplates.checked = settings.omnichatTemplates;
   settingOmnichatTTMLinks.checked = settings.omnichatTTMLinks !== false; // true по умолчанию
+  if (settingOmnichatScrollToAppeal) {
+    settingOmnichatScrollToAppeal.checked = settings.omnichatScrollToAppeal !== false;
+  }
   if (settingOpenTabAdjacent) settingOpenTabAdjacent.checked = settings.openTabAdjacent === true;
   settingTTMButton.checked = settings.ttmButton;
   settingAccountingPanel.checked = settings.accountingPanel;
@@ -992,6 +998,9 @@ function bindSettingToggle(element, key) {
 
 bindSettingToggle(settingOmnichatTemplates, 'omnichatTemplates');
 bindSettingToggle(settingOmnichatTTMLinks, 'omnichatTTMLinks');
+if (settingOmnichatScrollToAppeal) {
+  bindSettingToggle(settingOmnichatScrollToAppeal, 'omnichatScrollToAppeal');
+}
 bindSettingToggle(settingOpenTabAdjacent, 'openTabAdjacent');
 bindSettingToggle(settingTTMButton, 'ttmButton');
 bindSettingToggle(settingAccountingPanel, 'accountingPanel');
