@@ -295,7 +295,8 @@
       .omnichat-ext-scroll-up-btn {
         border: none;
         border-radius: 16px;
-        background: rgb(243, 244, 247);
+        /* Как native: без серого «плинтуса»; fill задаёт JS с #ffffff99 / #10182880 */
+        background: transparent;
         width: 32px;
         height: 32px;
         padding: 4px;
@@ -307,7 +308,8 @@
         flex-shrink: 0;
       }
       .omnichat-ext-scroll-up-btn:hover {
-        background: rgb(228, 231, 236);
+        background: transparent;
+        opacity: 0.85;
       }
       .omnichat-ext-scroll-up-btn:disabled {
         opacity: 0.55;
@@ -317,21 +319,22 @@
         display: block;
         width: 24px;
         height: 24px;
-        fill: rgba(16, 24, 40, 0.5);
+        fill: #10182880;
         pointer-events: none;
       }
-      /* class dark-theme вешается на саму кнопку — оба селектора */
+      /* dark: как native fill #ffffff99, без rgb(61,74,92) */
       .omnichat-ext-scroll-up-btn.dark-theme,
       .dark-theme .omnichat-ext-scroll-up-btn {
-        background: rgb(61, 74, 92) !important;
+        background: transparent !important;
       }
       .omnichat-ext-scroll-up-btn.dark-theme:hover,
       .dark-theme .omnichat-ext-scroll-up-btn:hover {
-        background: rgb(75, 90, 112) !important;
+        background: transparent !important;
+        opacity: 0.85;
       }
       .omnichat-ext-scroll-up-btn.dark-theme svg,
       .dark-theme .omnichat-ext-scroll-up-btn svg {
-        fill: rgba(255, 255, 255, 0.92) !important;
+        fill: #ffffff99 !important;
       }
     `;
     document.head.appendChild(style);

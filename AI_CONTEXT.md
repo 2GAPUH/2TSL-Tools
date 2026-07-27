@@ -9,11 +9,11 @@
 ## Что это
 
 **2TSL toolbox** — Chrome Extension (Manifest V3) для инженеров техподдержки Ростелеком.  
-Автоматизирует работу с внутренними системами: Omnichat, TTM, Onyma, SIPAL, Grafana, SSH, форма ассистента, volgahelp.ru (конструктор комментариев).
+Автоматизирует работу с внутренними системами: Omnichat, TTM, Onyma, SIPAL, Grafana, SSH, форма ассистента; конструктор комментария — своё окно расширения (теги с volgahelp API).
 
 | Параметр | Значение |
 |----------|----------|
-| Версия | `0.8.1` (см. `manifest.json`) |
+| Версия | `0.8.3` (см. `manifest.json`) — кандидат на фиксацию после проверки |
 | Язык UI/комментариев | Русский |
 | Runtime-зависимости | 0 (vanilla JS) |
 | Автор / репо | 2GAPUH / https://github.com/2GAPUH/2TSL-Tools |
@@ -25,6 +25,7 @@
 
 ```
 popup.html + popup.js          ← UI (4 вкладки)
+comment-builder.html + .js     ← свой конструктор комментария (одно popup-окно)
 import-export.html + page.js   ← отдельное окно резервной копии
 popup-import-export.js         ← логика импорта/экспорта (файл + облако)
 background.js                  ← service worker (importScripts analytics.js, cloud-sync.js)
@@ -32,6 +33,7 @@ analytics.js                   ← очередь метрик, flush → Google
 cloud-sync.js                  ← облачный обмен шаблонами по токену
 omnichat/*.js                  ← Omnichat: шаблоны + TTM-ссылки (модульный пакет)
 content-*.js                   ← по доменам (TTM, form, grafana, …)
+content-volgahelp.js           ← legacy (если открыт volgahelp.ru вручную)
 chrome.storage.local           ← все пользовательские данные
 build.bat                      ← упаковка runtime-файлов в ZIP
 ```
@@ -46,6 +48,9 @@ build.bat                      ← упаковка runtime-файлов в ZIP
 | `openTtmSearch` | omnichat/ttm-links | Создаёт вкладку TTM → пишет `ttmSearchData` **с `targetTabId`** |
 | `openAssistantForm` | content-ttm | Создаёт вкладку формы → пишет `ttmFormData` **с `targetTabId`** |
 | `lookupMacOui` | content-epd-mac | Background → maclookup.app (кэш OUI 30 дн.), без CORS с страницы |
+| `refreshCommentBuilderSources` | comment-builder (sync) | scrape телефона с вкладок TTM по НЛС |
+| `scrapeCommentBuilderSource` | background → content-ttm | телефон / НЛС для конструктора |
+| `openCommentBuilder` / `commentBuilderPaste` | content-ttm / comment-builder | одно окно + вставка в TTM |
 | `getTabId` | content-form, content-ttm | `{ tabId }` отправителя (для targetTabId) |
 | `addReminder` / `removeReminder` / `updateReminder` | content-ttm, popup | Напоминалка |
 | `cloudCheckEligibility` / `cloudExport` / `cloudImport` | import-export page | Облачный обмен шаблонами |
@@ -71,6 +76,7 @@ Content scripts **никогда не делают fetch** для аналити
 | `content-axiros-theme.js` | Axiros: вкл/выкл тёмной темы (CSS inject) |
 | `axiros-dark.css` | Axiros: Bootstrap 3 overrides + палитры |
 | `content-epd-mac.js` | EPD customers: tooltip OUI (вендор + YYYY-MM) на MAC |
+
 | `content-accounting.js` | Боковая панель учёта |
 | `analytics.js` | ID, очередь, flush 30 мин |
 | `cloud-sync.js` | Eligibility, export/import по токену |
@@ -119,6 +125,8 @@ Content scripts **никогда не делают fetch** для аналити
   ttmOnyma: true,
   ttmSipal: true,
   ttmCommentBuilder: true,
+  ttmCommentBuilderAutofill: true, // «Контакт для дозвона» из TTM (ЕПД-автозаполнение снято)
+  ttmCommentBuilderSnippets: true, // быстрые шаблоны слева от полей volgahelp
   darkMode: false,
   argusDarkTheme: false,           // тёмная тема Argus (отдельный переключатель)
   axirosDarkTheme: false,          // тёмная тема Axiros (отдельный переключатель)
@@ -182,7 +190,7 @@ Content scripts **никогда не делают fetch** для аналити
 
 ### Каталог событий (основные)
 
-`ttm_assistant_click`, `ttm_timer_click`, `ttm_reminder_created`, `ttm_onyma_click`, `ttm_sipal_click`, `ttm_comment_builder_open`, `ttm_comment_builder_copy`, `ttm_comment_builder_paste`, `ttm_comment_builder_close`, `ttm_autosearch`, `omnichat_templates_tab_open`, `omnichat_template_insert`, `omnichat_link_click_nls`, `omnichat_link_click_ticket`, `accounting_panel_open`, `accounting_entry_closed`, `accounting_entry_field`, `accounting_csv_export`, `grafana_ip_click`, `ssh_autofill`, `form_autofill`, `popup_open`, `popup_tab_*`, `popup_template_copy`, `popup_template_paste`, `settings_change_*`, `argus_dark_theme_on`, `argus_dark_theme_off`, `argus_dark_palette_change`, `axiros_dark_theme_on`, `axiros_dark_theme_off`, `axiros_dark_palette_change`, `cloud_export`, `cloud_import`, `feedback_sent`, `extension_installed`, `extension_updated`
+`ttm_assistant_click`, `ttm_timer_click`, `ttm_reminder_created`, `ttm_onyma_click`, `ttm_sipal_click`, `ttm_comment_builder_open`, `ttm_comment_builder_copy`, `ttm_comment_builder_paste`, `ttm_comment_builder_close`, `ttm_comment_builder_sync`, `volga_snippet_insert`, `volga_snippet_add`, `volga_snippet_delete`, `ttm_autosearch`, `omnichat_templates_tab_open`, `omnichat_template_insert`, `omnichat_link_click_nls`, `omnichat_link_click_ticket`, `accounting_panel_open`, `accounting_entry_closed`, `accounting_entry_field`, `accounting_csv_export`, `grafana_ip_click`, `ssh_autofill`, `form_autofill`, `popup_open`, `popup_tab_*`, `popup_template_copy`, `popup_template_paste`, `settings_change_*`, `argus_dark_theme_on`, `argus_dark_theme_off`, `argus_dark_palette_change`, `axiros_dark_theme_on`, `axiros_dark_theme_off`, `axiros_dark_palette_change`, `cloud_export`, `cloud_import`, `feedback_sent`, `extension_installed`, `extension_updated`
 
 ---
 
@@ -196,9 +204,11 @@ Content scripts **никогда не делают fetch** для аналити
 | `sipalSearchData` | ttm | sipal | TTL 30 с |
 | `sshTransferData` | grafana | ssh | |
 | `contributorState` | cloud-sync, analytics | без PII | |
-| `volgaHelpSession` | content-ttm | content-volgahelp | ticket + editor |
-| `volgaHelpDrafts` | content-volgahelp | content-volgahelp | черновики по заявке |
+| `volgaHelpSession` | content-ttm / background | comment-builder | ticket + editor + **nls** |
+| `volgaHelpDrafts` | comment-builder | comment-builder | черновики по заявке |
 | `volgaHelpPastePending` | background | content-ttm | вставка **только** в таб с тем же `ticketNumber` |
+| `ttmClientByNls` | content-ttm | comment-builder | `{ [nls]: { phone, phoneLine, ticketNumber, updatedAt } }`, TTL **60 мин** |
+| `volgaHelpQuickSnippets` | comment-builder | comment-builder | быстрые фразы: `{ issue:[{id,text}], … }` |
 
 ### Omnichat → TTM (автопоиск) — правила v0.7.7
 
@@ -277,6 +287,12 @@ python scripts/build_analytics_dashboard.py
 | Тёмная тема Argus | `argus-dark.css` + `content-argus-theme.js` + `argusDarkTheme` / `systemsDarkPalette` |
 | Тёмная тема Axiros | `axiros-dark.css` + `content-axiros-theme.js` + `axirosDarkTheme` / `systemsDarkPalette` |
 | EPD MAC OUI tooltip | `content-epd-mac.js` + `lookupMacOui` в background + `epdMacYear` |
+| Свой конструктор | `comment-builder.html` + `openCommentBuilder`; теги: `volgahelp.ru/tag_api/api/tag/?format=json`; paste: `commentBuilderPaste` |
+| Высоты полей 1–5 конструктора | `volgaHelpFieldHeights` в storage; `resize: vertical`; общие для всех окон popup |
+| Переключение заявки в конструкторе | одна window; `volgaHelpSession` onChanged → save draft A, load draft B |
+| Автозаполнение ЕПД | **снято в 0.8.3** (401 без cookies SW); поле 4 — вручную |
+| Телефон «Контакт для дозвона» в конструкторе | `content-ttm.js` (верхний `.comment__text`) + session.nls + `ttmClientByNls` |
+| Быстрые шаблоны volgahelp | `content-volgahelp.js` + `volgaHelpQuickSnippets` |
 | Изменить интервал flush | `FLUSH_INTERVAL_MINUTES` в `analytics.js` |
 | ZIP-сборка | `build.bat` (список файлов внутри) |
 

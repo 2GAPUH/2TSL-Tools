@@ -94,6 +94,8 @@ let settings = {
   ttmOnyma: true,
   ttmSipal: true,
   ttmCommentBuilder: true,
+  ttmCommentBuilderAutofill: true,
+  ttmCommentBuilderSnippets: true,
   omnichatTTMLinks: true,
   omnichatScrollToAppeal: true,
   openTabAdjacent: false,
@@ -150,6 +152,10 @@ const settingReminder = document.getElementById('settingReminder');
 const settingTTMOnyma = document.getElementById('settingTTMOnyma');
 const settingTTMSipal = document.getElementById('settingTTMSipal');
 const settingTTMCommentBuilder = document.getElementById('settingTTMCommentBuilder');
+const settingTTMCommentBuilderAutofill = document.getElementById('settingTTMCommentBuilderAutofill');
+const settingTTMCommentBuilderAutofillRow = document.getElementById('settingTTMCommentBuilderAutofillRow');
+const settingTTMCommentBuilderSnippets = document.getElementById('settingTTMCommentBuilderSnippets');
+const settingTTMCommentBuilderSnippetsRow = document.getElementById('settingTTMCommentBuilderSnippetsRow');
 const settingDarkMode = document.getElementById('settingDarkMode');
 const settingArgusDarkTheme = document.getElementById('settingArgusDarkTheme');
 const settingAxirosDarkTheme = document.getElementById('settingAxirosDarkTheme');
@@ -783,6 +789,8 @@ function loadAllData() {
       ttmOnyma: true,
       ttmSipal: true,
       ttmCommentBuilder: true,
+      ttmCommentBuilderAutofill: true,
+      ttmCommentBuilderSnippets: true,
       omnichatTTMLinks: true,
       omnichatScrollToAppeal: true,
       darkMode: false,
@@ -792,6 +800,8 @@ function loadAllData() {
       analyticsEnabled: true
     };
     if (settings.epdMacYear === undefined) settings.epdMacYear = true;
+    if (settings.ttmCommentBuilderAutofill === undefined) settings.ttmCommentBuilderAutofill = true;
+    if (settings.ttmCommentBuilderSnippets === undefined) settings.ttmCommentBuilderSnippets = true;
     const hadLegacyPalette = !settings.systemsDarkPalette && !!settings.argusDarkPalette;
     migrateSystemsDarkPalette();
     if (hadLegacyPalette) {
@@ -930,6 +940,13 @@ function applySettings() {
   settingTTMOnyma.checked = settings.ttmOnyma;
   settingTTMSipal.checked = settings.ttmSipal;
   settingTTMCommentBuilder.checked = settings.ttmCommentBuilder !== false;
+  if (settingTTMCommentBuilderAutofill) {
+    settingTTMCommentBuilderAutofill.checked = settings.ttmCommentBuilderAutofill !== false;
+  }
+  if (settingTTMCommentBuilderSnippets) {
+    settingTTMCommentBuilderSnippets.checked = settings.ttmCommentBuilderSnippets !== false;
+  }
+  updateCommentBuilderDependentToggles();
   settingDarkMode.checked = settings.darkMode;
   if (settingArgusDarkTheme) settingArgusDarkTheme.checked = settings.argusDarkTheme === true;
   if (settingAxirosDarkTheme) settingAxirosDarkTheme.checked = settings.axirosDarkTheme === true;
@@ -1010,7 +1027,33 @@ bindSettingToggle(settingReminder, 'reminder');
 bindSettingToggle(settingTTMOnyma, 'ttmOnyma');
 bindSettingToggle(settingTTMSipal, 'ttmSipal');
 bindSettingToggle(settingTTMCommentBuilder, 'ttmCommentBuilder');
+if (settingTTMCommentBuilderAutofill) {
+  bindSettingToggle(settingTTMCommentBuilderAutofill, 'ttmCommentBuilderAutofill');
+}
+if (settingTTMCommentBuilderSnippets) {
+  bindSettingToggle(settingTTMCommentBuilderSnippets, 'ttmCommentBuilderSnippets');
+}
+if (settingTTMCommentBuilder) {
+  settingTTMCommentBuilder.addEventListener('change', () => {
+    updateCommentBuilderDependentToggles();
+  });
+}
 bindSettingToggle(settingDarkMode, 'darkMode');
+
+/** Автозаполнение и шаблоны доступны только при включённом конструкторе */
+function updateCommentBuilderDependentToggles() {
+  const builderOn = settings.ttmCommentBuilder !== false;
+  [
+    [settingTTMCommentBuilderAutofill, settingTTMCommentBuilderAutofillRow],
+    [settingTTMCommentBuilderSnippets, settingTTMCommentBuilderSnippetsRow]
+  ].forEach(([input, row]) => {
+    if (input) input.disabled = !builderOn;
+    if (row) {
+      row.style.opacity = builderOn ? '' : '0.55';
+      row.style.pointerEvents = builderOn ? '' : 'none';
+    }
+  });
+}
 function normalizeSystemsPalette(value) {
   if (value === 'black' || value === 'navy' || value === 'slate') return value;
   return 'slate';

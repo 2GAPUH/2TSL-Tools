@@ -404,6 +404,90 @@ function getIlsAccount() {
   }, 'Ошибка получения лицевого счёта');
 }
 
+// ==================== КОНСТРУКТОР: НЛС + КОНТАКТ ДЛЯ ДОЗВОНА ====================
+const TTM_CLIENT_STORAGE_KEY = 'ttmClientByNls';
+const TTM_CLIENT_TTL_MS = 60 * 60 * 1000;
+const TTM_CLIENT_MAX_ENTRIES = 40;
+const CONTACT_DIAL_RE = /Контакт\s+для\s+дозвона\s*:\s*(\d{10,11})/i;
+
+/**
+ * Верхний (первый в DOM) комментарий с «Контакт для дозвона: …».
+ * Номер может меняться в ходе диалога — берём самый свежий визуально (сверху).
+ */
+function getContactDialPhone() {
+  return safelyExecute(() => {
+    const nodes = document.querySelectorAll('.comment__text');
+    for (const el of nodes) {
+      const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
+      if (!text || !/Контакт\s+для\s+дозвона/i.test(text)) continue;
+      const m = text.match(CONTACT_DIAL_RE);
+      if (m) return m[1];
+    }
+
+    // Fallback: sidebar «Телефон»
+    const phoneEls = document.querySelectorAll('[data-qa-id*="contacts-contact-"][data-qa-id$="-phone"]');
+    for (const el of phoneEls) {
+      const raw = (el.textContent || '').replace(/Телефон/gi, '').replace(/\s+/g, '').trim();
+      const digits = raw.match(/\d{10,11}/);
+      if (digits) return digits[0];
+    }
+    return '';
+  }, 'Ошибка получения контакта для дозвона') || '';
+}
+
+function formatContactDialLine(phone) {
+  const digits = String(phone || '').replace(/\D/g, '');
+  if (!digits) return '';
+  return `Контакт для дозвона: ${digits}`;
+}
+
+function pruneTtmClientMap(map) {
+  const now = Date.now();
+  const entries = Object.entries(map || {}).filter(([, v]) => {
+    if (!v) return false;
+    if (!v.updatedAt) return !!(v.phone || v.phoneLine);
+    return now - v.updatedAt < TTM_CLIENT_TTL_MS * 2;
+  });
+  entries.sort((a, b) => (b[1].updatedAt || 0) - (a[1].updatedAt || 0));
+  const next = {};
+  entries.slice(0, TTM_CLIENT_MAX_ENTRIES).forEach(([k, v]) => {
+    next[k] = v;
+  });
+  return next;
+}
+
+/**
+ * Публикует НЛС + телефон текущей карточки в storage (ключ = НЛС).
+ * @returns {{ nls: string, phone: string, phoneLine: string, ticketNumber: string }|null}
+ */
+function publishTtmClientData() {
+  const nls = String(getIlsAccount() || '').replace(/\s+/g, '');
+  const phone = getContactDialPhone();
+  const phoneLine = formatContactDialLine(phone);
+  const ticketNumber = String(getIncidentNumber() || '');
+
+  if (!nls) {
+    return { nls: '', phone, phoneLine, ticketNumber };
+  }
+
+  const entry = {
+    phone: phone || '',
+    phoneLine: phoneLine || '',
+    ticketNumber,
+    updatedAt: Date.now()
+  };
+
+  try {
+    chrome.storage.local.get([TTM_CLIENT_STORAGE_KEY], (result) => {
+      const map = pruneTtmClientMap(result[TTM_CLIENT_STORAGE_KEY] || {});
+      map[nls] = entry;
+      chrome.storage.local.set({ [TTM_CLIENT_STORAGE_KEY]: map });
+    });
+  } catch (e) { /* ignore */ }
+
+  return { nls, phone, phoneLine, ticketNumber };
+}
+
 // ==================== КНОПКА ====================
 function createAssistantButton() {
   const button = document.createElement('button');
@@ -1118,9 +1202,8 @@ function closeCommentBuilderWindow(trackClose = true) {
 }
 
 /**
- * Открыть/сфокусировать конструктор комментария.
- * Не используем window.open('', name) — даёт мигание/blur TTM (как «обновление» страницы).
- * Повторный клик: focus живого window или chrome.windows через background.
+ * Открыть/сфокусировать СВОЙ конструктор (extension page).
+ * Одно окно на всё: повторный клик — focus; другая заявка — смена session (черновик сохранится).
  */
 function openCommentBuilderWindow(commentEditorQaId) {
   const incidentNumber = getIncidentNumber();
@@ -1129,56 +1212,41 @@ function openCommentBuilderWindow(commentEditorQaId) {
     return;
   }
 
-  chrome.storage.local.get(['volgaHelpWindowLayout'], (layoutResult) => {
-    const saved = layoutResult.volgaHelpWindowLayout || DEFAULT_COMMENT_BUILDER_POPUP;
-    const { width, height } = clampPopupSize(saved.width, saved.height);
-    const popupFeatures = getCenteredPopupFeatures(width, height);
+  let client = { nls: '', phone: '', phoneLine: '', ticketNumber: incidentNumber };
+  try {
+    client = publishTtmClientData() || client;
+  } catch (e) {
+    console.warn('[TTM] publishTtmClientData:', e);
+  }
 
-    chrome.storage.local.set({
-      volgaHelpSession: {
-        ticketNumber: incidentNumber,
-        commentEditorQaId,
-        openedAt: Date.now()
-      }
-    }, () => {
-      // 1) Живая ссылка — только focus, без навигации
-      if (commentBuilderPopup && !commentBuilderPopup.closed) {
-        try {
-          commentBuilderPopup.focus();
-        } catch (e) { /* ignore */ }
-        trackEvent('ttm_comment_builder_focus');
-        return;
-      }
+  const session = {
+    ticketNumber: incidentNumber,
+    commentEditorQaId: commentEditorQaId || '',
+    nls: client?.nls || '',
+    sourceTabId: myTtmTabId,
+    openedAt: Date.now()
+  };
 
-      // 2) Окно могло остаться после SPA — фокус через background (без popup-probe)
-      chrome.runtime.sendMessage({ action: 'focusVolgaHelpWindow' }, (response) => {
-        void chrome.runtime.lastError;
-
-        if (response && response.focused) {
+  try {
+    chrome.runtime.sendMessage(
+      { action: 'openCommentBuilder', session },
+      (response) => {
+        if (chrome.runtime.lastError) {
+          console.error('[TTM] openCommentBuilder:', chrome.runtime.lastError.message);
+          alert('Не удалось открыть конструктор: ' + chrome.runtime.lastError.message);
+          return;
+        }
+        if (response?.created) {
+          trackEvent('ttm_comment_builder_open');
+        } else {
           trackEvent('ttm_comment_builder_focus');
-          return;
         }
-
-        // 3) Новое окно
-        const popup = window.open(
-          VOLGA_HELP_URL,
-          COMMENT_BUILDER_POPUP_NAME,
-          popupFeatures
-        );
-
-        if (!popup) {
-          alert('Браузер заблокировал всплывающее окно. Разрешите popup-окна для ttm.rt.ru');
-          return;
-        }
-
-        commentBuilderPopup = popup;
-        try {
-          commentBuilderPopup.focus();
-        } catch (e) { /* ignore */ }
-        trackEvent('ttm_comment_builder_open');
-      });
-    });
-  });
+      }
+    );
+  } catch (e) {
+    console.error('[TTM] openCommentBuilder exception:', e);
+    alert('Контекст расширения устарел — обновите страницу TTM (F5)');
+  }
 }
 
 function replaceCommentEditorText(commentEditorQaId, text) {
@@ -1242,38 +1310,59 @@ function clearCommentBuilderDraft(ticketNumber) {
 }
 
 function handleVolgaHelpPaste(pending) {
-  if (!pending?.text || !pending.commentEditorQaId) return;
+  if (!pending?.text) return;
   if (pending.timestamp && pending.timestamp === lastVolgaHelpPasteTimestamp) return;
 
-  // storage.onChanged приходит во ВСЕ вкладки TTM. Вставляем только в целевую заявку,
-  // остальные вкладки молча игнорируют (без alert об ошибке вставки).
+  // storage.onChanged / message — во ВСЕ вкладки TTM. Только целевая заявка.
   const currentTicket = getIncidentNumber();
   if (pending.ticketNumber) {
     if (!currentTicket || String(currentTicket) !== String(pending.ticketNumber)) {
-      return;
+      return false;
     }
   }
 
-  const editor = document.querySelector(`[data-qa-id="${pending.commentEditorQaId}"] .ql-editor`);
+  let qaId = pending.commentEditorQaId || '';
+  let editor = qaId
+    ? document.querySelector(`[data-qa-id="${qaId}"] .ql-editor`)
+    : null;
+
+  // fallback: любой comment-input на странице этой заявки
   if (!editor) {
-    // Редактор другой вкладки / другой карточки — не наша цель
-    return;
+    const any = document.querySelector('quill-editor[data-qa-id*="comment-input"] .ql-editor');
+    if (any) {
+      editor = any;
+      const host = any.closest('quill-editor');
+      qaId = host?.getAttribute('data-qa-id') || qaId;
+    }
+  }
+
+  if (!editor) {
+    return false;
   }
 
   if (pending.timestamp) lastVolgaHelpPasteTimestamp = pending.timestamp;
 
-  const inserted = replaceCommentEditorText(pending.commentEditorQaId, pending.text);
+  const inserted = replaceCommentEditorText(qaId, pending.text);
   if (!inserted) {
-    alert('Не удалось вставить комментарий в поле TTM');
-    return;
+    // последняя попытка — прямая запись
+    try {
+      editor.focus();
+      editor.textContent = pending.text;
+      editor.dispatchEvent(new Event('input', { bubbles: true }));
+    } catch (e) {
+      console.error('[TTM] paste fallback', e);
+      return false;
+    }
   }
 
   copyTextToClipboard(pending.text);
   clearCommentBuilderDraft(pending.ticketNumber);
-  closeCommentBuilderWindow(false);
-  chrome.storage.local.remove(['volgaHelpPastePending', 'volgaHelpSession']);
+  commentBuilderPopup = null;
+  chrome.storage.local.remove(['volgaHelpPastePending']);
+  // session не трогаем — конструктор мог остаться открытым для другой заявки
   trackEvent('ttm_comment_builder_paste');
-  showCommentBuilderNotice('Комментарий скопирован в буфер обмена');
+  showCommentBuilderNotice('Комментарий вставлен в TTM и скопирован в буфер');
+  return true;
 }
 
 // ==================== ДОБАВЛЕНИЕ КНОПКИ ====================
@@ -1307,6 +1396,8 @@ function checkUrlChange() {
     setTimeout(tryAddButton, 500);
     setTimeout(tryAddButton, 1500);
     setTimeout(tryAddButton, 3000);
+    setTimeout(() => publishTtmClientData(), 1200);
+    setTimeout(() => publishTtmClientData(), 3000);
     // Автопоиск при SPA-навигации НЕ перезапускаем:
     // смена URL после первого поиска иначе снова дергала бы API и антиспам TTM.
   }
@@ -1342,8 +1433,57 @@ function init() {
     
     // Инициализируем автопоиск из Omnichat
     initAutoSearch();
+
+    // Кэш контакта для конструктора (фоново)
+    setTimeout(() => publishTtmClientData(), 1500);
+    setTimeout(() => publishTtmClientData(), 4000);
   });
 }
+
+// Сообщения: scrape для sync + вставка из конструктора
+try {
+  chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
+    if (request?.action === 'commentBuilderPasteToEditor') {
+      const ok = handleVolgaHelpPaste({
+        text: request.text,
+        ticketNumber: request.ticketNumber,
+        commentEditorQaId: request.commentEditorQaId,
+        timestamp: request.timestamp
+      });
+      sendResponse({ success: !!ok });
+      return false;
+    }
+
+    if (request?.action !== 'scrapeCommentBuilderSource') return;
+
+    if (request.source && request.source !== 'ttm') {
+      sendResponse({ success: false, skipped: true });
+      return false;
+    }
+
+    const nlsWanted = request.nls ? String(request.nls).replace(/\s+/g, '') : '';
+    let client = { nls: '', phone: '', phoneLine: '', ticketNumber: '' };
+    try {
+      client = publishTtmClientData() || client;
+    } catch (e) {
+      sendResponse({ success: false, error: String(e) });
+      return false;
+    }
+    if (nlsWanted && client.nls && nlsWanted !== client.nls) {
+      sendResponse({ success: false, skipped: true, nls: client.nls });
+      return false;
+    }
+
+    sendResponse({
+      success: !!(client.nls && client.phone),
+      nls: client.nls,
+      phone: client.phone,
+      phoneLine: client.phoneLine,
+      ticketNumber: client.ticketNumber
+    });
+    return false;
+  });
+} catch (e) { /* ignore */ }
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes.volgaHelpPastePending?.newValue) {

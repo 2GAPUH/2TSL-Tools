@@ -12,8 +12,12 @@
   const BTN_SIZE_PX = 32;
   const BTN_GAP_PX = 4;
   const UP_LEFT_PX = NATIVE_DOWN_LEFT_PX; // 20 — слот «вниз»
-  const DOWN_SHIFT_PX = BTN_SIZE_PX + BTN_GAP_PX - 16; // 36 — сдвиг native вправо
+  // Сдвиг native «вниз» (+ бейдж счётчика) вправо, чтобы не наезжать на «вверх»
+  const DOWN_SHIFT_PX = BTN_SIZE_PX + BTN_GAP_PX; // 36
   const LAST_JUMP_TTL_MS = 8000;
+  // Как у нативной стрелки (omnichat_dark / light)
+  const NATIVE_FILL_DARK = '#ffffff99';
+  const NATIVE_FILL_LIGHT = '#10182880';
 
   // Та же стрелка, что у нативной «вниз», path из #Actions-button
   const CHEVRON_DOWN_PATH =
@@ -462,6 +466,57 @@
     }
   }
 
+  /**
+   * Стили «вверх» = как у native «вниз» (test.txt / omnichat_dark):
+   * прозрачный/тот же фон круга + fill #ffffff99 (dark) / #10182880 (light).
+   */
+  function applyUpButtonNativeLook(btn, nativeCircle) {
+    if (!btn) return;
+    const svg = btn.querySelector('svg');
+    O.detectTheme();
+
+    let bg = 'transparent';
+    let fill = state.isDarkTheme ? NATIVE_FILL_DARK : NATIVE_FILL_LIGHT;
+
+    if (nativeCircle) {
+      try {
+        const st = window.getComputedStyle(nativeCircle);
+        const nbg = st.backgroundColor;
+        // Не подставляем «серый прямоугольник», если native фактически прозрачный
+        if (
+          nbg &&
+          nbg !== 'rgba(0, 0, 0, 0)' &&
+          nbg !== 'transparent' &&
+          !/^rgba?\(\s*0\s*,\s*0\s*,\s*0\s*,\s*0\s*\)$/i.test(nbg)
+        ) {
+          bg = nbg;
+        }
+        const nativeSvg = nativeCircle.querySelector('svg');
+        if (nativeSvg) {
+          const attrFill = nativeSvg.getAttribute('fill');
+          if (attrFill && attrFill !== 'none' && !attrFill.startsWith('url')) {
+            fill = attrFill;
+          } else {
+            const cf = window.getComputedStyle(nativeSvg).fill;
+            if (cf && cf !== 'none' && cf !== 'rgba(0, 0, 0, 0)') fill = cf;
+          }
+        }
+      } catch (e) { /* ignore */ }
+    }
+
+    btn.style.background = bg;
+    btn.style.boxShadow = 'none';
+    if (state.isDarkTheme) {
+      btn.classList.add('dark-theme');
+    } else {
+      btn.classList.remove('dark-theme');
+    }
+    if (svg) {
+      svg.style.fill = fill;
+      svg.setAttribute('fill', fill);
+    }
+  }
+
   function createUpButton(nativeCircle) {
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -484,25 +539,7 @@
     svg.appendChild(path);
     btn.appendChild(svg);
 
-    O.detectTheme();
-    if (state.isDarkTheme) {
-      // Контраст: светлая стрелка на тёмном круге (не копируем fill native — он тоже тёмный)
-      btn.classList.add('dark-theme');
-      btn.style.background = 'rgb(61, 74, 92)';
-      svg.style.fill = 'rgba(255, 255, 255, 0.92)';
-    } else if (nativeCircle) {
-      try {
-        const st = window.getComputedStyle(nativeCircle);
-        if (st.backgroundColor && st.backgroundColor !== 'rgba(0, 0, 0, 0)') {
-          btn.style.background = st.backgroundColor;
-        }
-        const nativeSvg = nativeCircle.querySelector('svg');
-        if (nativeSvg) {
-          const fill = window.getComputedStyle(nativeSvg).fill;
-          if (fill) svg.style.fill = fill;
-        }
-      } catch (e) { /* ignore */ }
-    }
+    applyUpButtonNativeLook(btn, nativeCircle);
 
     btn.addEventListener('click', (e) => {
       e.preventDefault();
@@ -511,6 +548,65 @@
     });
 
     return btn;
+  }
+
+  /**
+   * Бейдж «N новых» рядом со scroll-down: часто абсолютный sibling в #Actions-button.
+   * Сдвигаем вместе с «вниз», чтобы цифра не висела у нашей «вверх».
+   */
+  function findUnreadCountBadges(actions, wrapper, circle) {
+    if (!actions) return [];
+    const out = [];
+    const skip = (el) =>
+      el.closest('[data-omnichat-scroll-up-host]') ||
+      el.closest('[data-testid="close-appeal"]') ||
+      el.closest('[data-testid="transfer-appeal"]');
+
+    actions.querySelectorAll('div, span').forEach((el) => {
+      if (skip(el)) return;
+      // Уже внутри native-wrapper — поедет со сдвигом wrapper
+      if (wrapper && wrapper.contains(el) && el !== wrapper) return;
+      if (circle && circle.contains(el) && el !== circle) return;
+
+      const text = (el.textContent || '').replace(/\s+/g, '').trim();
+      if (!/^\d{1,3}$/.test(text)) return;
+      // Только «листовые» бейджи (не контейнеры с кучей текста)
+      if (el.childElementCount > 2) return;
+
+      try {
+        const r = el.getBoundingClientRect();
+        if (r.width < 6 || r.height < 6 || r.width > 48 || r.height > 48) return;
+        // Слева в Actions (зона scroll controls)
+        const aRect = actions.getBoundingClientRect();
+        if (r.left - aRect.left > 120) return;
+      } catch (e) {
+        return;
+      }
+      out.push(el);
+    });
+    return out;
+  }
+
+  function shiftElementLikeNativeDown(el) {
+    if (!el) return;
+    el.setAttribute('data-omnichat-down-shifted', 'true');
+    try {
+      const st = window.getComputedStyle(el);
+      const pos = st.position;
+      if (pos === 'absolute' || pos === 'fixed') {
+        // left native ≈ 20 → 20+36
+        const curLeft = parseFloat(st.left);
+        if (!Number.isNaN(curLeft) && curLeft < NATIVE_DOWN_LEFT_PX + DOWN_SHIFT_PX + 8) {
+          el.style.setProperty('left', `${NATIVE_DOWN_LEFT_PX + DOWN_SHIFT_PX}px`, 'important');
+        } else {
+          el.style.setProperty('transform', `translateX(${DOWN_SHIFT_PX}px)`, 'important');
+        }
+      } else {
+        el.style.setProperty('transform', `translateX(${DOWN_SHIFT_PX}px)`, 'important');
+      }
+    } catch (e) {
+      el.style.setProperty('transform', `translateX(${DOWN_SHIFT_PX}px)`, 'important');
+    }
   }
 
   function clearNativeDownShift(root) {
@@ -528,12 +624,20 @@
    */
   function syncNativeDownShift(wrapper, circle) {
     const nativeVisible = isElementVisible(circle) || isElementVisible(wrapper);
-
-    // Снять сдвиг с устаревших узлов (React мог пересоздать кнопку)
     const actions = getActionsBar();
+    const keep = new Set();
+    if (wrapper) keep.add(wrapper);
+    if (circle) keep.add(circle);
+
+    const badges = nativeVisible
+      ? findUnreadCountBadges(actions, wrapper, circle)
+      : [];
+    badges.forEach((b) => keep.add(b));
+
+    // Снять сдвиг с устаревших узлов (React мог пересоздать кнопку / бейдж)
     if (actions) {
       actions.querySelectorAll('[data-omnichat-down-shifted]').forEach((el) => {
-        if (el !== wrapper && el !== circle) {
+        if (!keep.has(el)) {
           el.style.removeProperty('transform');
           el.style.removeProperty('left');
           el.removeAttribute('data-omnichat-down-shifted');
@@ -573,6 +677,13 @@
         circle.style.setProperty('transform', `translateX(${DOWN_SHIFT_PX}px)`, 'important');
       }
     }
+
+    badges.forEach((badge) => {
+      if (badge === wrapper || badge === circle) return;
+      if (wrapper && wrapper.contains(badge)) return;
+      if (circle && circle.contains(badge)) return;
+      shiftElementLikeNativeDown(badge);
+    });
   }
 
   function updateHostPosition(host, actions, wrapper, circle) {
@@ -640,28 +751,7 @@
     } else {
       state.scrollAppealsHost = host;
       const btn = host.querySelector('button');
-      if (btn) {
-        O.detectTheme();
-        const svg = btn.querySelector('svg');
-        if (state.isDarkTheme) {
-          btn.classList.add('dark-theme');
-          btn.style.background = 'rgb(61, 74, 92)';
-          if (svg) svg.style.fill = 'rgba(255, 255, 255, 0.92)';
-        } else if (circle) {
-          btn.classList.remove('dark-theme');
-          try {
-            const st = window.getComputedStyle(circle);
-            if (st.backgroundColor && st.backgroundColor !== 'rgba(0, 0, 0, 0)') {
-              btn.style.background = st.backgroundColor;
-            }
-            const nativeSvg = circle.querySelector('svg');
-            if (svg && nativeSvg) {
-              const fill = window.getComputedStyle(nativeSvg).fill;
-              if (fill) svg.style.fill = fill;
-            }
-          } catch (e) { /* ignore */ }
-        }
-      }
+      if (btn) applyUpButtonNativeLook(btn, circle);
     }
 
     updateHostPosition(host, actions, wrapper, circle);

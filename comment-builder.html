@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>2TSL — Конструктор комментария</title>
+  <style>
+    :root {
+      --bg: #1e1e2f;
+      --panel: #2c2c3c;
+      --panel-2: #252536;
+      --text: #f1f1f1;
+      --muted: #b0b0c0;
+      --border: #555;
+      --accent: #7C3AED;
+      --accent-2: #1D4ED8;
+      --danger: #c88;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    .wrap {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 20px 18px 28px;
+    }
+    .title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 1.35rem;
+      font-weight: 650;
+      color: #fff;
+    }
+    .meta {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+    .meta strong { color: #d8e0ff; }
+    .banner {
+      display: none;
+      margin-bottom: 12px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: rgba(29, 78, 216, 0.22);
+      border: 1px solid rgba(125, 160, 255, 0.35);
+      color: #dce6ff;
+      font-size: 13px;
+    }
+    .banner.show { display: block; }
+    .sync-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: #e8eefc;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      padding: 0;
+    }
+    .sync-btn:hover { border-color: var(--accent); background: #3a3a50; }
+    .sync-btn:disabled { opacity: 0.5; cursor: wait; }
+    .sync-btn.spinning svg { animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .sync-btn svg { width: 18px; height: 18px; }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 16px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .check-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-weight: 600;
+      cursor: pointer;
+      user-select: none;
+    }
+    select, textarea {
+      width: 100%;
+      background: var(--panel) !important;
+      color: #fff !important;
+      -webkit-text-fill-color: #fff !important;
+      caret-color: #fff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font: inherit;
+      outline: none;
+    }
+    /* Блоки 1–5: только по высоте; значение хранится в storage (все окна popup) */
+    #issue, #actions, #conclusion, #diagnostics, #other {
+      resize: vertical;
+      min-height: 48px;
+      box-sizing: border-box;
+    }
+    select:focus, textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.25);
+    }
+    select:disabled, textarea:disabled, textarea[readonly] {
+      background: var(--panel-2) !important;
+      color: #e8e8f0 !important;
+      -webkit-text-fill-color: #e8e8f0 !important;
+      opacity: 1 !important;
+    }
+    textarea::placeholder {
+      color: var(--muted) !important;
+      -webkit-text-fill-color: var(--muted) !important;
+      opacity: 1 !important;
+    }
+    #tagSelect { max-width: 320px; min-width: 200px; }
+    #tagDesc {
+      width: 100%;
+      font-size: 12px;
+      color: var(--muted);
+      min-height: 1.2em;
+      margin: 0 0 10px;
+    }
+    .field {
+      margin-bottom: 14px;
+    }
+    .field-label {
+      display: block;
+      font-weight: 600;
+      color: #e0e0e0;
+      margin-bottom: 6px;
+    }
+    .field-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .field-main { flex: 1; min-width: 0; }
+    .snippet-wrap { position: relative; flex: 0 0 auto; }
+    .snippet-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: #e0e0e0;
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      padding: 0;
+    }
+    .snippet-btn:hover { border-color: var(--accent); color: #fff; }
+    .snippet-menu {
+      position: absolute;
+      left: 0;
+      top: 32px;
+      z-index: 100;
+      min-width: 220px;
+      max-width: min(360px, 70vw);
+      max-height: 280px;
+      overflow: auto;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.4);
+      padding: 4px 0;
+    }
+    .snippet-item { display: flex; border-bottom: 1px solid rgba(255,255,255,.06); }
+    .snippet-pick {
+      flex: 1;
+      min-width: 0;
+      text-align: left;
+      background: transparent;
+      border: none;
+      color: #f1f1f1;
+      padding: 8px 10px;
+      cursor: pointer;
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .snippet-pick:hover { background: rgba(124, 58, 237, .25); }
+    .snippet-del {
+      width: 34px;
+      border: none;
+      background: transparent;
+      color: var(--danger);
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .snippet-add {
+      display: block;
+      width: 100%;
+      border: none;
+      border-top: 1px solid #444;
+      background: transparent;
+      color: #9ec5fe;
+      padding: 9px 10px;
+      text-align: left;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .snippet-empty { padding: 8px 10px; color: #999; font-size: 12px; }
+
+    textarea.diag-loading {
+      color: #c8d0e8 !important;
+      -webkit-text-fill-color: #c8d0e8 !important;
+      font-style: italic;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .btn-primary {
+      border: none;
+      border-radius: 8px;
+      padding: 10px 16px;
+      color: #fff;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      background: linear-gradient(90deg, var(--accent) 0%, var(--accent-2) 100%);
+    }
+    .btn-primary:hover { opacity: 0.92; }
+    .btn-secondary {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 16px;
+      color: #ddd;
+      font: inherit;
+      background: transparent;
+      cursor: pointer;
+    }
+    .btn-secondary:hover { border-color: #888; color: #fff; }
+
+    #output {
+      margin-top: 16px;
+      min-height: 160px;
+      resize: vertical;
+    }
+
+    #toast {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      z-index: 100000;
+      max-width: 340px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      line-height: 1.35;
+      box-shadow: 0 4px 16px rgba(0,0,0,.35);
+      opacity: 0;
+      transition: opacity .2s ease;
+      pointer-events: none;
+    }
+    #toast.show { opacity: 1; }
+    #toast.ok {
+      background: #1e2a44;
+      color: #e8eefc;
+      border: 1px solid #3d5a99;
+    }
+    #toast.err {
+      background: #5c1a1a;
+      color: #ffd0d0;
+      border: 1px solid #a33;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="title-row">
+      <h1>📝 Конструктор комментария</h1>
+      <button type="button" class="sync-btn" id="syncBtn" title="Обновить контакт для дозвона из TTM" tabindex="-1" aria-label="Синхронизировать">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 12a9 9 0 1 1-2.64-6.36"/>
+          <polyline points="21 3 21 9 15 9"/>
+        </svg>
+      </button>
+    </div>
+    <div class="meta" id="sessionMeta">Заявка: — · НЛС: —</div>
+    <div class="banner" id="switchBanner"></div>
+
+    <div class="tag-row">
+      <label class="check-label">
+        <input type="checkbox" id="checkbox_changes">
+        #ХолостойНа2ЛТП
+      </label>
+      <select id="tagSelect" aria-label="Тег">
+        <option value="" disabled selected>Загрузка тегов…</option>
+      </select>
+    </div>
+    <p id="tagDesc"></p>
+
+    <div class="field" data-field="issue">
+      <label class="field-label" for="issue">1. С чем обратился абонент?</label>
+      <div class="field-row">
+        <div class="snippet-wrap" data-snippet-for="issue"></div>
+        <div class="field-main">
+          <textarea id="issue" rows="2" placeholder="Укажите суть обращения абонента с его слов..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="field" data-field="actions">
+      <label class="field-label" for="actions">2. Что было сделано для решения сложности?</label>
+      <div class="field-row">
+        <div class="snippet-wrap" data-snippet-for="actions"></div>
+        <div class="field-main">
+          <textarea id="actions" rows="2" placeholder="Опишите ваши действия..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="field" data-field="conclusion">
+      <label class="field-label" for="conclusion">3. Ваше техническое заключение</label>
+      <div class="field-row">
+        <div class="snippet-wrap" data-snippet-for="conclusion"></div>
+        <div class="field-main">
+          <textarea id="conclusion" rows="2" placeholder="Техническое заключение по обращению..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="field" data-field="diagnostics">
+      <label class="field-label" for="diagnostics">4. Диагностика из ЕПД и других систем</label>
+      <div class="field-row">
+        <div class="snippet-wrap" data-snippet-for="diagnostics"></div>
+        <div class="field-main">
+          <textarea id="diagnostics" rows="4" placeholder="Результаты диагностики..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="field" data-field="other">
+      <label class="field-label" for="other">5. Другая важная информация</label>
+      <div class="field-row">
+        <div class="snippet-wrap" data-snippet-for="other"></div>
+        <div class="field-main">
+          <textarea id="other" rows="2" placeholder="Дополнительные замечания..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn-primary" id="copyPasteBtn">📋 Скопировать и вставить</button>
+      <button type="button" class="btn-secondary" id="clearBtn" tabindex="-1">Очистить всё</button>
+    </div>
+
+    <textarea id="output" rows="8" readonly placeholder="Сюда попадёт собранный текст..."></textarea>
+  </div>
+  <div id="toast"></div>
+  <script src="comment-builder.js"></script>
+</body>
+</html>

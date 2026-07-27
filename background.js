@@ -9,6 +9,156 @@ initAnalyticsAlarms();
 
 const AUTO_RESET_ALARM = 'autoResetShift';
 
+// ==================== КОНСТРУКТОР КОММЕНТАРИЯ (своё окно) ====================
+
+/** @type {number|null} */
+let commentBuilderWindowId = null;
+
+async function getCommentBuilderLayout() {
+  try {
+    const res = await chrome.storage.local.get(['volgaHelpWindowLayout']);
+    const s = res.volgaHelpWindowLayout || {};
+    const width = Math.min(Math.max(s.width || 960, 640), 1400);
+    const height = Math.min(Math.max(s.height || 900, 500), 1200);
+    return { width, height };
+  } catch (e) {
+    return { width: 960, height: 900 };
+  }
+}
+
+async function findCommentBuilderTab() {
+  const url = chrome.runtime.getURL('comment-builder.html');
+  try {
+    const tabs = await chrome.tabs.query({ url: [url, url + '*'] });
+    if (tabs?.length) return tabs[0];
+  } catch (e) { /* ignore */ }
+  try {
+    const all = await chrome.tabs.query({});
+    return all.find((t) => (t.url || '').includes('comment-builder.html')) || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
+ * Одно окно конструктора. При повторном open — focus + обновление session (switch заявки).
+ * @param {object|null} session если null — только focus
+ */
+async function openOrFocusCommentBuilder(session) {
+  if (session && session.ticketNumber) {
+    await chrome.storage.local.set({
+      volgaHelpSession: {
+        ticketNumber: String(session.ticketNumber),
+        commentEditorQaId: session.commentEditorQaId || '',
+        nls: session.nls || '',
+        sourceTabId: session.sourceTabId || null,
+        openedAt: Date.now()
+      }
+    });
+  }
+
+  const layout = await getCommentBuilderLayout();
+  const pageUrl = chrome.runtime.getURL('comment-builder.html');
+
+  if (commentBuilderWindowId != null) {
+    try {
+      await chrome.windows.update(commentBuilderWindowId, { focused: true });
+      const tabs = await chrome.tabs.query({ windowId: commentBuilderWindowId });
+      const tab = tabs?.[0];
+      if (tab?.id != null) {
+        await chrome.tabs.update(tab.id, { active: true });
+        if (!(tab.url || '').includes('comment-builder.html')) {
+          await chrome.tabs.update(tab.id, { url: pageUrl });
+        }
+      }
+      return { success: true, focused: true, windowId: commentBuilderWindowId };
+    } catch (e) {
+      commentBuilderWindowId = null;
+    }
+  }
+
+  const existing = await findCommentBuilderTab();
+  if (existing) {
+    try {
+      if (existing.windowId != null) {
+        commentBuilderWindowId = existing.windowId;
+        await chrome.windows.update(existing.windowId, { focused: true });
+      }
+      if (existing.id != null) {
+        await chrome.tabs.update(existing.id, { active: true });
+      }
+      return { success: true, focused: true, windowId: commentBuilderWindowId, tabId: existing.id };
+    } catch (e) { /* create new */ }
+  }
+
+  const win = await chrome.windows.create({
+    url: pageUrl,
+    type: 'popup',
+    width: layout.width,
+    height: layout.height,
+    focused: true
+  });
+  commentBuilderWindowId = win?.id ?? null;
+  return { success: true, created: true, windowId: commentBuilderWindowId };
+}
+
+/** Доставка текста в TTM: storage + sendMessage во все TTM-вкладки */
+async function deliverCommentBuilderPaste({ ticketNumber, commentEditorQaId, text }) {
+  const payload = {
+    ticketNumber: ticketNumber || '',
+    commentEditorQaId: commentEditorQaId || '',
+    text: text || '',
+    timestamp: Date.now()
+  };
+
+  await chrome.storage.local.set({ volgaHelpPastePending: payload });
+
+  let delivered = 0;
+  let tabs = [];
+  try {
+    tabs = await chrome.tabs.query({
+      url: ['https://www.ttm.rt.ru/*', 'https://ttm.rt.ru/*']
+    });
+  } catch (e) {
+    return { success: true, delivered: 0, storage: true, error: e.message };
+  }
+
+  await Promise.all(
+    tabs.map(
+      (tab) =>
+        new Promise((resolve) => {
+          if (tab.id == null) {
+            resolve();
+            return;
+          }
+          try {
+            chrome.tabs.sendMessage(
+              tab.id,
+              { action: 'commentBuilderPasteToEditor', ...payload },
+              (response) => {
+                void chrome.runtime.lastError;
+                if (response?.success) delivered += 1;
+                resolve();
+              }
+            );
+          } catch (e) {
+            resolve();
+          }
+        })
+    )
+  );
+
+  return { success: true, delivered, storage: true, timestamp: payload.timestamp };
+}
+
+try {
+  chrome.windows.onRemoved.addListener((windowId) => {
+    if (windowId === commentBuilderWindowId) {
+      commentBuilderWindowId = null;
+    }
+  });
+} catch (e) { /* ignore */ }
+
 chrome.runtime.onInstalled.addListener(async (details) => {
   console.log('[2TSL] Расширение установлено:', details.reason);
   await handleInstallAnalytics(details);
@@ -155,47 +305,39 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
-  if (request.action === 'volgaHelpCopied') {
-    chrome.storage.local.set({
-      volgaHelpPastePending: {
-        ticketNumber: request.ticketNumber || '',
-        commentEditorQaId: request.commentEditorQaId || '',
-        text: request.text || '',
-        timestamp: Date.now()
-      }
-    }, () => {
-      sendResponse({ success: true });
-    });
+  if (request.action === 'volgaHelpCopied' || request.action === 'commentBuilderPaste') {
+    deliverCommentBuilderPaste({
+      ticketNumber: request.ticketNumber || '',
+      commentEditorQaId: request.commentEditorQaId || '',
+      text: request.text || ''
+    })
+      .then((result) => sendResponse(result))
+      .catch((err) => sendResponse({ success: false, error: err.message }));
     return true;
   }
 
-  // TTM → сфокусировать уже открытое окно/вкладку конструктора (volgahelp), без reload
+  // Открыть/сфокусировать ОДНО окно своего конструктора; session уже/будет в storage
+  if (request.action === 'openCommentBuilder') {
+    openOrFocusCommentBuilder(request.session || {})
+      .then((result) => sendResponse(result))
+      .catch((err) => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
+  if (request.action === 'commentBuilderReady') {
+    // запомнить windowId отправителя
+    if (sender.tab?.windowId != null) {
+      commentBuilderWindowId = sender.tab.windowId;
+    }
+    sendResponse({ success: true, windowId: commentBuilderWindowId });
+    return false;
+  }
+
+  // legacy: фокус конструктора
   if (request.action === 'focusVolgaHelpWindow') {
-    chrome.tabs.query({ url: ['https://volgahelp.ru/*', 'http://volgahelp.ru/*'] })
-      .then(async (tabs) => {
-        if (!tabs || !tabs.length) {
-          sendResponse({ success: true, focused: false });
-          return;
-        }
-        // Предпочитаем вкладку с конструктором комментариев
-        const preferred =
-          tabs.find((t) => /\/tag_api\/comments/i.test(t.url || '')) ||
-          tabs[0];
-        try {
-          if (preferred.windowId != null) {
-            await chrome.windows.update(preferred.windowId, { focused: true });
-          }
-          if (preferred.id != null) {
-            await chrome.tabs.update(preferred.id, { active: true });
-          }
-          sendResponse({ success: true, focused: true, tabId: preferred.id });
-        } catch (error) {
-          sendResponse({ success: false, focused: false, error: error.message });
-        }
-      })
-      .catch((error) => {
-        sendResponse({ success: false, focused: false, error: error.message });
-      });
+    openOrFocusCommentBuilder(null)
+      .then((result) => sendResponse({ success: true, focused: !!result.focused || !!result.created, ...result }))
+      .catch((err) => sendResponse({ success: false, focused: false, error: err.message }));
     return true;
   }
 
@@ -244,8 +386,70 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
+  // Конструктор: обновить кэш телефона TTM по НЛС (диагностика ЕПД отключена)
+  if (request.action === 'refreshCommentBuilderSources') {
+    refreshCommentBuilderSources(request.nls)
+      .then((result) => sendResponse(result))
+      .catch((err) => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
   return true;
 });
+
+/**
+ * Sync конструктора: scrape телефона/НЛС с вкладок TTM.
+ * Подтягивание диагностики ЕПД снято (0.8.3).
+ */
+async function refreshCommentBuilderSources(nls) {
+  const nlsNorm = String(nls || '').replace(/\s+/g, '');
+  const results = { ttm: [] };
+
+  let tabs = [];
+  try {
+    tabs = await chrome.tabs.query({
+      url: ['https://www.ttm.rt.ru/*', 'https://ttm.rt.ru/*']
+    });
+  } catch (e) {
+    return { success: false, error: e.message, nls: nlsNorm };
+  }
+
+  await Promise.all(
+    tabs.map(
+      (tab) =>
+        new Promise((resolve) => {
+          if (tab.id == null) {
+            resolve();
+            return;
+          }
+          try {
+            chrome.tabs.sendMessage(
+              tab.id,
+              { action: 'scrapeCommentBuilderSource', source: 'ttm', nls: nlsNorm },
+              (response) => {
+                void chrome.runtime.lastError;
+                if (response && !response.skipped) {
+                  results.ttm.push({ tabId: tab.id, ...response });
+                }
+                resolve();
+              }
+            );
+          } catch (e) {
+            resolve();
+          }
+        })
+    )
+  );
+
+  await new Promise((r) => setTimeout(r, 80));
+
+  return {
+    success: true,
+    nls: nlsNorm,
+    ttmHits: results.ttm.filter((r) => r.success).length,
+    details: results
+  };
+}
 
 // ==================== MAC OUI LOOKUP (maclookup.app) ====================
 
