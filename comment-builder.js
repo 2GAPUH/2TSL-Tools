@@ -526,6 +526,32 @@
   }
 
   // ---------- copy & paste ----------
+  /** Буфер обмена: пишем здесь (есть user gesture), а не только со стороны TTM. */
+  async function copyToClipboard(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (e) {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        ta.style.top = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        ta.setSelectionRange(0, text.length);
+        const ok = document.execCommand('copy');
+        ta.remove();
+        return !!ok;
+      } catch (e2) {
+        return false;
+      }
+    }
+  }
+
   async function copyAndPaste() {
     if (!activeTicket) {
       showToast('Нет номера заявки в сессии', true);
@@ -541,7 +567,10 @@
       return;
     }
 
-    // Сначала пишем pending, потом просим TTM вставить (двойной путь)
+    // 1) Буфер — в окне конструктора (клик = user activation; content script TTM часто без неё)
+    const copied = await copyToClipboard(text);
+
+    // 2) Pending + sendMessage во вкладки TTM (двойной путь)
     try {
       await new Promise((resolve, reject) => {
         chrome.runtime.sendMessage(
@@ -561,7 +590,11 @@
         );
       });
       trackEvent('ttm_comment_builder_copy');
-      showToast('Отправлено в TTM…');
+      showToast(
+        copied
+          ? 'Скопировано и отправлено в TTM…'
+          : 'Отправлено в TTM (в буфер не удалось)'
+      );
       // не закрываем мгновенно — даём SW/вкладкам обработать
       setTimeout(() => {
         try {
@@ -570,7 +603,11 @@
       }, 350);
     } catch (e) {
       console.error('[2TSL builder] paste', e);
-      showToast('Ошибка вставки: ' + (e.message || e), true);
+      if (copied) {
+        showToast('Скопировано; вставка в TTM: ' + (e.message || e), true);
+      } else {
+        showToast('Ошибка: ' + (e.message || e), true);
+      }
     }
   }
 
