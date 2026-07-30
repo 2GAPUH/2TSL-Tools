@@ -280,7 +280,7 @@
         background-color: rgba(77, 163, 255, 0.1);
       }
 
-      /* «Вверх» в слоте native «вниз» (left:20); native при появлении сдвигается вправо JS-ом */
+      /* «Вверх» в слоте left:20; native «вниз» при появлении сдвигается вправо JS-ом (один раз) */
       .omnichat-ext-scroll-up-host {
         position: absolute;
         left: 20px;

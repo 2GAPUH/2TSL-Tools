@@ -7,12 +7,13 @@
   const STICK_OFFSET_PX = 56;
   const ON_HEADER_SLACK_PX = 28;
   // Нативная «вниз»: left:20px, 32×32.
-  // «Вверх» занимает этот слот; когда «вниз» видна — сдвигаем её правее (не двигаем «вверх»).
+  // «Вверх» всегда в этом слоте (left:20). Когда «вниз» видна — сдвигаем её
+  // вправо на 36px, но только один раз (не left и translateX вместе — test.txt).
   const NATIVE_DOWN_LEFT_PX = 20;
   const BTN_SIZE_PX = 32;
   const BTN_GAP_PX = 4;
-  const UP_LEFT_PX = NATIVE_DOWN_LEFT_PX; // 20 — слот «вниз»
-  // Сдвиг native «вниз» (+ бейдж счётчика) вправо, чтобы не наезжать на «вверх»
+  const UP_LEFT_PX = NATIVE_DOWN_LEFT_PX; // 20 — слот «вверх»
+  const DOWN_TARGET_LEFT_PX = NATIVE_DOWN_LEFT_PX + BTN_SIZE_PX + BTN_GAP_PX; // 56
   const DOWN_SHIFT_PX = BTN_SIZE_PX + BTN_GAP_PX; // 36
   const LAST_JUMP_TTL_MS = 8000;
   // Как у нативной стрелки (omnichat_dark / light)
@@ -551,8 +552,8 @@
   }
 
   /**
-   * Бейдж «N новых» рядом со scroll-down: часто абсолютный sibling в #Actions-button.
-   * Сдвигаем вместе с «вниз», чтобы цифра не висела у нашей «вверх».
+   * Бейдж «N новых» рядом со scroll-down: absolute sibling в #Actions-button.
+   * Сдвигаем вместе с «вниз», чтобы цифра не висела у «вверх».
    */
   function findUnreadCountBadges(actions, wrapper, circle) {
     if (!actions) return [];
@@ -564,19 +565,16 @@
 
     actions.querySelectorAll('div, span').forEach((el) => {
       if (skip(el)) return;
-      // Уже внутри native-wrapper — поедет со сдвигом wrapper
       if (wrapper && wrapper.contains(el) && el !== wrapper) return;
       if (circle && circle.contains(el) && el !== circle) return;
 
       const text = (el.textContent || '').replace(/\s+/g, '').trim();
       if (!/^\d{1,3}$/.test(text)) return;
-      // Только «листовые» бейджи (не контейнеры с кучей текста)
       if (el.childElementCount > 2) return;
 
       try {
         const r = el.getBoundingClientRect();
         if (r.width < 6 || r.height < 6 || r.width > 48 || r.height > 48) return;
-        // Слева в Actions (зона scroll controls)
         const aRect = actions.getBoundingClientRect();
         if (r.left - aRect.left > 120) return;
       } catch (e) {
@@ -587,119 +585,108 @@
     return out;
   }
 
-  function shiftElementLikeNativeDown(el) {
+  function clearShiftStyles(el) {
     if (!el) return;
-    el.setAttribute('data-omnichat-down-shifted', 'true');
-    try {
-      const st = window.getComputedStyle(el);
-      const pos = st.position;
-      if (pos === 'absolute' || pos === 'fixed') {
-        // left native ≈ 20 → 20+36
-        const curLeft = parseFloat(st.left);
-        if (!Number.isNaN(curLeft) && curLeft < NATIVE_DOWN_LEFT_PX + DOWN_SHIFT_PX + 8) {
-          el.style.setProperty('left', `${NATIVE_DOWN_LEFT_PX + DOWN_SHIFT_PX}px`, 'important');
-        } else {
-          el.style.setProperty('transform', `translateX(${DOWN_SHIFT_PX}px)`, 'important');
-        }
-      } else {
-        el.style.setProperty('transform', `translateX(${DOWN_SHIFT_PX}px)`, 'important');
-      }
-    } catch (e) {
-      el.style.setProperty('transform', `translateX(${DOWN_SHIFT_PX}px)`, 'important');
-    }
+    el.style.removeProperty('transform');
+    el.style.removeProperty('left');
+    el.removeAttribute('data-omnichat-down-shifted');
   }
 
   function clearNativeDownShift(root) {
     const scope = root || document;
-    scope.querySelectorAll('[data-omnichat-down-shifted]').forEach((el) => {
-      el.style.removeProperty('transform');
-      el.style.removeProperty('left');
-      el.removeAttribute('data-omnichat-down-shifted');
-    });
+    scope.querySelectorAll('[data-omnichat-down-shifted]').forEach(clearShiftStyles);
   }
 
   /**
-   * «Вверх» на месте «вниз» (left:20).
-   * Когда native «вниз» видна — сдвигаем её вправо, чтобы не перекрывать нашу.
+   * Сдвинуть элемент так, чтобы его left относительно actions ≈ targetLeftPx.
+   * Используем transform (безопасно для position:fixed), без повторного left.
+   */
+  function shiftToTargetLeft(el, actions, targetLeftPx) {
+    if (!el || !actions) return;
+    // Снять наш прошлый сдвиг, чтобы замерить «натуральную» позицию
+    clearShiftStyles(el);
+    try {
+      const aLeft = actions.getBoundingClientRect().left;
+      const cur = el.getBoundingClientRect().left - aLeft;
+      const delta = Math.round(targetLeftPx - cur);
+      if (Math.abs(delta) < 3) return; // уже на месте (например, поехала вместе с wrapper)
+      el.setAttribute('data-omnichat-down-shifted', 'true');
+      el.style.setProperty('transform', `translateX(${delta}px)`, 'important');
+    } catch (e) {
+      el.setAttribute('data-omnichat-down-shifted', 'true');
+      el.style.setProperty('transform', `translateX(${DOWN_SHIFT_PX}px)`, 'important');
+    }
+  }
+
+  /**
+   * «Вверх» на left:20. Native «вниз» — на left:56 (один сдвиг).
+   * Wrapper absolute: left → 56. Circle fixed: только догоняющий translateX,
+   * если после сдвига wrapper ещё не на 56 (избегаем double-shift из test.txt).
    */
   function syncNativeDownShift(wrapper, circle) {
-    const nativeVisible = isElementVisible(circle) || isElementVisible(wrapper);
     const actions = getActionsBar();
+    const nativeVisible = isElementVisible(circle) || isElementVisible(wrapper);
+
+    if (!actions) return;
+
+    if (!nativeVisible) {
+      clearNativeDownShift(actions);
+      return;
+    }
+
     const keep = new Set();
     if (wrapper) keep.add(wrapper);
     if (circle) keep.add(circle);
 
-    const badges = nativeVisible
-      ? findUnreadCountBadges(actions, wrapper, circle)
-      : [];
+    const badges = findUnreadCountBadges(actions, wrapper, circle);
     badges.forEach((b) => keep.add(b));
 
-    // Снять сдвиг с устаревших узлов (React мог пересоздать кнопку / бейдж)
-    if (actions) {
-      actions.querySelectorAll('[data-omnichat-down-shifted]').forEach((el) => {
-        if (!keep.has(el)) {
-          el.style.removeProperty('transform');
-          el.style.removeProperty('left');
-          el.removeAttribute('data-omnichat-down-shifted');
-        }
-      });
-    }
+    // Снять сдвиг с узлов, которые больше не актуальны
+    actions.querySelectorAll('[data-omnichat-down-shifted]').forEach((el) => {
+      if (!keep.has(el)) clearShiftStyles(el);
+    });
 
-    if (!nativeVisible) {
-      if (wrapper?.hasAttribute('data-omnichat-down-shifted')) {
-        wrapper.style.removeProperty('transform');
-        wrapper.style.removeProperty('left');
-        wrapper.removeAttribute('data-omnichat-down-shifted');
-      }
-      if (circle?.hasAttribute('data-omnichat-down-shifted')) {
-        circle.style.removeProperty('transform');
-        circle.style.removeProperty('left');
-        circle.removeAttribute('data-omnichat-down-shifted');
-      }
-      return;
-    }
-
-    // wrapper absolute left:20 → 20+36; circle часто position:fixed — translateX
+    // 1) Wrapper (absolute left:20 → 56). Без transform — иначе fixed-потомок
+    //    меняет containing block.
     if (wrapper) {
+      clearShiftStyles(wrapper);
       wrapper.setAttribute('data-omnichat-down-shifted', 'true');
-      wrapper.style.setProperty('left', `${NATIVE_DOWN_LEFT_PX + DOWN_SHIFT_PX}px`, 'important');
+      wrapper.style.setProperty('left', `${DOWN_TARGET_LEFT_PX}px`, 'important');
     }
+
+    // 2) Circle: только если визуально ещё не уехал вправо после wrapper
     if (circle && circle !== wrapper) {
-      circle.setAttribute('data-omnichat-down-shifted', 'true');
-      try {
-        const pos = window.getComputedStyle(circle).position;
-        if (pos === 'fixed') {
-          circle.style.setProperty('transform', `translateX(${DOWN_SHIFT_PX}px)`, 'important');
-        } else {
-          circle.style.setProperty('left', `${NATIVE_DOWN_LEFT_PX + DOWN_SHIFT_PX}px`, 'important');
-        }
-      } catch (e) {
-        circle.style.setProperty('transform', `translateX(${DOWN_SHIFT_PX}px)`, 'important');
+      if (wrapper && wrapper.contains(circle)) {
+        // Снять старый translate, замерить после left у wrapper
+        clearShiftStyles(circle);
+        shiftToTargetLeft(circle, actions, DOWN_TARGET_LEFT_PX);
+      } else {
+        shiftToTargetLeft(circle, actions, DOWN_TARGET_LEFT_PX);
       }
     }
 
+    // 3) Бейджи вне wrapper
     badges.forEach((badge) => {
       if (badge === wrapper || badge === circle) return;
       if (wrapper && wrapper.contains(badge)) return;
       if (circle && circle.contains(badge)) return;
-      shiftElementLikeNativeDown(badge);
+      shiftToTargetLeft(badge, actions, DOWN_TARGET_LEFT_PX);
     });
   }
 
   function updateHostPosition(host, actions, wrapper, circle) {
-    // Всегда слот native «вниз» — не наезжаем на чат слева
+    // «Вверх» всегда в слоте native left:20
     host.style.left = `${UP_LEFT_PX}px`;
 
     try {
-      const alignEl = (wrapper && isElementVisible(wrapper)) ? wrapper
+      // top по wrapper до/без transform; если wrapper уже с left:56 — top тот же
+      const alignEl = (wrapper && document.contains(wrapper)) ? wrapper
         : (circle && isElementVisible(circle)) ? circle
           : null;
-      if (alignEl) {
+      if (alignEl && (isElementVisible(circle) || isElementVisible(wrapper))) {
         const aRect = actions.getBoundingClientRect();
         const wRect = alignEl.getBoundingClientRect();
-        // top до сдвига transform — для fixed с translate top совпадает
         if (wRect.height > 0 && aRect.height > 0) {
-          // если уже сдвинут translateX, top всё равно верный
           host.style.top = `${Math.round(wRect.top - aRect.top)}px`;
         } else {
           host.style.top = '';
@@ -739,7 +726,7 @@
       host.className = CSS.scrollUpHost;
       host.appendChild(createUpButton(circle));
 
-      // В DOM тоже слева от «вниз»
+      // В DOM слева от «вниз» (как и визуально)
       if (wrapper && wrapper.parentElement === actions) {
         actions.insertBefore(host, wrapper);
       } else {
