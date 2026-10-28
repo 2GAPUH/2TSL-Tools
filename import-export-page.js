@@ -10,6 +10,7 @@ const DEFAULT_SETTINGS = {
   accountingPanel: true,
   grafanaSSH: true,
   epdMacYear: true,
+  epdSwitchModel: true,
   reminder: true,
   ttmOnyma: true,
   ttmSipal: true,

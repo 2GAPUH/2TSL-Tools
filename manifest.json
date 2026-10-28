@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "2TSL toolbox",
-  "version": "0.8.3",
+  "version": "0.9.0",
   "description": "Набор инструментов для повышения эффективности работы: управление шаблонами, навигация между системами, напоминания и автоматизация рутинных задач.",
   "permissions": ["storage", "tabs", "notifications", "alarms", "identity", "identity.email"],
   "action": {
@@ -46,7 +46,8 @@
       "matches": [
         "http://acs-tr69.sz.rt.ru:4673/*",
         "http://tr069.south.rt.ru:9673/*",
-        "http://10.82.16.11:9673/*"
+        "http://10.82.16.11:9673/*",
+        "http://10.144.201.100:9673/*"
       ]
     }
   ],
@@ -74,6 +75,12 @@
     },
     {
       "matches": ["https://bzbti.rt.ru/vip/ispolzovanie-assistenta/*"],
+      "js": ["content-form-hook.js"],
+      "world": "MAIN",
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://bzbti.rt.ru/vip/ispolzovanie-assistenta/*"],
       "js": ["content-form.js"],
       "run_at": "document_idle"
     },
@@ -84,7 +91,12 @@
     },
     {
       "matches": ["https://epd.rt.ru/customers/*"],
-      "js": ["content-epd-mac.js"],
+      "js": ["content-epd-mac.js", "content-epd-model.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://bzbti.rt.ru/help/spd/*"],
+      "js": ["content-ebz-spd.js"],
       "run_at": "document_idle"
     },
     {
@@ -125,7 +137,8 @@
       "matches": [
         "http://acs-tr69.sz.rt.ru:4673/*",
         "http://tr069.south.rt.ru:9673/*",
-        "http://10.82.16.11:9673/*"
+        "http://10.82.16.11:9673/*",
+        "http://10.144.201.100:9673/*"
       ],
       "js": ["content-axiros-theme.js"],
       "run_at": "document_start"
@@ -150,6 +163,7 @@
     "http://acs-tr69.sz.rt.ru:4673/*",
     "http://tr069.south.rt.ru:9673/*",
     "http://10.82.16.11:9673/*",
+    "http://10.144.201.100:9673/*",
     "https://api.maclookup.app/*"
   ]
 }

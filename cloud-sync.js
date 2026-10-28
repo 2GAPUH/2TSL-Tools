@@ -224,6 +224,7 @@ function sanitizeCloudTemplates(templates) {
       name: String(t.name || '').trim(),
       body: String(t.body ?? ''),
       group: String(t.group || '').trim()
+      // image намеренно не копируется: картинка только в файле резервной копии
     }))
     .filter((t) => t.name && t.body && t.body.length <= CLOUD_MAX_BODY)
     .slice(0, CLOUD_MAX_TEMPLATES);

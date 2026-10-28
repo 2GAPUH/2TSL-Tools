@@ -84,12 +84,16 @@ const getTimeStr = () => {
 // ==================== ХРАНИЛИЩЕ ====================
 let templates = [];
 let groups = [];
+let templateImageDraft = null;
+let templateImageBusy = false;
+let templateImageRequest = 0;
 let settings = {
   omnichatTemplates: true,
   ttmButton: true,
   accountingPanel: true,
   grafanaSSH: true,
   epdMacYear: true,
+  epdSwitchModel: true,
   reminder: true,
   ttmOnyma: true,
   ttmSipal: true,
@@ -129,6 +133,16 @@ const templateId = document.getElementById('templateId');
 const templateName = document.getElementById('templateName');
 const templateGroup = document.getElementById('templateGroup');
 const templateText = document.getElementById('templateText');
+const templateImageInput = document.getElementById('templateImageInput');
+const templateImageEmpty = document.getElementById('templateImageEmpty');
+const templateImageSet = document.getElementById('templateImageSet');
+const templateImagePick = document.getElementById('templateImagePick');
+const templateImageReplace = document.getElementById('templateImageReplace');
+const templateImageRemove = document.getElementById('templateImageRemove');
+const templateImageView = document.getElementById('templateImageView');
+const templateImageStatus = document.getElementById('templateImageStatus');
+const templateImagePreview = document.getElementById('templateImagePreview');
+const templateImagePreviewImg = document.getElementById('templateImagePreviewImg');
 const closeModalBtn = document.getElementById('closeModalBtn');
 const cancelBtn = document.getElementById('cancelBtn');
 const groupFilter = document.getElementById('groupFilter');
@@ -148,6 +162,7 @@ const settingTTMButton = document.getElementById('settingTTMButton');
 const settingAccountingPanel = document.getElementById('settingAccountingPanel');
 const settingGrafanaSSH = document.getElementById('settingGrafanaSSH');
 const settingEpdMacYear = document.getElementById('settingEpdMacYear');
+const settingEpdSwitchModel = document.getElementById('settingEpdSwitchModel');
 const settingReminder = document.getElementById('settingReminder');
 const settingTTMOnyma = document.getElementById('settingTTMOnyma');
 const settingTTMSipal = document.getElementById('settingTTMSipal');
@@ -174,6 +189,20 @@ const settingAnalytics = document.getElementById('settingAnalytics');
 const savedRegion = document.getElementById('savedRegion');
 const savedFIO = document.getElementById('savedFIO');
 const clearSavedDataBtn = document.getElementById('clearSavedData');
+const toggleAssistantStatsBtn = document.getElementById('toggleAssistantStats');
+const assistantStatsEl = document.getElementById('assistantStats');
+const assistantStatsRange = document.getElementById('assistantStatsRange');
+const assistantStatsTotal = document.getElementById('assistantStatsTotal');
+const assistantStatsList = document.getElementById('assistantStatsList');
+
+const ASSISTANT_FORM_SUBMITS_KEY = 'assistantFormSubmits';
+const ASSISTANT_FORM_SUBMIT_KEEP_MS = 90 * 24 * 60 * 60 * 1000;
+const ASSISTANT_STATS_RANGE_LABEL = {
+  3: '3 дня',
+  7: '7 дней',
+  14: '14 дней',
+  30: '30 дней'
+};
 
 // Автосброс статистики
 const settingAutoResetShift = document.getElementById('settingAutoResetShift');
@@ -785,6 +814,7 @@ function loadAllData() {
       accountingPanel: true,
       grafanaSSH: true,
       epdMacYear: true,
+  epdSwitchModel: true,
       reminder: true,
       ttmOnyma: true,
       ttmSipal: true,
@@ -800,6 +830,7 @@ function loadAllData() {
       analyticsEnabled: true
     };
     if (settings.epdMacYear === undefined) settings.epdMacYear = true;
+    if (settings.epdSwitchModel === undefined) settings.epdSwitchModel = true;
     if (settings.ttmCommentBuilderAutofill === undefined) settings.ttmCommentBuilderAutofill = true;
     if (settings.ttmCommentBuilderSnippets === undefined) settings.ttmCommentBuilderSnippets = true;
     const hadLegacyPalette = !settings.systemsDarkPalette && !!settings.argusDarkPalette;
@@ -873,7 +904,14 @@ function switchToTab(tabName) {
 }
 
 function saveTemplates() {
-  chrome.storage.local.set({ templates });
+  chrome.storage.local.set({ templates }, () => {
+    if (!chrome.runtime.lastError) return;
+    alert('Не удалось сохранить шаблоны. Картинка слишком большая или место в хранилище закончилось.');
+    chrome.storage.local.get(['templates'], (res) => {
+      templates = res.templates || [];
+      renderTemplates();
+    });
+  });
 }
 
 function saveGroups() {
@@ -936,6 +974,7 @@ function applySettings() {
   settingAccountingPanel.checked = settings.accountingPanel;
   settingGrafanaSSH.checked = settings.grafanaSSH;
   if (settingEpdMacYear) settingEpdMacYear.checked = settings.epdMacYear !== false;
+  if (settingEpdSwitchModel) settingEpdSwitchModel.checked = settings.epdSwitchModel !== false;
   settingReminder.checked = settings.reminder;
   settingTTMOnyma.checked = settings.ttmOnyma;
   settingTTMSipal.checked = settings.ttmSipal;
@@ -1023,6 +1062,7 @@ bindSettingToggle(settingTTMButton, 'ttmButton');
 bindSettingToggle(settingAccountingPanel, 'accountingPanel');
 bindSettingToggle(settingGrafanaSSH, 'grafanaSSH');
 if (settingEpdMacYear) bindSettingToggle(settingEpdMacYear, 'epdMacYear');
+if (settingEpdSwitchModel) bindSettingToggle(settingEpdSwitchModel, 'epdSwitchModel');
 bindSettingToggle(settingReminder, 'reminder');
 bindSettingToggle(settingTTMOnyma, 'ttmOnyma');
 bindSettingToggle(settingTTMSipal, 'ttmSipal');
@@ -1165,6 +1205,318 @@ clearSavedDataBtn.addEventListener('click', () => {
     saveFormData();
     loadSavedFormData();
   }
+});
+
+function pruneAssistantFormSubmits(list) {
+  const cutoff = Date.now() - ASSISTANT_FORM_SUBMIT_KEEP_MS;
+  if (!Array.isArray(list)) return [];
+  return list.filter((ts) => typeof ts === 'number' && ts >= cutoff);
+}
+
+function formatAssistantStatDay(date) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(date);
+  target.setHours(0, 0, 0, 0);
+  const diff = Math.round((today.getTime() - target.getTime()) / 86400000);
+  if (diff === 0) return 'сегодня';
+  if (diff === 1) return 'вчера';
+  const weekday = target.toLocaleDateString('ru-RU', { weekday: 'short' }).replace('.', '');
+  return `${weekday} ${pad2(target.getDate())}.${pad2(target.getMonth() + 1)}`;
+}
+
+function buildAssistantDayBuckets(timestamps, days) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const buckets = [];
+
+  for (let i = 0; i < days; i++) {
+    const date = new Date(today);
+    date.setDate(today.getDate() - i);
+    buckets.push({ date, key: getDayKey(date), count: 0 });
+  }
+
+  const byKey = new Map(buckets.map((bucket) => [bucket.key, bucket]));
+  timestamps.forEach((ts) => {
+    const bucket = byKey.get(getDayKey(ts));
+    if (bucket) bucket.count += 1;
+  });
+  return buckets;
+}
+
+function getDayKey(date) {
+  const value = new Date(date);
+  return `${value.getFullYear()}-${pad2(value.getMonth() + 1)}-${pad2(value.getDate())}`;
+}
+
+function renderAssistantStats(storedList) {
+  if (!assistantStatsList || !assistantStatsTotal || !assistantStatsRange) return;
+
+  const days = Number(assistantStatsRange.value) || 7;
+  const stamps = pruneAssistantFormSubmits(storedList);
+  const buckets = buildAssistantDayBuckets(stamps, days);
+  const total = buckets.reduce((sum, bucket) => sum + bucket.count, 0);
+  const rangeLabel = ASSISTANT_STATS_RANGE_LABEL[days] || `${days} дней`;
+
+  const summary = `За ${rangeLabel}: ${total}`;
+  assistantStatsTotal.textContent = summary;
+  assistantStatsList.replaceChildren();
+  assistantStatsList.appendChild(buildAssistantChart(buckets, summary));
+  assistantStatsTotal.textContent = summary;
+}
+
+function formatAssistantAxisLabel(date) {
+  return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace(/\./g, '');
+}
+
+function assistantDateIndexes(count, plotWidth) {
+  if (count <= 1) return [0];
+  const maxLabels = Math.max(2, Math.floor(plotWidth / 46));
+  if (count <= maxLabels) return Array.from({ length: count }, (_, index) => index);
+
+  const niceSteps = [1, 2, 3, 5, 7, 10, 14];
+  let step = niceSteps[niceSteps.length - 1];
+  for (const candidate of niceSteps) {
+    const labels = Math.floor((count - 1) / candidate) + 1;
+    if (labels <= maxLabels) {
+      step = candidate;
+      break;
+    }
+  }
+
+  const indexes = [];
+  for (let index = count - 1; index >= 0; index -= step) indexes.push(index);
+  return indexes.reverse();
+}
+
+function assistantYAxis(maxCount) {
+  const max = Math.max(0, maxCount);
+  if (max === 0) return { yMax: 1, ticks: [0] };
+  if (max <= 5) {
+    return { yMax: max, ticks: Array.from({ length: max + 1 }, (_, value) => value) };
+  }
+
+  const rough = max / 4;
+  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+  const options = [1, 2, 5, 10].map((factor) => factor * mag);
+  let step = options[options.length - 1];
+  for (const candidate of options) {
+    const intervals = Math.ceil(max / candidate);
+    if (intervals >= 3 && intervals <= 5) {
+      step = candidate;
+      break;
+    }
+  }
+
+  const yMax = Math.ceil(max / step) * step;
+  const ticks = [];
+  for (let value = 0; value <= yMax; value += step) ticks.push(value);
+  return { yMax, ticks };
+}
+
+function svgEl(name) {
+  return document.createElementNS('http://www.w3.org/2000/svg', name);
+}
+
+function buildAssistantChart(buckets, summaryText) {
+  const series = buckets.slice().reverse();
+  const host = document.createElement('div');
+  host.className = 'assist-chart';
+
+  const width = Math.max(assistantStatsList.clientWidth || 0, 280);
+  const height = 148;
+  const yAxis = assistantYAxis(Math.max(0, ...series.map((bucket) => bucket.count)));
+  const yLabelWidth = Math.max(16, ...yAxis.ticks.map((tick) => String(tick).length * 7));
+  const padL = yLabelWidth + 10;
+  const padR = 8;
+  const padT = 12;
+  const padB = 22;
+  const plotW = width - padL - padR;
+  const plotH = height - padT - padB;
+  const yMax = yAxis.yMax;
+  const dark = document.documentElement.classList.contains('dark-mode');
+  const stroke = dark ? '#8ab4f8' : '#1a73e8';
+  const labelColor = dark ? '#9aa0a6' : '#5f6368';
+  const gridColor = dark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)';
+  const n = series.length;
+
+  const xAt = (index) => (n <= 1 ? padL + plotW / 2 : padL + (plotW * index) / (n - 1));
+  const yAt = (count) => padT + plotH * (1 - count / yMax);
+  const points = series.map((bucket, index) => ({
+    x: xAt(index),
+    y: yAt(bucket.count),
+    bucket
+  }));
+
+  const line = points.map((point, index) => `${index ? 'L' : 'M'}${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(' ');
+  const baseline = (padT + plotH).toFixed(1);
+  const area = `${line} L${points[n - 1].x.toFixed(1)},${baseline} L${points[0].x.toFixed(1)},${baseline} Z`;
+
+  const svg = svgEl('svg');
+  svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', assistantStatsTotal.textContent || 'Статистика отправок');
+
+  const defs = svgEl('defs');
+  const gradient = svgEl('linearGradient');
+  gradient.setAttribute('id', 'assistChartFill');
+  gradient.setAttribute('x1', '0');
+  gradient.setAttribute('y1', '0');
+  gradient.setAttribute('x2', '0');
+  gradient.setAttribute('y2', '1');
+  const stopTop = svgEl('stop');
+  stopTop.setAttribute('offset', '0');
+  stopTop.setAttribute('stop-color', stroke);
+  stopTop.setAttribute('stop-opacity', dark ? '0.38' : '0.28');
+  const stopBottom = svgEl('stop');
+  stopBottom.setAttribute('offset', '1');
+  stopBottom.setAttribute('stop-color', stroke);
+  stopBottom.setAttribute('stop-opacity', '0');
+  gradient.append(stopTop, stopBottom);
+  defs.appendChild(gradient);
+  svg.appendChild(defs);
+
+  yAxis.ticks.forEach((tick) => {
+    const y = yAt(tick).toFixed(1);
+    const grid = svgEl('line');
+    grid.setAttribute('x1', String(padL));
+    grid.setAttribute('x2', String(width - padR));
+    grid.setAttribute('y1', y);
+    grid.setAttribute('y2', y);
+    grid.setAttribute('stroke', gridColor);
+    grid.setAttribute('stroke-width', '1');
+    svg.appendChild(grid);
+
+    const scaleLabel = svgEl('text');
+    scaleLabel.setAttribute('x', String(padL - 6));
+    scaleLabel.setAttribute('y', y);
+    scaleLabel.setAttribute('fill', labelColor);
+    scaleLabel.setAttribute('font-size', '10');
+    scaleLabel.setAttribute('font-family', 'inherit');
+    scaleLabel.setAttribute('text-anchor', 'end');
+    scaleLabel.setAttribute('dominant-baseline', 'middle');
+    scaleLabel.textContent = String(tick);
+    svg.appendChild(scaleLabel);
+  });
+
+  const areaPath = svgEl('path');
+  areaPath.setAttribute('d', area);
+  areaPath.setAttribute('fill', 'url(#assistChartFill)');
+  svg.appendChild(areaPath);
+
+  const linePath = svgEl('path');
+  linePath.setAttribute('d', line);
+  linePath.setAttribute('fill', 'none');
+  linePath.setAttribute('stroke', stroke);
+  linePath.setAttribute('stroke-width', '2');
+  linePath.setAttribute('stroke-linejoin', 'round');
+  linePath.setAttribute('stroke-linecap', 'round');
+  linePath.setAttribute('vector-effect', 'non-scaling-stroke');
+  svg.appendChild(linePath);
+
+  assistantDateIndexes(n, plotW).forEach((index) => {
+    const label = svgEl('text');
+    label.setAttribute('x', points[index].x.toFixed(1));
+    label.setAttribute('y', String(height - 4));
+    label.setAttribute('fill', labelColor);
+    label.setAttribute('font-size', '10');
+    label.setAttribute('font-family', 'inherit');
+    if (index === 0) label.setAttribute('text-anchor', 'start');
+    else if (index === n - 1) label.setAttribute('text-anchor', 'end');
+    else label.setAttribute('text-anchor', 'middle');
+    label.textContent = formatAssistantAxisLabel(points[index].bucket.date);
+    svg.appendChild(label);
+  });
+
+  const guide = svgEl('line');
+  guide.setAttribute('y1', String(padT));
+  guide.setAttribute('y2', baseline);
+  guide.setAttribute('stroke', stroke);
+  guide.setAttribute('stroke-opacity', '0.45');
+  guide.setAttribute('stroke-width', '1');
+  guide.setAttribute('visibility', 'hidden');
+  svg.appendChild(guide);
+
+  const dot = svgEl('circle');
+  dot.setAttribute('r', '4');
+  dot.setAttribute('fill', dark ? '#1a1a2e' : '#ffffff');
+  dot.setAttribute('stroke', stroke);
+  dot.setAttribute('stroke-width', '2');
+  dot.setAttribute('visibility', 'hidden');
+  svg.appendChild(dot);
+
+  const hit = svgEl('rect');
+  hit.setAttribute('x', '0');
+  hit.setAttribute('y', '0');
+  hit.setAttribute('width', String(width));
+  hit.setAttribute('height', String(height));
+  hit.setAttribute('fill', 'transparent');
+  svg.appendChild(hit);
+
+  const showPoint = (index) => {
+    const point = points[index];
+    guide.setAttribute('x1', point.x.toFixed(1));
+    guide.setAttribute('x2', point.x.toFixed(1));
+    guide.setAttribute('visibility', 'visible');
+    dot.setAttribute('cx', point.x.toFixed(1));
+    dot.setAttribute('cy', point.y.toFixed(1));
+    dot.setAttribute('visibility', 'visible');
+    assistantStatsTotal.textContent = `${formatAssistantStatDay(point.bucket.date)}: ${point.bucket.count}`;
+  };
+
+  const hidePoint = () => {
+    if (!svg.isConnected) return;
+    guide.setAttribute('visibility', 'hidden');
+    dot.setAttribute('visibility', 'hidden');
+    assistantStatsTotal.textContent = summaryText;
+  };
+
+  const indexAt = (event) => {
+    const rect = svg.getBoundingClientRect();
+    if (!rect.width) return 0;
+    const localX = ((event.clientX - rect.left) / rect.width) * width;
+    let best = 0;
+    let bestDist = Infinity;
+    points.forEach((point, index) => {
+      const dist = Math.abs(point.x - localX);
+      if (dist < bestDist) {
+        best = index;
+        bestDist = dist;
+      }
+    });
+    return best;
+  };
+
+  svg.addEventListener('mousemove', (event) => showPoint(indexAt(event)));
+  svg.addEventListener('mouseleave', hidePoint);
+  host.appendChild(svg);
+  return host;
+}
+
+function loadAssistantStats() {
+  chrome.storage.local.get(ASSISTANT_FORM_SUBMITS_KEY, (result) => {
+    const raw = result?.[ASSISTANT_FORM_SUBMITS_KEY];
+    const stamps = pruneAssistantFormSubmits(raw);
+    if (Array.isArray(raw) && stamps.length !== raw.length) {
+      chrome.storage.local.set({ [ASSISTANT_FORM_SUBMITS_KEY]: stamps });
+    }
+    renderAssistantStats(stamps);
+  });
+}
+
+function toggleAssistantStats() {
+  if (!assistantStatsEl || !toggleAssistantStatsBtn) return;
+  const isOpen = assistantStatsEl.classList.toggle('open');
+  toggleAssistantStatsBtn.textContent = isOpen ? 'Скрыть статистику ▲' : 'Статистика отправок ▼';
+  if (isOpen) loadAssistantStats();
+}
+
+toggleAssistantStatsBtn?.addEventListener('click', toggleAssistantStats);
+assistantStatsRange?.addEventListener('change', () => loadAssistantStats());
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== 'local' || !changes[ASSISTANT_FORM_SUBMITS_KEY]) return;
+  renderAssistantStats(changes[ASSISTANT_FORM_SUBMITS_KEY].newValue);
 });
 
 // ==================== УЧЁТ ЗАЯВОК ====================
@@ -1370,9 +1722,15 @@ function buildTemplateActionsHtml(template, index, total) {
             <button type="button" class="reorder-btn move-down-btn" data-id="${template.id}" title="Ниже" ${index === total - 1 ? 'disabled' : ''}>▼</button>
           </div>`;
 
+  const viewButton = isSafeTemplateImage(template.image) ? `
+          <button type="button" class="action-btn view-image-btn" data-id="${template.id}" title="Посмотреть картинку">
+            ${templateImageViewSvg()}
+          </button>` : '';
+
   return `
         <div class="template-actions">
           ${reorderButtons}
+          ${viewButton}
           <button class="action-btn copy-btn" data-id="${template.id}" title="Копировать">
             <img src="${getIconUrl('copy')}" alt="Копировать">
           </button>
@@ -1392,7 +1750,7 @@ function buildTemplateBodyHtml(template, index, total) {
   return `
       <div class="template-header">
         <div style="flex: 1;">
-          <h3 class="template-title">${escapeHtml(template.name)}</h3>
+          <h3 class="template-title">${escapeHtml(template.name)}${isSafeTemplateImage(template.image) ? `<span class="template-has-image" title="Есть картинка">${templateImageMarkSvg()}</span>` : ''}</h3>
           ${template.group ? `<div class="template-group">${escapeHtml(template.group)}</div>` : ''}
         </div>
         ${buildTemplateActionsHtml(template, index, total)}
@@ -1590,6 +1948,9 @@ function handleTemplateActions(e) {
     moveTemplate(id, -1);
   } else if (button.classList.contains('move-down-btn')) {
     moveTemplate(id, 1);
+  } else if (button.classList.contains('view-image-btn')) {
+    const template = templates.find(t => t.id === id);
+    if (template) openTemplateImagePreview(template.image);
   } else if (button.classList.contains('copy-btn')) {
     copyTemplateToClipboard(id);
   } else if (button.classList.contains('paste-btn')) {
@@ -1638,7 +1999,9 @@ function pasteTemplateToMessage(id) {
     if (tabs[0]?.id) {
       chrome.tabs.sendMessage(tabs[0].id, {
         action: 'insertTemplate',
-        text: template.body
+        text: template.body,
+        image: isSafeTemplateImage(template.image) ? template.image : '',
+        imageName: template.imageName || ''
       }, (response) => {
         if (response?.success) {
           window.close();
@@ -1657,6 +2020,9 @@ function editTemplate(id) {
   templateName.value = template.name;
   templateGroup.value = template.group || '';
   templateText.value = template.body;
+  setTemplateImageDraft(isSafeTemplateImage(template.image)
+    ? { dataUrl: template.image, name: safeTemplateImageName(template.imageName) }
+    : null);
   modalOverlay.style.display = 'flex';
   templateName.focus();
 }
@@ -1725,6 +2091,7 @@ function openAddModal() {
   templateName.value = '';
   templateGroup.value = '';
   templateText.value = '';
+  setTemplateImageDraft(null);
   modalOverlay.style.display = 'flex';
   templateName.focus();
 }
@@ -1732,6 +2099,7 @@ function openAddModal() {
 function closeModal() {
   modalOverlay.style.display = 'none';
   templateForm.reset();
+  setTemplateImageDraft(null);
 }
 
 function openGroupsModal() {
@@ -1779,6 +2147,163 @@ groupsModalOverlay.addEventListener('click', (e) => {
   if (e.target === groupsModalOverlay) closeGroupsModal();
 });
 
+const TEMPLATE_IMAGE_MAX_EDGE = 1280;
+const TEMPLATE_IMAGE_MAX_CHARS = 550000;
+const TEMPLATE_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+
+function isSafeTemplateImage(value) {
+  if (typeof value !== 'string') return false;
+  if (value.length < 32 || value.length > TEMPLATE_IMAGE_MAX_CHARS) return false;
+  return /^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/]+={0,2}$/.test(value);
+}
+
+function safeTemplateImageName(name) {
+  const base = String(name || 'image.jpg').split(/[/\\]/).pop().slice(0, 80);
+  const clean = base.replace(/[^\w.\- ()\u0400-\u04FF]+/g, '_') || 'image';
+  return /\.jpe?g$/i.test(clean) ? clean : `${clean.replace(/\.(png|webp|gif)$/i, '')}.jpg`;
+}
+
+function templateImageMarkSvg() {
+  return '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>';
+}
+
+function templateImageViewSvg() {
+  return '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>';
+}
+
+function renderTemplateImageField() {
+  const hasImage = Boolean(templateImageDraft && isSafeTemplateImage(templateImageDraft.dataUrl));
+  if (templateImageEmpty) templateImageEmpty.hidden = hasImage;
+  if (templateImageSet) templateImageSet.hidden = !hasImage;
+  if (templateImageStatus) templateImageStatus.hidden = !templateImageBusy;
+  [templateImagePick, templateImageReplace, templateImageRemove, templateImageView].forEach((btn) => {
+    if (btn) btn.disabled = templateImageBusy;
+  });
+}
+
+function setTemplateImageDraft(image) {
+  templateImageRequest += 1;
+  templateImageBusy = false;
+  templateImageDraft = image;
+  renderTemplateImageField();
+}
+
+function openTemplateImagePreview(dataUrl) {
+  if (!templateImagePreview || !templateImagePreviewImg || !isSafeTemplateImage(dataUrl)) return;
+  templateImagePreviewImg.src = dataUrl;
+  templateImagePreview.hidden = false;
+}
+
+function closeTemplateImagePreview() {
+  if (templateImagePreviewImg) templateImagePreviewImg.removeAttribute('src');
+  if (templateImagePreview) templateImagePreview.hidden = true;
+}
+
+function encodeTemplateImage(img) {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  const steps = [
+    [TEMPLATE_IMAGE_MAX_EDGE, 0.82],
+    [TEMPLATE_IMAGE_MAX_EDGE, 0.7],
+    [TEMPLATE_IMAGE_MAX_EDGE, 0.55],
+    [960, 0.7],
+    [960, 0.55],
+    [720, 0.65],
+    [720, 0.5],
+    [480, 0.6]
+  ];
+  for (const [edge, quality] of steps) {
+    const scale = Math.min(1, edge / Math.max(img.width, img.height));
+    const width = Math.max(1, Math.round(img.width * scale));
+    const height = Math.max(1, Math.round(img.height * scale));
+    canvas.width = width;
+    canvas.height = height;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(img, 0, 0, width, height);
+    const dataUrl = canvas.toDataURL('image/jpeg', quality);
+    if (dataUrl.length <= TEMPLATE_IMAGE_MAX_CHARS) return dataUrl;
+  }
+  return null;
+}
+
+function compressTemplateImage(file) {
+  return new Promise((resolve, reject) => {
+    const allowed = TEMPLATE_IMAGE_TYPES.includes(file.type) || /\.(jpe?g|png|webp|gif)$/i.test(file.name || '');
+    if (!allowed) {
+      reject(new Error('Можно добавить JPEG, PNG, WEBP или GIF'));
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      reject(new Error('Файл больше 15 МБ'));
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const dataUrl = encodeTemplateImage(img);
+      if (!dataUrl) {
+        reject(new Error('Не удалось сжать картинку'));
+        return;
+      }
+      resolve({ dataUrl, name: safeTemplateImageName(file.name) });
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Не удалось прочитать картинку'));
+    };
+    img.src = url;
+  });
+}
+
+function pickTemplateImage() {
+  templateImageInput?.click();
+}
+
+async function onTemplateImagePicked(file) {
+  const requestId = ++templateImageRequest;
+  templateImageBusy = true;
+  renderTemplateImageField();
+  try {
+    const image = await compressTemplateImage(file);
+    if (requestId !== templateImageRequest) return;
+    templateImageDraft = image;
+  } catch (err) {
+    if (requestId !== templateImageRequest) return;
+    alert(err.message || 'Не удалось добавить картинку');
+  } finally {
+    if (requestId === templateImageRequest) {
+      templateImageBusy = false;
+      renderTemplateImageField();
+    }
+  }
+}
+
+templateImagePick?.addEventListener('click', pickTemplateImage);
+templateImageReplace?.addEventListener('click', pickTemplateImage);
+templateImageRemove?.addEventListener('click', () => setTemplateImageDraft(null));
+templateImageView?.addEventListener('click', () => {
+  if (templateImageDraft) openTemplateImagePreview(templateImageDraft.dataUrl);
+});
+templateImageInput?.addEventListener('change', () => {
+  const file = templateImageInput.files?.[0];
+  templateImageInput.value = '';
+  if (file) onTemplateImagePicked(file);
+});
+document.getElementById('templateImagePreviewClose')?.addEventListener('click', closeTemplateImagePreview);
+templateImagePreview?.addEventListener('click', (e) => {
+  if (e.target === templateImagePreview) closeTemplateImagePreview();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && templateImagePreview && !templateImagePreview.hidden) {
+    e.preventDefault();
+    e.stopPropagation();
+    closeTemplateImagePreview();
+  }
+});
+
 templateForm.addEventListener('submit', (e) => {
   e.preventDefault();
 
@@ -1786,6 +2311,11 @@ templateForm.addEventListener('submit', (e) => {
   const name = templateName.value.trim();
   const group = templateGroup.value;
   const body = templateText.value.trim();
+
+  if (templateImageBusy) {
+    alert('Подождите, картинка ещё обрабатывается');
+    return;
+  }
 
   if (!name || !body) {
     alert('Заполните все обязательные поля');
@@ -1800,11 +2330,17 @@ templateForm.addEventListener('submit', (e) => {
     renderGroupsList();
   }
 
+  const record = { id, name, group, body };
+  if (templateImageDraft && isSafeTemplateImage(templateImageDraft.dataUrl)) {
+    record.image = templateImageDraft.dataUrl;
+    record.imageName = safeTemplateImageName(templateImageDraft.name);
+  }
+
   const existingIndex = templates.findIndex(t => t.id === id);
   if (existingIndex !== -1) {
-    templates[existingIndex] = { id, name, group, body };
+    templates[existingIndex] = record;
   } else {
-    templates.push({ id, name, group, body });
+    templates.push(record);
   }
 
   saveTemplates();

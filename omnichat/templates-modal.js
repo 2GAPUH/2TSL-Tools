@@ -416,29 +416,91 @@
     setAdditionalTabSelected(false);
   };
 
+  O.openTemplateImagePreview = function (dataUrl) {
+    if (!O.isTemplateImage(dataUrl)) return;
+    let overlay = document.getElementById('tsl-template-image-preview');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'tsl-template-image-preview';
+      overlay.className = 'tsl-template-image-preview';
+      overlay.hidden = true;
+      const close = document.createElement('button');
+      close.type = 'button';
+      close.className = 'tsl-template-image-preview-close';
+      close.textContent = '×';
+      close.setAttribute('aria-label', 'Закрыть');
+      const img = document.createElement('img');
+      img.alt = 'Картинка шаблона';
+      overlay.appendChild(close);
+      overlay.appendChild(img);
+      const hide = () => { overlay.hidden = true; };
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay || e.target === close) hide();
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && overlay && !overlay.hidden) hide();
+      });
+      document.body.appendChild(overlay);
+    }
+    O.detectTheme();
+    overlay.classList.toggle('dark-theme', Boolean(state.isDarkTheme));
+    overlay.querySelector('img').src = dataUrl;
+    overlay.hidden = false;
+  };
+
   function createTemplateElement(template, classes) {
     const div = document.createElement('div');
     div.setAttribute('data-omnichat-custom-template', template.id || template.name);
     div.className = `${classes.container} custom-template-item ${CSS.customTemplate}`;
     if (state.isDarkTheme) div.classList.add('dark-theme');
 
+    const hasImage = O.isTemplateImage(template.image);
     const titleDiv = document.createElement('div');
     titleDiv.className = `${classes.title} custom-template-title-wrapper`;
-    titleDiv.style.cssText = 'display:flex;justify-content:space-between;align-items:center;';
+    titleDiv.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:8px;';
+
+    const nameWrap = document.createElement('div');
+    nameWrap.style.cssText = 'display:flex;align-items:center;gap:6px;min-width:0;flex:1;';
 
     const titleSpan = document.createElement('span');
     titleSpan.className = classes.name;
     titleSpan.textContent = template.name;
-    titleSpan.style.cssText = 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70%;';
-    titleDiv.appendChild(titleSpan);
+    titleSpan.style.cssText = 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;';
+    nameWrap.appendChild(titleSpan);
+
+    if (hasImage) {
+      const mark = document.createElement('span');
+      mark.className = 'tsl-template-image-mark';
+      mark.title = 'Есть картинка';
+      mark.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>';
+      nameWrap.appendChild(mark);
+    }
+    titleDiv.appendChild(nameWrap);
+
+    const side = document.createElement('div');
+    side.style.cssText = 'display:flex;align-items:center;gap:6px;flex-shrink:0;';
+    if (hasImage) {
+      const viewBtn = document.createElement('button');
+      viewBtn.type = 'button';
+      viewBtn.className = 'tsl-template-image-view';
+      viewBtn.textContent = 'Посмотреть';
+      viewBtn.addEventListener('mousedown', (e) => e.stopPropagation());
+      viewBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        O.openTemplateImagePreview(template.image);
+      });
+      side.appendChild(viewBtn);
+    }
 
     if (template.group) {
       const badge = document.createElement('span');
       badge.className = 'template-group-badge';
       badge.textContent = template.group;
       badge.style.cssText = `color:${state.isDarkTheme ? '#ccc' : '#666'};background:${state.isDarkTheme ? '#444' : '#f0f0f0'};`;
-      titleDiv.appendChild(badge);
+      side.appendChild(badge);
     }
+    if (side.childNodes.length) titleDiv.appendChild(side);
 
     const contentDiv = document.createElement('div');
     contentDiv.className = 'custom-template-content-wrapper';
@@ -453,7 +515,7 @@
     div.appendChild(contentDiv);
 
     div.addEventListener('click', () => {
-      O.insertTemplateIntoChat(template.body);
+      O.insertTemplateIntoChat(template.body, hasImage ? template.image : '', hasImage ? (template.imageName || '') : '');
       setTimeout(() => O.resetTemplatesState(), 300);
     });
 

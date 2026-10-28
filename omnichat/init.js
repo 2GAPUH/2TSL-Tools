@@ -86,11 +86,13 @@
 
     if (request.action === 'insertTemplate') {
       const field = O.findChatEditor();
-      if (field && O.insertTextIntoDraftEditor(request.text, field)) {
-        sendResponse({ success: true });
-      } else {
-        sendResponse({ success: false });
+      const textOk = Boolean(field && request.text && O.insertTextIntoDraftEditor(request.text, field));
+      if (request.image) {
+        const image = request.image;
+        const imageName = request.imageName || '';
+        setTimeout(() => O.attachImageToChat(image, imageName), 80);
       }
+      sendResponse({ success: textOk });
     }
     return true;
   });

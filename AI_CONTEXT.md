@@ -13,7 +13,7 @@
 
 | Параметр | Значение |
 |----------|----------|
-| Версия | `0.8.3` (см. `manifest.json`) — кандидат на фиксацию после проверки |
+| Версия | `0.9.0` (см. `manifest.json`) |
 | Язык UI/комментариев | Русский |
 | Runtime-зависимости | 0 (vanilla JS) |
 | Автор / репо | 2GAPUH / https://github.com/2GAPUH/2TSL-Tools |
@@ -69,13 +69,15 @@ Content scripts **никогда не делают fetch** для аналити
 | `popup-import-export.js` | Импорт/экспорт JSON и облако по токену |
 | `omnichat/*` | Модалка «Дополнительно», линковка НЛС/заявок (см. ниже) |
 | `content-ttm.js` | Toolbar, мягкий автопоиск, таймер, Onyma/SIPAL, конструктор комментариев |
-| `content-form.js` | Автозаполнение формы ассистента (только целевая вкладка) |
+| `content-form.js` | Автозаполнение формы ассистента (только целевая вкладка); учёт успешной отправки |
 | `content-volgahelp.js` | Черновики volgahelp, «Скопировать всё» |
 | `content-argus-theme.js` | Argus: вкл/выкл тёмной темы (CSS inject) |
 | `argus-dark.css` | Argus: палитры + framework overrides |
 | `content-axiros-theme.js` | Axiros: вкл/выкл тёмной темы (CSS inject) |
 | `axiros-dark.css` | Axiros: Bootstrap 3 overrides + палитры |
 | `content-epd-mac.js` | EPD customers: tooltip OUI (вендор + YYYY-MM) на MAC |
+| `content-epd-model.js` | EPD customers: клик по модели в техучёте → статья ЕБЗ |
+| `content-ebz-spd.js` | ЕБЗ «Оборудование СПД»: открыть вкладку, если статья не нашлась |
 
 | `content-accounting.js` | Боковая панель учёта |
 | `analytics.js` | ID, очередь, flush 30 мин |
@@ -121,6 +123,7 @@ Content scripts **никогда не делают fetch** для аналити
   accountingPanel: true,
   grafanaSSH: true,
   epdMacYear: true,                // EPD customers: title на MAC → вендор + YYYY-MM (OUI)
+  epdSwitchModel: true,            // EPD: клик по модели коммутатора → статья ЕБЗ (вкладка, если нет точного совпадения)
   reminder: true,
   ttmOnyma: true,
   ttmSipal: true,
@@ -187,10 +190,12 @@ Content scripts **никогда не делают fetch** для аналити
 - Cooldown 2 суток после длительного отключения статистики
 - Импорт/экспорт **файлом** доступен всем; **по токену** — участникам облака
 - ФИО, регион, `analyticsEnabled` не экспортируются
+- Шаблон: `{ id, name, group, body, image?, imageName? }`. `image` — необязательный data URL (JPEG после сжатия, длинная сторона до 1280, потолок ~550 тыс. символов). В списке и в меню Omnichat показывается только значок и кнопка просмотра. При вставке файл кладётся в `input[type=file]` рядом с `[data-testid="attachment-file"]`.
+- Картинка входит **только в файл** резервной копии (лимит файла 20 МБ). В токен и `sanitizeCloudTemplates` она не попадает. Квота `chrome.storage.local` без `unlimitedStorage` около 10 МБ.
 
 ### Каталог событий (основные)
 
-`ttm_assistant_click`, `ttm_timer_click`, `ttm_reminder_created`, `ttm_onyma_click`, `ttm_sipal_click`, `ttm_comment_builder_open`, `ttm_comment_builder_copy`, `ttm_comment_builder_paste`, `ttm_comment_builder_close`, `ttm_comment_builder_sync`, `volga_snippet_insert`, `volga_snippet_add`, `volga_snippet_delete`, `ttm_autosearch`, `omnichat_templates_tab_open`, `omnichat_template_insert`, `omnichat_link_click_nls`, `omnichat_link_click_ticket`, `accounting_panel_open`, `accounting_entry_closed`, `accounting_entry_field`, `accounting_csv_export`, `grafana_ip_click`, `ssh_autofill`, `form_autofill`, `popup_open`, `popup_tab_*`, `popup_template_copy`, `popup_template_paste`, `settings_change_*`, `argus_dark_theme_on`, `argus_dark_theme_off`, `argus_dark_palette_change`, `axiros_dark_theme_on`, `axiros_dark_theme_off`, `axiros_dark_palette_change`, `cloud_export`, `cloud_import`, `feedback_sent`, `extension_installed`, `extension_updated`
+`ttm_assistant_click`, `ttm_timer_click`, `ttm_reminder_created`, `ttm_onyma_click`, `ttm_sipal_click`, `ttm_comment_builder_open`, `ttm_comment_builder_copy`, `ttm_comment_builder_paste`, `ttm_comment_builder_close`, `ttm_comment_builder_sync`, `volga_snippet_insert`, `volga_snippet_add`, `volga_snippet_delete`, `ttm_autosearch`, `omnichat_templates_tab_open`, `omnichat_template_insert`, `omnichat_link_click_nls`, `omnichat_link_click_ticket`, `accounting_panel_open`, `accounting_entry_closed`, `accounting_entry_field`, `accounting_csv_export`, `grafana_ip_click`, `epd_switch_model_click`, `ssh_autofill`, `form_autofill`, `popup_open`, `popup_tab_*`, `popup_template_copy`, `popup_template_paste`, `settings_change_*`, `argus_dark_theme_on`, `argus_dark_theme_off`, `argus_dark_palette_change`, `axiros_dark_theme_on`, `axiros_dark_theme_off`, `axiros_dark_palette_change`, `cloud_export`, `cloud_import`, `feedback_sent`, `extension_installed`, `extension_updated`
 
 ---
 
@@ -209,6 +214,7 @@ Content scripts **никогда не делают fetch** для аналити
 | `volgaHelpPastePending` | background | content-ttm | вставка **только** в таб с тем же `ticketNumber` |
 | `ttmClientByNls` | content-ttm | comment-builder | `{ [nls]: { phone, phoneLine, ticketNumber, updatedAt } }`, TTL **60 мин** |
 | `volgaHelpQuickSnippets` | comment-builder | comment-builder | быстрые фразы: `{ issue:[{id,text}], … }` |
+| `assistantFormSubmits` | content-form | popup | успешные отправки формы: массив меток времени, 90 дней, без номера заявки и ФИО |
 
 ### Omnichat → TTM (автопоиск) — правила v0.7.7
 
@@ -256,7 +262,7 @@ build.bat
 ```
 
 Требует 7-Zip. Версия читается из `manifest.json`.  
-Результат: `dist/2TSL-toolbox-v0.7.9.zip` (только runtime: js/html/icons/css, без README/xlsx/dumps).
+Результат: `dist/2TSL-toolbox-v0.9.0.zip` (только runtime: js/html/icons/css, без README/xlsx/dumps).
 
 ---
 
@@ -278,15 +284,17 @@ python scripts/build_analytics_dashboard.py
 | Новая кнопка в TTM | `content-ttm.js` + settings в popup |
 | Конструктор комментария | `content-ttm.js` + `content-volgahelp.js` + `background.js` |
 | Вкладка «Дополнительно» / layout модалки | `omnichat/templates-modal.js`, `omnichat/utils.js`, `omnichat/constants.js` |
+| Картинка в шаблоне | `popup.html` / `popup.js` (форма и список), `omnichat/draft-insert.js` (вложение), `omnichat/templates-modal.js` (значок и просмотр), `popup-import-export.js` (только файл) |
 | Кнопка вверх по «Обращение создано» | `omnichat/scroll-appeals.js` + `omnichatScrollToAppeal` |
 | Omnichat → TTM ссылки | `omnichat/ttm-links.js` + `openTtmSearch` в background |
 | Автопоиск TTM / антиспам | `content-ttm.js` (`runTtmSearch`, `initAutoSearch`) |
-| Форма ассистента | `content-form.js` + `openAssistantForm` в background |
+| Форма ассистента | `content-form.js` + `content-form-hook.js` + `openAssistantForm` в background. Успешная отправка → `assistantFormSubmits`, график в настройках popup |
 | Новое событие аналитики | `trackEvent()` + при необходимости Apps Script |
 | Новый переключатель | popup.html, popup.js settings, content script guard |
 | Тёмная тема Argus | `argus-dark.css` + `content-argus-theme.js` + `argusDarkTheme` / `systemsDarkPalette` |
 | Тёмная тема Axiros | `axiros-dark.css` + `content-axiros-theme.js` + `axirosDarkTheme` / `systemsDarkPalette` |
 | EPD MAC OUI tooltip | `content-epd-mac.js` + `lookupMacOui` в background + `epdMacYear` |
+| Модель коммутатора ЕПД → ЕБЗ | `content-epd-model.js` + `content-ebz-spd.js` + `epdSwitchModel`. Каталог статей внутри content-epd-model.js |
 | Свой конструктор | `comment-builder.html` + `openCommentBuilder`; теги: `volgahelp.ru/tag_api/api/tag/?format=json`; paste: `commentBuilderPaste` |
 | Высоты полей 1–5 конструктора | `volgaHelpFieldHeights` в storage; `resize: vertical`; общие для всех окон popup |
 | Переключение заявки в конструкторе | одна window; `volgaHelpSession` onChanged → save draft A, load draft B |

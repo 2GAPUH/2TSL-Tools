@@ -2,12 +2,13 @@
 
 const IE_EXPORT_FORMAT = '2tsl-toolbox-export';
 const IE_EXPORT_VERSION = 1;
-const IE_MAX_FILE_SIZE = 5 * 1024 * 1024;
+const IE_MAX_FILE_SIZE = 20 * 1024 * 1024;
 const IE_MAX_BODY_LENGTH = 50000;
+const IE_MAX_IMAGE_CHARS = 550000;
 
 const IE_SETTINGS_KEYS = [
   'omnichatTemplates', 'omnichatTTMLinks', 'omnichatScrollToAppeal', 'ttmButton', 'accountingPanel',
-  'grafanaSSH', 'epdMacYear', 'reminder', 'ttmOnyma', 'ttmSipal', 'darkMode',
+  'grafanaSSH', 'epdMacYear', 'epdSwitchModel', 'reminder', 'ttmOnyma', 'ttmSipal', 'darkMode',
   'argusDarkTheme', 'axirosDarkTheme', 'systemsDarkPalette',
   'popupLayoutScale', 'popupTabSizes', 'popupUnifiedTabSize'
 ];
@@ -20,6 +21,7 @@ const IE_SETTINGS_LABELS = {
   accountingPanel: 'Панель «Учёт заявок»',
   grafanaSSH: 'Переход Grafana → SSH',
   epdMacYear: 'Подсказка по MAC в ЕПД',
+  epdSwitchModel: 'Модель коммутатора в ЕПД → ЕБЗ',
   reminder: 'Напоминалка',
   ttmOnyma: 'Переход TTM → Onyma',
   ttmSipal: 'Переход TTM → SIPAL',
@@ -98,6 +100,44 @@ function ieBuildGroupOptions(groups, selected) {
   return html;
 }
 
+function ieMaxFileLabel() {
+  return `${Math.round(IE_MAX_FILE_SIZE / (1024 * 1024))} МБ`;
+}
+
+function ieIsSafeTemplateImage(value) {
+  if (typeof value !== 'string') return false;
+  if (value.length < 32 || value.length > IE_MAX_IMAGE_CHARS) return false;
+  return /^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/]+={0,2}$/.test(value);
+}
+
+function ieSafeImageName(name) {
+  const base = String(name || 'image.jpg').split(/[/\\]/).pop().slice(0, 80);
+  const clean = base.replace(/[^\w.\- ()\u0400-\u04FF]+/g, '_') || 'image';
+  return /\.(jpe?g|png|webp|gif)$/i.test(clean) ? clean : `${clean}.jpg`;
+}
+
+function ieReadTemplateImage(raw) {
+  if (!raw || raw.image == null || raw.image === '') {
+    return { image: '', imageName: '' };
+  }
+  const image = String(raw.image).trim();
+  if (!ieIsSafeTemplateImage(image)) {
+    return { image: '', imageName: '', imageDropped: true };
+  }
+  return { image, imageName: ieSafeImageName(raw.imageName) };
+}
+
+function ieTemplatesForCloud(draftItems) {
+  return draftItems
+    .filter((item) => item && item.selected)
+    .map((item) => ({
+      name: item.name,
+      body: item.body,
+      group: item.group || '',
+      selected: true
+    }));
+}
+
 function ieTodayFileSuffix() {
   const d = new Date();
   const pad = (n) => String(n).padStart(2, '0');
@@ -115,6 +155,10 @@ function ieBuildExportPayload(draftItems, options) {
     };
     if (options.includeGroups && item.group) {
       entry.group = item.group;
+    }
+    if (ieIsSafeTemplateImage(item.image)) {
+      entry.image = item.image;
+      entry.imageName = ieSafeImageName(item.imageName);
     }
     return entry;
   }).filter((t) => t.name && t.body);
@@ -184,6 +228,7 @@ function ieRenderExportList() {
         <div class="ie-row-line">
           <input type="text" class="ie-field ie-name" data-index="${index}" value="${ieEscapeAttr(item.name)}" maxlength="100" placeholder="Название">
           <select class="ie-field ie-group" data-index="${index}">${ieBuildGroupOptions(groups, item.group)}</select>
+          ${ieIsSafeTemplateImage(item.image) ? '<span class="ie-badge">с картинкой</span>' : ''}
         </div>
         <textarea class="ie-field ie-body" data-index="${index}" rows="3" placeholder="Текст шаблона">${ieEscapeTextarea(item.body)}</textarea>
       </div>
@@ -225,7 +270,9 @@ function ieInitExportPanel() {
     selected: true,
     name: t.name,
     group: t.group || '',
-    body: t.body
+    body: t.body,
+    image: ieIsSafeTemplateImage(t.image) ? t.image : '',
+    imageName: ieIsSafeTemplateImage(t.image) ? ieSafeImageName(t.imageName) : ''
   }));
 
   const includeGroups = document.getElementById('exportIncludeGroups');
@@ -256,6 +303,12 @@ function ieHandleExportSubmit() {
       alert(`Шаблон «${t.name}» слишком длинный (макс. ${IE_MAX_BODY_LENGTH} символов)`);
       return;
     }
+  }
+
+  const exportJson = JSON.stringify(payload, null, 2);
+  if (exportJson.length > IE_MAX_FILE_SIZE) {
+    alert(`Файл больше ${ieMaxFileLabel()}: такой объём не импортируется. Снимите часть шаблонов с картинками.`);
+    return;
   }
 
   ieDownloadJson(payload);
@@ -298,12 +351,16 @@ function ieParseImportFile(text) {
     const name = String(t?.name || '').trim();
     const body = String(t?.body ?? '').trim();
     const group = String(t?.group || '').trim();
+    const picture = ieReadTemplateImage(t);
     return {
       index,
       selected: Boolean(name && body),
       name,
       body,
       group,
+      image: picture.image,
+      imageName: picture.imageName,
+      imageDropped: Boolean(picture.imageDropped),
       invalid: !name || !body
     };
   });
@@ -405,6 +462,9 @@ function ieRenderImportList() {
     const duplicate = item.name && existingNames.has(item.name.toLowerCase());
     const invalidNote = item.invalid ? '<span class="ie-badge ie-badge-warn">неполный</span>' : '';
     const dupNote = duplicate ? '<span class="ie-badge">имя уже есть</span>' : '';
+    const imageNote = item.image
+      ? '<span class="ie-badge">с картинкой</span>'
+      : (item.imageDropped ? '<span class="ie-badge ie-badge-warn">картинка не перенесена</span>' : '');
     return `
       <div class="ie-row ${item.invalid ? 'ie-row-invalid' : ''}" data-index="${item.index}">
         <label class="ie-row-check">
@@ -418,7 +478,7 @@ function ieRenderImportList() {
             <select class="ie-field ie-group" data-index="${item.index}" ${item.invalid ? 'disabled' : ''}>
               ${ieBuildGroupOptions(userGroups, item.group)}
             </select>
-            ${invalidNote}${dupNote}
+            ${invalidNote}${dupNote}${imageNote}
           </div>
           <textarea class="ie-field ie-body" data-index="${item.index}" rows="3"
             placeholder="Текст шаблона" ${item.invalid ? 'disabled' : ''}>${ieEscapeTextarea(item.body)}</textarea>
@@ -535,12 +595,17 @@ function ieApplyImport() {
     if (group && !newGroups.includes(group)) {
       newGroups.push(group);
     }
-    newTemplates.push({
+    const record = {
       id: ieApi.generateId(),
       name: t.name.trim(),
       group,
       body: t.body.trim()
-    });
+    };
+    if (ieIsSafeTemplateImage(t.image)) {
+      record.image = t.image;
+      record.imageName = ieSafeImageName(t.imageName);
+    }
+    newTemplates.push(record);
     importedCount += 1;
   });
 
@@ -558,7 +623,9 @@ function ieApplyImport() {
   ieApi.trackEvent('popup_import_done');
 
   const parts = [];
+  const droppedImages = selectedTemplates.filter((t) => t.imageDropped).length;
   if (importedCount) parts.push(`Импортировано шаблонов: ${importedCount}`);
+  if (droppedImages) parts.push(`без картинки: ${droppedImages}`);
   if (applySettings && incomingSettings) parts.push('настройки применены');
 
   if (typeof ieApi.showStatus === 'function') {
@@ -574,7 +641,7 @@ function ieHandleImportFile(file) {
   if (!file) return;
 
   if (file.size > IE_MAX_FILE_SIZE) {
-    alert('Файл слишком большой (максимум 5 МБ)');
+    alert(`Файл слишком большой (максимум ${ieMaxFileLabel()})`);
     ieApi.trackEvent('popup_import_error');
     return;
   }
@@ -778,7 +845,7 @@ function ieParseCloudImportResponse(result) {
 
 async function ieHandleCloudExport() {
   const includeGroups = document.getElementById('exportIncludeGroups')?.checked ?? true;
-  const selected = ieExportDraft.filter((item) => item.selected);
+  const selected = ieTemplatesForCloud(ieExportDraft);
   if (!selected.length) {
     alert('Выберите хотя бы один шаблон');
     return;

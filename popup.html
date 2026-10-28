@@ -461,6 +461,100 @@
       line-height: 1.4;
     }
 
+    .template-has-image {
+      display: inline-flex;
+      margin-left: 6px;
+      color: #3b82f6;
+      vertical-align: -2px;
+    }
+
+    .template-has-image svg,
+    .action-btn svg {
+      width: 16px;
+      height: 16px;
+      display: block;
+    }
+
+    .view-image-btn { color: #3b82f6; }
+    .view-image-btn:hover { background: var(--hover-bg); }
+
+    .template-image-input { display: none; }
+
+    .template-image-hint,
+    .template-image-status {
+      display: block;
+      margin-top: 6px;
+      font-size: calc(11px * var(--font-scale));
+      font-weight: 400;
+      color: var(--text-muted);
+      line-height: 1.35;
+    }
+
+    .template-image-status { margin-top: 0; margin-bottom: 6px; }
+
+    .template-image-set[hidden],
+    #templateImageEmpty[hidden],
+    .template-image-status[hidden],
+    .template-image-preview[hidden] {
+      display: none !important;
+    }
+
+    .template-image-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .template-image-btn {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: calc(12px * var(--font-scale));
+    }
+
+    .template-image-btn:hover { background: var(--hover-bg); }
+    .template-image-btn:disabled { opacity: 0.5; cursor: default; }
+
+    .template-image-btn-danger { color: #b42318; }
+    html.dark-mode .template-image-btn-danger { color: #ffb4ab; }
+
+    .template-image-preview {
+      position: fixed;
+      inset: 0;
+      z-index: 1100;
+      background: rgba(0, 0, 0, 0.72);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 28px 16px 16px;
+    }
+
+    .template-image-preview img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      border-radius: 6px;
+      background: #fff;
+    }
+
+    .template-image-preview-close {
+      position: absolute;
+      top: 6px;
+      right: 8px;
+      width: 32px;
+      height: 32px;
+      border: none;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.92);
+      color: #101828;
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
     /* Модальные окна */
     .modal-overlay {
       position: fixed;
@@ -756,6 +850,35 @@
 
     .layout-advanced.open {
       display: block;
+    }
+
+    .assist-stat-note {
+      margin: -4px 0 8px;
+    }
+
+    .assist-stat-total {
+      margin: 8px 0 2px;
+      font-size: calc(13px * var(--font-scale));
+      font-weight: 600;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .assist-stat-list {
+      margin-top: 0;
+    }
+
+    .assist-chart {
+      position: relative;
+      user-select: none;
+    }
+
+    .assist-chart svg {
+      display: block;
+      width: 100%;
+      height: 148px;
+      overflow: visible;
+      cursor: crosshair;
     }
 
     .layout-more-btn {
@@ -1735,6 +1858,17 @@
           <span class="toggle-slider"></span>
         </label>
       </div>
+
+      <div class="setting-item">
+        <div>
+          <div class="setting-label">Модель коммутатора в ЕПД</div>
+          <div class="setting-description">Клик по модели в техническом учёте открывает статью в ЕБЗ</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="settingEpdSwitchModel" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
       
       <div class="setting-item">
         <div>
@@ -1946,6 +2080,28 @@
 
     <div class="settings-section">
       <div class="settings-title">
+        <img class="section-icon" data-icon="clock" src="" alt="">
+        Форма ассистента
+      </div>
+      <p class="setting-description assist-stat-note">Успешные отправки. Хранится только на этом компьютере, 90 дней.</p>
+      <button type="button" id="toggleAssistantStats" class="layout-more-btn">Статистика отправок ▼</button>
+      <div id="assistantStats" class="layout-advanced">
+        <div class="layout-preset-row">
+          <div class="setting-label">Период</div>
+          <select class="setting-select" id="assistantStatsRange">
+            <option value="3">3 дня</option>
+            <option value="7" selected>7 дней</option>
+            <option value="14">14 дней</option>
+            <option value="30">30 дней</option>
+          </select>
+        </div>
+        <p class="assist-stat-total" id="assistantStatsTotal">За 7 дней: 0</p>
+        <div class="assist-stat-list" id="assistantStatsList"></div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-title">
         <img class="section-icon" data-icon="check-check" src="" alt="">
         Сохраненные данные
       </div>
@@ -2029,6 +2185,22 @@
           <label for="templateText">Текст шаблона</label>
           <textarea id="templateText" required></textarea>
         </div>
+        <div class="form-group">
+          <label>Картинка</label>
+          <div class="template-image-field">
+            <input type="file" id="templateImageInput" class="template-image-input" accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif">
+            <p class="template-image-status" id="templateImageStatus" hidden>Сжимаю картинку…</p>
+            <div id="templateImageEmpty">
+              <button type="button" class="template-image-btn" id="templateImagePick">Добавить картинку</button>
+              <span class="template-image-hint">Вставится в чат вместе с текстом. В списке шаблонов будет только значок.</span>
+            </div>
+            <div class="template-image-actions" id="templateImageSet" hidden>
+              <button type="button" class="template-image-btn" id="templateImageView">Посмотреть</button>
+              <button type="button" class="template-image-btn" id="templateImageReplace">Заменить</button>
+              <button type="button" class="template-image-btn template-image-btn-danger" id="templateImageRemove">Убрать</button>
+            </div>
+          </div>
+        </div>
         <div class="form-actions">
           <button type="button" class="cancel-btn" id="cancelBtn">
             <img class="btn-icon" data-icon="cancel" src="" alt="">
@@ -2067,6 +2239,11 @@
   </div>
 
   <div id="popupResizeGhost" class="popup-resize-ghost" aria-hidden="true"></div>
+
+  <div id="templateImagePreview" class="template-image-preview" hidden>
+    <button type="button" class="template-image-preview-close" id="templateImagePreviewClose" aria-label="Закрыть">×</button>
+    <img id="templateImagePreviewImg" alt="Картинка шаблона">
+  </div>
 
   <script src="popup.js"></script>
   <script src="popup-import-export.js"></script>

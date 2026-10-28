@@ -273,6 +273,67 @@ function setupFioChangeListener() {
   }
 }
 
+// ==================== УСПЕШНЫЕ ОТПРАВКИ ====================
+const ASSISTANT_FORM_SUBMITS_KEY = 'assistantFormSubmits';
+const ASSISTANT_FORM_SUBMIT_KEEP_MS = 90 * 24 * 60 * 60 * 1000;
+const ASSISTANT_CONFIRMATION_SELECTOR = '#wpforms-confirmation-2176, #wpforms-2176 .wpforms-confirmation-container, #wpforms-2176 .wpforms-confirmation-container-full';
+
+let assistantSubmitQueue = Promise.resolve();
+let lastAssistantSubmitAt = 0;
+
+function pruneAssistantFormSubmits(list) {
+  const cutoff = Date.now() - ASSISTANT_FORM_SUBMIT_KEEP_MS;
+  if (!Array.isArray(list)) return [];
+  return list.filter((ts) => typeof ts === 'number' && ts >= cutoff);
+}
+
+function rememberAssistantSubmit(at) {
+  const stamp = typeof at === 'number' ? at : Date.now();
+  assistantSubmitQueue = assistantSubmitQueue.then(() => new Promise((resolve) => {
+    chrome.storage.local.get(ASSISTANT_FORM_SUBMITS_KEY, (result) => {
+      const next = pruneAssistantFormSubmits(result?.[ASSISTANT_FORM_SUBMITS_KEY]);
+      next.push(stamp);
+      chrome.storage.local.set({ [ASSISTANT_FORM_SUBMITS_KEY]: next }, () => resolve());
+    });
+  })).catch((error) => {
+    console.error('[Form] Не удалось записать отправку:', error);
+  });
+}
+
+function noteAssistantSubmitSuccess(node) {
+  if (node?.dataset?.tslCounted === '1') return;
+  if (node?.dataset) node.dataset.tslCounted = '1';
+
+  const now = Date.now();
+  if (now - lastAssistantSubmitAt < 2000) return;
+  lastAssistantSubmitAt = now;
+  rememberAssistantSubmit(now);
+  console.log('[Form] Успешная отправка записана');
+}
+
+function findAssistantConfirmation(node) {
+  if (!node || node.nodeType !== 1) return null;
+  if (node.matches?.(ASSISTANT_CONFIRMATION_SELECTOR)) return node;
+  return node.querySelector?.(ASSISTANT_CONFIRMATION_SELECTOR) || null;
+}
+
+function watchAssistantSubmitSuccess() {
+  document.addEventListener('tsl-assistant-submit-success', () => noteAssistantSubmitSuccess());
+
+  const root = document.documentElement || document.body;
+  if (!root) return;
+
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      mutation.addedNodes.forEach((node) => {
+        const confirmation = findAssistantConfirmation(node);
+        if (confirmation) noteAssistantSubmitSuccess(confirmation);
+      });
+    });
+  });
+  observer.observe(root, { childList: true, subtree: true });
+}
+
 // ==================== ОСНОВНАЯ ФУНКЦИЯ ЗАПОЛНЕНИЯ ====================
 function fillForm() {
   if (isFormFilled) return;
@@ -380,6 +441,8 @@ const observer = new MutationObserver(() => {
 });
 
 // ==================== ЗАПУСК ====================
+watchAssistantSubmitSuccess();
+
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => { init(); });
 } else {
